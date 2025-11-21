@@ -342,11 +342,9 @@ const AppContent: React.FC = () => {
   const { dbConnectionError } = useAuth();
   const location = useLocation();
 
-  // Global Check: If environment variables are missing, show setup screen immediately
-  // This prevents "Invalid login credentials" error caused by fallback to dummy Supabase project
-  const hasEnv = (import.meta as any).env?.VITE_SUPABASE_URL && (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
-  if (!hasEnv) return <EnvSetupScreen />;
-
+  // REMOVED BLOCK: We no longer strict check import.meta.env here because lib/supabase.ts has fallbacks
+  // This allows the app to run even if the .env file hasn't been picked up by Vite restart yet.
+  
   // Global Check: If DB connection has issues (missing tables), show SQL setup
   if (dbConnectionError) return <DatabaseSetupScreen />;
 
