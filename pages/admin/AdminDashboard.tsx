@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import { Shield, Users, Music, Zap, LogOut, LayoutDashboard, Disc, RefreshCw, ExternalLink, Home, Plus, Save, Trash2, Edit, Search, Check, AlertTriangle, Globe, HardDrive, Layers, Mic, RotateCcw, Sun, Moon } from 'lucide-react';
@@ -452,7 +451,7 @@ const MaintenanceConsole: React.FC = () => {
                         <h3 className="font-bold text-lg">Smart Album Clustering</h3>
                     </div>
                     <p className="text-sm text-slate-500 mb-6">
-                        Analyzes the song database. If an artist has multiple songs (>1), this tool automatically creates an album and links them.
+                        Analyzes the song database. If an artist has multiple songs (&gt;1), this tool automatically creates an album and links them.
                     </p>
                     <button 
                          onClick={handleAutoAlbum}
