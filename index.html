@@ -1,0 +1,91 @@
+
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>YourChords | AI Guitar Platform</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              mono: ['JetBrains Mono', 'monospace'],
+            },
+            colors: {
+              background: '#020617', // Slate 950
+              primary: '#3B82F6', // Electric Blue
+              secondary: '#8B5CF6', // Neon Violet
+            },
+            animation: {
+              spotlight: "spotlight 2s ease .75s 1 forwards",
+              shimmer: "shimmer 2s linear infinite",
+            },
+            keyframes: {
+              spotlight: {
+                "0%": { opacity: 0, transform: "translate(-72%, -62%) scale(0.5)" },
+                "100%": { opacity: 1, transform: "translate(-50%, -40%) scale(1)" },
+              },
+              shimmer: {
+                from: { backgroundPosition: "0 0" },
+                to: { backgroundPosition: "-200% 0" },
+              },
+            },
+          },
+        },
+      }
+    </script>
+    <style>
+      /* Custom scrollbar for Cyber-Zen feel */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #1e293b;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #334155;
+      }
+      
+      html.dark body {
+        background-color: #020617;
+        color: #ffffff;
+      }
+      
+      html:not(.dark) body {
+        background-color: #f8fafc;
+        color: #0f172a;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
+    "framer-motion": "https://aistudiocdn.com/framer-motion@^12.23.24",
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.6",
+    "tailwind-merge": "https://aistudiocdn.com/tailwind-merge@^3.4.0",
+    "clsx": "https://aistudiocdn.com/clsx@^2.1.1",
+    "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@^2.84.0",
+    "@google/genai": "https://esm.run/@google/genai"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

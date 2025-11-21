@@ -1,0 +1,7 @@
+{
+  "name": "YourChords",
+  "description": "A futuristic, high-performance guitar chord platform powered by AI.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
