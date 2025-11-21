@@ -191,6 +191,19 @@ create policy "Public Access" on storage.objects for select using ( bucket_id = 
 
 drop policy if exists "Authenticated Upload" on storage.objects;
 create policy "Authenticated Upload" on storage.objects for insert with check ( bucket_id = 'song-files' and auth.role() = 'authenticated' );
+
+-- 10. HELPER FUNCTIONS
+create or replace function increment_view_count(row_id uuid)
+returns void
+language plpgsql
+security definer
+as $$
+begin
+  update public.songs
+  set view_count = view_count + 1
+  where id = row_id;
+end;
+$$;
 `;
 
   const copyToClipboard = () => {

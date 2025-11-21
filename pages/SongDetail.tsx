@@ -39,11 +39,14 @@ export default function SongDetail() {
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) { setError("Invalid ID Format."); setLoading(false); return; }
 
       try {
-        supabase.rpc('increment_view_count', { row_id: id }).catch(() => {
-            supabase.from('songs').select('view_count').eq('id', id).single()
-            .then(({ data }) => {
-                if (data) supabase.from('songs').update({ view_count: data.view_count + 1 }).eq('id', id);
-            });
+        supabase.rpc('increment_view_count', { row_id: id }).then(({ error }) => {
+            if (error) {
+                // Fallback if RPC missing
+                supabase.from('songs').select('view_count').eq('id', id).single()
+                .then(({ data }) => {
+                    if (data) supabase.from('songs').update({ view_count: data.view_count + 1 }).eq('id', id);
+                });
+            }
         });
 
         const { data, error } = await supabase.from('songs').select('*').eq('id', id).single();
@@ -89,9 +92,14 @@ export default function SongDetail() {
   };
 
   const effectiveTranspose = transposeSteps - capoFret;
-  const uniqueChords = Array.from(new Set(
-    song?.chords?.flatMap(line => line.chords?.map(c => transposeChord(c, effectiveTranspose)) || []) || []
-  )).filter((chordName: unknown) => typeof chordName === 'string' && chordName.trim() !== '');
+  
+  // Safe calculation of unique chords
+  const uniqueChords = React.useMemo(() => {
+    if (!song?.chords) return [];
+    const allChords = song.chords.flatMap((line: any) => line.chords || []);
+    const transposed = allChords.map((c: string) => transposeChord(c, effectiveTranspose));
+    return Array.from(new Set(transposed)).filter((c) => typeof c === 'string' && c.trim() !== '');
+  }, [song, effectiveTranspose]);
 
   if (loading) return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center gap-4">
