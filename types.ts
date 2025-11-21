@@ -16,7 +16,8 @@ export interface Song {
   spotify_track_id: string | null;
   youtube_video_id: string | null;
   view_count: number;
-  album_id?: string; // Optional link to album
+  album_id?: string;
+  file_path?: string | null; // For user uploaded files
 }
 
 export interface Album {

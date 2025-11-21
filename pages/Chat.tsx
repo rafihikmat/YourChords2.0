@@ -15,36 +15,40 @@ interface Message {
   groundingUrls?: Array<{uri: string, title: string}>;
 }
 
-const modes: Record<ChatMode, { name: string; icon: React.ReactNode; description: string; model: string }> = {
+const modes: Record<ChatMode, { name: string; icon: React.ReactNode; description: string; model: string; systemInstruction: string }> = {
   turbo: {
     name: 'Turbo',
     icon: <Zap className="w-4 h-4 text-yellow-400" />,
     description: 'Fast responses (Flash Lite)',
-    model: 'gemini-2.5-flash-lite-latest'
+    model: 'gemini-2.5-flash-lite-latest',
+    systemInstruction: 'You are a helpful music assistant. Keep answers short and concise.'
   },
   guru: {
-    name: 'Guru',
+    name: 'Theory Guru',
     icon: <Bot className="w-4 h-4 text-primary" />,
-    description: 'Expert music theory (Pro)',
-    model: 'gemini-3-pro-preview'
+    description: 'Music Theory & Harmony Expert',
+    model: 'gemini-3-pro-preview',
+    systemInstruction: 'You are a world-class Music Theory Expert and Composer. You specialize in explaining harmony, scales, modes, chord progressions, and compositional techniques. Provide detailed, educational answers. When explaining chords, visualize the intervals. Use ASCII representation for musical staves or fretboards if helpful.'
   },
   thinking: {
     name: 'Deep Thought',
     icon: <BrainCircuit className="w-4 h-4 text-purple-400" />,
     description: 'Complex analysis (Reasoning)',
-    model: 'gemini-3-pro-preview' // Will add thinking config
+    model: 'gemini-3-pro-preview',
+    systemInstruction: 'You are a deep reasoning engine for complex musical analysis.'
   },
   researcher: {
     name: 'Researcher',
     icon: <Globe className="w-4 h-4 text-green-400" />,
     description: 'Live data (Grounding)',
-    model: 'gemini-2.5-flash'
+    model: 'gemini-2.5-flash',
+    systemInstruction: 'You are a music researcher with access to live web data.'
   }
 };
 
 const ChatPage: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
-    { id: '1', role: 'model', text: "Greetings. I am your AI Music Architect. How can I assist your creative process today?" }
+    { id: '1', role: 'model', text: "Greetings. I am your AI Music Architect. Select 'Theory Guru' for questions about scales, modes, and harmony." }
   ]);
   const [input, setInput] = useState('');
   const [mode, setMode] = useState<ChatMode>('guru');
@@ -76,10 +80,10 @@ const ChatPage: React.FC = () => {
 
     try {
       // Configure the AI based on mode
-      const modelName = modes[mode].model;
+      const currentMode = modes[mode];
       
       let config: any = {
-        systemInstruction: "You are an expert music theorist, historian, and guitar virtuoso. Keep answers concise but insightful.",
+        systemInstruction: currentMode.systemInstruction,
       };
 
       if (mode === 'thinking') {
@@ -97,7 +101,7 @@ const ChatPage: React.FC = () => {
       // Initialize chat if needed or if mode changed
       if (!chatSessionRef.current) {
         chatSessionRef.current = ai.chats.create({
-          model: modelName,
+          model: currentMode.model,
           config: config
         });
       }
@@ -161,17 +165,17 @@ const ChatPage: React.FC = () => {
                 <div className="p-2 bg-primary/10 rounded-lg"><Bot className="w-6 h-6 text-primary" /></div>
                 <div>
                     <h2 className="font-bold text-slate-900 dark:text-white">Neural Chat</h2>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">Powered by Gemini 3 Pro</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Ask the {modes[mode].name}</p>
                 </div>
             </div>
             
-            <div className="flex bg-slate-200 dark:bg-slate-800 p-1 rounded-lg">
+            <div className="flex bg-slate-200 dark:bg-slate-800 p-1 rounded-lg overflow-x-auto max-w-full">
                 {(Object.keys(modes) as ChatMode[]).map((m) => (
                     <button
                         key={m}
                         onClick={() => setMode(m)}
                         className={cn(
-                            "flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+                            "flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all whitespace-nowrap",
                             mode === m 
                                 ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm" 
                                 : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
@@ -201,7 +205,7 @@ const ChatPage: React.FC = () => {
                             ? "bg-primary text-white rounded-tr-none" 
                             : "bg-white dark:bg-slate-800/80 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-white/5 rounded-tl-none"
                     )}>
-                        <div className="whitespace-pre-wrap">{msg.text}</div>
+                        <div className="whitespace-pre-wrap font-mono text-xs md:text-sm">{msg.text}</div>
                         {msg.groundingUrls && msg.groundingUrls.length > 0 && (
                             <div className="mt-3 pt-3 border-t border-white/10">
                                 <p className="text-xs font-semibold mb-1 opacity-70 flex items-center gap-1"><Globe className="w-3 h-3" /> Sources:</p>
@@ -237,7 +241,7 @@ const ChatPage: React.FC = () => {
                     type="text"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder={mode === 'researcher' ? "Ask about recent music events..." : "Ask about chords, theory, or songwriting..."}
+                    placeholder={mode === 'guru' ? "Ask about the Circle of Fifths, modal interchange, or chord extensions..." : "Type your message..."}
                     className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl py-3 pl-4 pr-12 text-sm text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all shadow-inner"
                 />
                 <button 
@@ -250,7 +254,7 @@ const ChatPage: React.FC = () => {
             </form>
             <div className="text-center mt-2">
                 <span className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">
-                    Current Model: <span className="text-primary">{modes[mode].model}</span>
+                    Using: <span className="text-primary">{modes[mode].name}</span> ({modes[mode].model})
                 </span>
             </div>
         </div>
