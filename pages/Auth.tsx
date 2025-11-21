@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'framer-motion';
 import { Music, Mail, Lock, ArrowRight, Loader2, AlertTriangle, ArrowLeft } from 'lucide-react';
 import { DOT_GRID_SVG, cn } from '../lib/utils';
@@ -13,7 +14,16 @@ const Auth: React.FC = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
+
+  // Auto-redirect if user is already logged in (e.g. returning from Facebook)
+  useEffect(() => {
+    if (!authLoading && user) {
+        navigate('/');
+    }
+  }, [user, authLoading, navigate]);
 
   // Detect errors returned in URL hash (Common with OAuth failures)
   useEffect(() => {
@@ -45,7 +55,7 @@ const Auth: React.FC = () => {
           password,
         });
         if (error) throw error;
-        navigate('/');
+        // Navigation handled by useEffect above
       } else {
         // Sign Up Logic
         const { data, error } = await supabase.auth.signUp({
@@ -60,7 +70,7 @@ const Auth: React.FC = () => {
 
         // Check if session was created immediately (Email Confirmation Disabled)
         if (data.session) {
-            navigate('/');
+            // Navigation handled by useEffect
         } else {
             // Email Confirmation Enabled
             alert('Registration successful! Please check your email for verification link.');

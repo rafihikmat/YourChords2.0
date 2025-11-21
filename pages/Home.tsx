@@ -1,9 +1,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, Mic, Music2, Sparkles, Zap, Disc, Youtube, Filter } from 'lucide-react';
+import { ArrowRight, Music2, Zap, Disc, Youtube } from 'lucide-react';
 import { Spotlight } from '../components/ui/Spotlight';
-import { BentoGrid, BentoGridItem } from '../components/ui/BentoGrid';
 import { DOT_GRID_SVG, cn } from '../lib/utils';
 import SongCard from '../components/ui/SongCard';
 import { Song, Album, VideoTutorial } from '../types';
@@ -87,37 +86,6 @@ const Home: React.FC = () => {
           setFilteredSongs(songs.filter(s => s.difficulty === difficultyFilter));
       }
   }, [difficultyFilter, songs]);
-
-  const features = [
-    {
-      title: "AI-Powered Transcription",
-      description: "Convert any song lyrics into accurate chords instantly using Gemini 2.5 Flash.",
-      header: <div className="flex flex-1 w-full h-full min-h-[6rem] rounded-xl bg-gradient-to-br from-neutral-900 to-neutral-800 border border-white/5" />,
-      icon: <Sparkles className="h-4 w-4 text-neutral-500" />,
-      className: "md:col-span-2",
-    },
-    {
-      title: "Interactive Tablature",
-      description: "View tablature synced with YouTube video tutorials.",
-      header: <div className="flex flex-1 w-full h-full min-h-[6rem] rounded-xl bg-gradient-to-br from-neutral-900 to-neutral-800 border border-white/5" />,
-      icon: <Music2 className="h-4 w-4 text-neutral-500" />,
-      className: "md:col-span-1",
-    },
-    {
-      title: "Voice Command",
-      description: "Control autoscroll and playback hands-free while you play.",
-      header: <div className="flex flex-1 w-full h-full min-h-[6rem] rounded-xl bg-gradient-to-br from-neutral-900 to-neutral-800 border border-white/5" />,
-      icon: <Mic className="h-4 w-4 text-neutral-500" />,
-      className: "md:col-span-1",
-    },
-    {
-      title: "Instant Transpose",
-      description: "Change keys in real-time with zero latency.",
-      header: <div className="flex flex-1 w-full h-full min-h-[6rem] rounded-xl bg-gradient-to-br from-neutral-900 to-neutral-800 border border-white/5" />,
-      icon: <Zap className="h-4 w-4 text-neutral-500" />,
-      className: "md:col-span-2",
-    },
-  ];
 
   // Use dynamic content or fallback defaults
   const heroTitle = pageContent?.hero_title || "Master your chords in Hyperspeed.";
@@ -235,7 +203,7 @@ const Home: React.FC = () => {
       </div>
 
       {/* Video Tutorials */}
-      <div id="tutorials" className="relative z-10 px-6 py-16 max-w-7xl mx-auto w-full">
+      <div id="tutorials" className="relative z-10 px-6 py-16 max-w-7xl mx-auto w-full mb-10">
         <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-8 flex items-center gap-2">
             <Youtube className="w-5 h-5 text-red-500" /> Popular Tutorials
         </h3>
@@ -257,22 +225,6 @@ const Home: React.FC = () => {
                 </div>
             ))}
         </div>
-      </div>
-
-      {/* Features Grid */}
-      <div className="relative z-10 px-4 py-20">
-        <BentoGrid className="max-w-4xl mx-auto">
-          {features.map((item, i) => (
-            <BentoGridItem
-              key={i}
-              title={item.title}
-              description={item.description}
-              header={item.header}
-              icon={item.icon}
-              className={item.className}
-            />
-          ))}
-        </BentoGrid>
       </div>
     </div>
   );

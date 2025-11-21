@@ -219,8 +219,8 @@ const SongDetail: React.FC = () => {
   // Collect Unique Chords for Diagrams
   const uniqueChords = Array.from(new Set(
     song?.chords?.flatMap(line => line.chords?.map(c => transposeChord(c, transposeSteps)) || []) || []
-  )).filter(chordName => {
-      return chordName && chordName.trim() !== '';
+  )).filter((chordName: unknown) => {
+      return typeof chordName === 'string' && chordName.trim() !== '';
   });
 
   if (loading) return <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center"><div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full"></div></div>;
