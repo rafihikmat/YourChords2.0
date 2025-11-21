@@ -77,6 +77,19 @@
         background-color: #f8fafc;
         color: #0f172a;
       }
+
+      @media print {
+        .no-print { display: none !important; }
+        .print-only { display: block !important; }
+        body { background: white !important; color: black !important; }
+        html { background: white !important; color: black !important; }
+        
+        /* Ensure text wraps and looks good on paper */
+        pre, code { 
+            white-space: pre-wrap; 
+            word-wrap: break-word; 
+        }
+      }
     </style>
   <script type="importmap">
 {

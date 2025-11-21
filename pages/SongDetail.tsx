@@ -3,7 +3,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase, supabaseUrl } from '../lib/supabase';
 import { Song } from '../types';
-import { Play, Pause, User, Music, ArrowLeft, FileText, Sliders, Minus, Plus, Type, Mic2, Book, Gauge, Clock, FastForward, X } from 'lucide-react';
+import { Play, Pause, User, Music, ArrowLeft, FileText, Sliders, Minus, Plus, Type, Mic2, Book, Gauge, Clock, FastForward, X, Anchor, Printer } from 'lucide-react';
 import { DOT_GRID_SVG, cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import TablatureView from '../components/TablatureView';
@@ -60,6 +60,7 @@ const SongDetail: React.FC = () => {
   const [isWidgetHovered, setIsWidgetHovered] = useState(false);
   
   const [transposeSteps, setTransposeSteps] = useState(0);
+  const [capoFret, setCapoFret] = useState(0);
   const [fontSize, setFontSize] = useState(16); // px
   const [isMetronomeOn, setIsMetronomeOn] = useState(false);
   const [bpm, setBpm] = useState(120);
@@ -216,9 +217,16 @@ const SongDetail: React.FC = () => {
     if (!isAutoScrolling && !isScrollMenuOpen) setIsScrollMenuOpen(true);
   };
 
+  const handlePrint = () => {
+      window.print();
+  };
+
   // Collect Unique Chords for Diagrams
+  // Effective transpose = User Transpose - Capo Fret (Visually shifting down to match capo up)
+  const effectiveTranspose = transposeSteps - capoFret;
+  
   const uniqueChords = Array.from(new Set(
-    song?.chords?.flatMap(line => line.chords?.map(c => transposeChord(c, transposeSteps)) || []) || []
+    song?.chords?.flatMap(line => line.chords?.map(c => transposeChord(c, effectiveTranspose)) || []) || []
   )).filter((chordName: unknown) => {
       return typeof chordName === 'string' && chordName.trim() !== '';
   });
@@ -236,15 +244,15 @@ const SongDetail: React.FC = () => {
   const speedPresets = [0.5, 1.0, 1.5, 2.0, 3.0];
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white pt-20 pb-40 relative transition-colors duration-300">
-       <div className="absolute inset-0 pointer-events-none z-0 opacity-30 fixed" style={{ backgroundImage: `url('data:image/svg+xml;utf8,${encodeURIComponent(DOT_GRID_SVG)}')`, backgroundSize: '20px 20px' }} />
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white pt-20 pb-40 relative transition-colors duration-300 print:bg-white print:text-black print:pt-0 print:pb-0">
+       <div className="absolute inset-0 pointer-events-none z-0 opacity-30 fixed no-print" style={{ backgroundImage: `url('data:image/svg+xml;utf8,${encodeURIComponent(DOT_GRID_SVG)}')`, backgroundSize: '20px 20px' }} />
       
       {/* Fixed Compact Header */}
       <AnimatePresence>
         {isHeaderCompact && (
           <motion.div 
             initial={{ y: -100 }} animate={{ y: 0 }} exit={{ y: -100 }}
-            className="fixed top-0 left-0 right-0 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md z-40 border-b border-slate-200 dark:border-white/10 shadow-sm h-16 flex items-center px-6 justify-between"
+            className="fixed top-0 left-0 right-0 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md z-40 border-b border-slate-200 dark:border-white/10 shadow-sm h-16 flex items-center px-6 justify-between no-print"
           >
              <div className="flex items-center gap-4">
                 <Link to="/" className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400"><ArrowLeft className="w-5 h-5" /></Link>
@@ -263,7 +271,7 @@ const SongDetail: React.FC = () => {
       {/* SOPHISTICATED BOTTOM-RIGHT AUTO SCROLL WIDGET */}
       <AnimatePresence>
           <motion.div 
-            className="fixed bottom-8 right-8 z-50 flex flex-col items-end gap-3"
+            className="fixed bottom-8 right-8 z-50 flex flex-col items-end gap-3 no-print"
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ 
                 scale: 1,
@@ -344,13 +352,13 @@ const SongDetail: React.FC = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
         {!isHeaderCompact && (
-          <Link to="/" className="inline-flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 hover:text-primary mb-8 transition-colors group">
+          <Link to="/" className="inline-flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 hover:text-primary mb-8 transition-colors group no-print">
               <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Back to Library
           </Link>
         )}
 
         {/* Top Toolbar (Simplified) */}
-        <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="mb-8 grid grid-cols-1 md:grid-cols-4 gap-4 no-print">
              {/* Transpose */}
              <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-white/10 flex items-center justify-between shadow-sm">
                 <span className="text-xs font-bold uppercase text-slate-500 flex items-center gap-2"><Music className="w-4 h-4" /> Transpose</span>
@@ -358,6 +366,16 @@ const SongDetail: React.FC = () => {
                     <button onClick={() => setTransposeSteps(p => Math.max(p - 1, -11))} className="p-2 hover:bg-white dark:hover:bg-slate-700 rounded-md transition-all text-slate-500 dark:text-white"><Minus className="w-4 h-4" /></button>
                     <span className="font-mono font-bold w-8 text-center">{transposeSteps > 0 ? '+' + transposeSteps : transposeSteps}</span>
                     <button onClick={() => setTransposeSteps(p => Math.min(p + 1, 11))} className="p-2 hover:bg-white dark:hover:bg-slate-700 rounded-md transition-all text-slate-500 dark:text-white"><Plus className="w-4 h-4" /></button>
+                </div>
+             </div>
+
+             {/* Smart Capo */}
+             <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-white/10 flex items-center justify-between shadow-sm">
+                <span className="text-xs font-bold uppercase text-slate-500 flex items-center gap-2"><Anchor className="w-4 h-4" /> Capo</span>
+                <div className="flex items-center gap-3 bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
+                    <button onClick={() => setCapoFret(p => Math.max(p - 1, 0))} className="p-2 hover:bg-white dark:hover:bg-slate-700 rounded-md transition-all text-slate-500 dark:text-white"><Minus className="w-4 h-4" /></button>
+                    <span className="font-mono font-bold w-8 text-center">{capoFret === 0 ? '-' : capoFret}</span>
+                    <button onClick={() => setCapoFret(p => Math.min(p + 1, 12))} className="p-2 hover:bg-white dark:hover:bg-slate-700 rounded-md transition-all text-slate-500 dark:text-white"><Plus className="w-4 h-4" /></button>
                 </div>
              </div>
 
@@ -370,32 +388,43 @@ const SongDetail: React.FC = () => {
                     <button onClick={() => setFontSize(p => Math.min(p + 2, 32))} className="p-2 hover:bg-white dark:hover:bg-slate-700 rounded-md transition-all text-slate-500 dark:text-white"><Plus className="w-4 h-4" /></button>
                 </div>
              </div>
+
+             {/* Export */}
+             <button onClick={handlePrint} className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-white/10 flex items-center justify-center gap-3 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors font-bold text-slate-700 dark:text-white group">
+                 <Printer className="w-5 h-5 text-slate-400 group-hover:text-primary transition-colors" /> Export PDF
+             </button>
         </div>
 
         {/* Song Title Section */}
-        <div className="mb-12">
+        <div className="mb-12 print:mb-6">
             <div className="flex flex-wrap items-center gap-3 mb-4">
                 <span className={cn("px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide border", difficultyColors[song.difficulty] || "bg-slate-700")}>{song.difficulty}</span>
-                <div className="flex items-center gap-1.5 bg-slate-200 dark:bg-white/10 px-3 py-1 rounded-full">
+                <div className="flex items-center gap-1.5 bg-slate-200 dark:bg-white/10 px-3 py-1 rounded-full no-print">
                      <Mic2 className="w-3 h-3" />
                      <span className="text-xs font-bold">{bpm} BPM</span>
                 </div>
+                {capoFret > 0 && (
+                    <div className="flex items-center gap-1.5 bg-blue-500/10 text-blue-500 border border-blue-500/20 px-3 py-1 rounded-full">
+                        <Anchor className="w-3 h-3" />
+                        <span className="text-xs font-bold">Capo {capoFret}</span>
+                    </div>
+                )}
             </div>
-            <h1 className="text-4xl md:text-6xl font-black tracking-tight mb-3 text-slate-900 dark:text-white">{song.title}</h1>
-            <div className="flex items-center gap-2 text-xl text-slate-600 dark:text-slate-400 mb-8 font-medium"><User className="w-5 h-5" /> {song.artist}</div>
+            <h1 className="text-4xl md:text-6xl font-black tracking-tight mb-3 text-slate-900 dark:text-white print:text-black">{song.title}</h1>
+            <div className="flex items-center gap-2 text-xl text-slate-600 dark:text-slate-400 mb-8 font-medium print:text-slate-700"><User className="w-5 h-5" /> {song.artist}</div>
         </div>
 
         {/* Main Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
             <div className="lg:col-span-2 space-y-10">
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="relative group">
-                    <div className="relative bg-white/80 dark:bg-[#0A0F1C]/90 backdrop-blur-xl rounded-2xl border border-slate-200 dark:border-white/10 p-6 md:p-10 shadow-xl">
-                        <div className="flex items-center justify-between mb-8 border-b border-slate-200 dark:border-white/5 pb-6">
+                    <div className="relative bg-white/80 dark:bg-[#0A0F1C]/90 backdrop-blur-xl rounded-2xl border border-slate-200 dark:border-white/10 p-6 md:p-10 shadow-xl print:shadow-none print:border-none print:p-0">
+                        <div className="flex items-center justify-between mb-8 border-b border-slate-200 dark:border-white/5 pb-6 print:hidden">
                             <h2 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-3"><Music className="w-6 h-6 text-primary" /> Chords & Lyrics</h2>
                         </div>
 
                         {song.file_path && (
-                             <div className="mb-8 p-4 rounded-xl bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-500/20 flex items-center justify-between">
+                             <div className="mb-8 p-4 rounded-xl bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-500/20 flex items-center justify-between no-print">
                                 <div className="flex items-center gap-3">
                                     <FileText className="w-5 h-5 text-blue-600" />
                                     <div><div className="text-sm font-bold text-blue-600 dark:text-blue-400">Original File Available</div></div>
@@ -404,15 +433,15 @@ const SongDetail: React.FC = () => {
                              </div>
                         )}
                         
-                        <div className="space-y-8 font-mono selection:bg-primary/30" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: `${fontSize}px` }}>
+                        <div className="space-y-8 font-mono selection:bg-primary/30 print:text-black" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: `${fontSize}px` }}>
                             {song.chords && Array.isArray(song.chords) ? song.chords.map((section: any, idx: number) => (
-                                <div key={idx} className="relative mb-8 group/line">
-                                    <div className="min-h-[1.6em] mb-1.5 flex flex-wrap gap-x-4 font-bold select-none text-primary dark:text-[#60A5FA]">
+                                <div key={idx} className="relative mb-8 group/line break-inside-avoid">
+                                    <div className="min-h-[1.6em] mb-1.5 flex flex-wrap gap-x-4 font-bold select-none text-primary dark:text-[#60A5FA] print:text-black print:font-extrabold">
                                         {section.chords?.length > 0 ? section.chords.map((chord: string, cIdx: number) => (
-                                            <span key={cIdx} className="cursor-pointer hover:scale-110 transition-transform inline-block">{transposeChord(chord, transposeSteps)}</span>
+                                            <span key={cIdx} className="cursor-pointer hover:scale-110 transition-transform inline-block">{transposeChord(chord, effectiveTranspose)}</span>
                                         )) : <span className="opacity-0">.</span>}
                                     </div>
-                                    <div className="text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-wrap">{section.line || " "}</div>
+                                    <div className="text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-wrap print:text-gray-800">{section.line || " "}</div>
                                 </div>
                             )) : <div className="text-slate-500 italic text-center">No chord chart available.</div>}
                         </div>
@@ -421,13 +450,13 @@ const SongDetail: React.FC = () => {
 
                 {/* Related Chords / Diagrams */}
                 {uniqueChords.length > 0 && (
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 p-8 shadow-xl">
-                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
-                             <Book className="w-5 h-5 text-primary" /> Chords Used
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 p-8 shadow-xl break-inside-avoid print:border print:shadow-none print:bg-white">
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2 print:text-black">
+                             <Book className="w-5 h-5 text-primary print:text-black" /> Chords Used
                         </h3>
                         <div className="flex flex-wrap gap-6 justify-center">
                             {uniqueChords.map(chord => (
-                                <div key={chord} className="flex flex-col items-center p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-white/5 rounded-xl">
+                                <div key={chord} className="flex flex-col items-center p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-white/5 rounded-xl print:border-slate-300 print:bg-white">
                                      <ChordDiagram name={chord} />
                                 </div>
                             ))}
@@ -435,11 +464,11 @@ const SongDetail: React.FC = () => {
                     </div>
                 )}
 
-                {song.tablature && <TablatureView tabs={song.tablature} />}
+                {song.tablature && <div className="no-print"><TablatureView tabs={song.tablature} /></div>}
             </div>
 
             {/* Sidebar */}
-            <div className="space-y-8">
+            <div className="space-y-8 no-print">
                 <div className="sticky top-24 space-y-8">
                     {song.spotify_track_id && (
                         <iframe src={`https://open.spotify.com/embed/track/${song.spotify_track_id}?theme=0`} width="100%" height="152" frameBorder="0" allow="encrypted-media" className="rounded-xl shadow-lg"></iframe>

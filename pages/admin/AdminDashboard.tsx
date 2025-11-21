@@ -1,12 +1,24 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Shield, Users, Music, Zap, LogOut, LayoutDashboard, Disc, RefreshCw, ExternalLink, Home, Plus, Save, Trash2, Edit, Search, Check, AlertTriangle, Globe, HardDrive, Layers, Mic, RotateCcw, Sun, Moon } from 'lucide-react';
+import { Shield, Users, Music, Zap, LogOut, LayoutDashboard, Disc, RefreshCw, ExternalLink, Home, Plus, Save, Trash2, Edit, Search, Check, AlertTriangle, Globe, HardDrive, Layers, Mic, RotateCcw, Sun, Moon, Youtube, ToggleLeft, ToggleRight, FileText, LayoutTemplate, Grid } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { Profile, Song, Album, VideoTutorial } from '../../types';
 import AIChordForm from '../../components/AIChordForm';
-import SmartSyncEditor from './SmartSyncEditor';
+
+// --- Constants for Chord Picker ---
+const CHORD_FAMILIES: Record<string, string[]> = {
+    'Major': ['C', 'D', 'E', 'F', 'G', 'A', 'B'],
+    'Minor': ['Cm', 'Dm', 'Em', 'Fm', 'Gm', 'Am', 'Bm'],
+    '7th': ['C7', 'D7', 'E7', 'F7', 'G7', 'A7', 'B7'],
+    'Maj7': ['Cmaj7', 'Dmaj7', 'Emaj7', 'Fmaj7', 'Gmaj7', 'Amaj7', 'Bmaj7'],
+    'Min7': ['Cm7', 'Dm7', 'Em7', 'Fm7', 'Gm7', 'Am7', 'Bm7'],
+    'Sus': ['Csus4', 'Dsus4', 'Esus4', 'Fsus4', 'Gsus4', 'Asus4', 'Bsus4'],
+    'Dim/Aug': ['Cdim', 'Caug', 'Ddim', 'Daug', 'Edim', 'Eaug'],
+    'Slash': ['C/G', 'D/F#', 'G/B', 'Am/G', 'F/C']
+};
 
 // --- Helper: Chord Parser for Manual Entry ---
 const parseChordsFromText = (text: string) => {
@@ -34,9 +46,10 @@ const AdminSidebar: React.FC<{ open: boolean }> = ({ open }) => {
 
     const menuItems = [
         { icon: <LayoutDashboard size={20} />, label: 'Overview', path: '/admin', permission: 'admin' },
-        { icon: <Mic size={20} />, label: 'Smart Sync', path: '/admin/smart-sync', permission: 'admin' },
+        // Removed Smart Sync
         { icon: <Globe size={20} />, label: 'Page Content', path: '/admin/cms', permission: 'admin' },
         { icon: <Music size={20} />, label: 'Song Manager', path: '/admin/songs', permission: 'admin' },
+        { icon: <Edit size={20} />, label: 'Manual Entry', path: '/admin/manual-entry', permission: 'admin' },
         { icon: <Disc size={20} />, label: 'Asset Manager', path: '/admin/assets', permission: 'admin' },
         { icon: <Zap size={20} />, label: 'AI Generator', path: '/admin/ai-create', permission: 'admin' },
         { icon: <RefreshCw size={20} />, label: 'System Maint.', path: '/admin/cache', permission: 'super_admin' },
@@ -50,7 +63,7 @@ const AdminSidebar: React.FC<{ open: boolean }> = ({ open }) => {
 
     return (
         <div className={cn(
-            "fixed left-0 top-0 h-screen border-r transition-all duration-300 z-50 flex flex-col bg-white dark:bg-slate-950 border-slate-200 dark:border-white/10",
+            "fixed left-0 top-0 h-screen border-r transition-all duration-300 z-50 flex flex-col bg-white dark:bg-slate-950 border-slate-200 dark:border-white/10 no-print",
             open ? "w-64" : "w-20"
         )}>
             <div className="p-6 flex items-center gap-3 border-b border-slate-200 dark:border-white/10 h-20">
@@ -220,37 +233,36 @@ const RoleManager: React.FC = () => {
 const ContentManager: React.FC = () => {
     const [pages, setPages] = useState<{id: string, content: any}[]>([]);
     const [selectedPage, setSelectedPage] = useState<string>('home');
-    const [editContent, setEditContent] = useState<string>('');
-    const [isValidJson, setIsValidJson] = useState(true);
+    const [editContent, setEditContent] = useState<any>({});
+    const [viewMode, setViewMode] = useState<'visual' | 'json'>('visual');
+    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         fetchContent();
     }, []);
 
     const fetchContent = async () => {
+        setLoading(true);
         const { data } = await supabase.from('page_content').select('*');
         if (data) {
             setPages(data);
             const current = data.find(p => p.id === selectedPage);
-            if (current) setEditContent(JSON.stringify(current.content, null, 2));
+            if (current) setEditContent(current.content);
         }
+        setLoading(false);
     };
 
-    const validateJson = (val: string) => {
-        try {
-            JSON.parse(val);
-            setIsValidJson(true);
-        } catch (e) {
-            setIsValidJson(false);
-        }
+    const handlePageSelect = (pageId: string) => {
+        setSelectedPage(pageId);
+        const p = pages.find(x => x.id === pageId);
+        setEditContent(p ? p.content : {});
     };
 
     const handleSave = async () => {
         try {
-            const json = JSON.parse(editContent);
             const { error } = await supabase
                 .from('page_content')
-                .upsert({ id: selectedPage, content: json, updated_at: new Date().toISOString() });
+                .upsert({ id: selectedPage, content: editContent, updated_at: new Date().toISOString() });
             
             if (error) throw error;
             alert('Content updated successfully! Changes are live.');
@@ -260,28 +272,44 @@ const ContentManager: React.FC = () => {
         }
     };
 
+    const updateField = (key: string, value: string) => {
+        setEditContent((prev: any) => ({ ...prev, [key]: value }));
+    };
+
     return (
         <div className="p-8 animate-in fade-in">
-             <div className="mb-8">
-                <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Content Management System</h1>
-                <p className="text-slate-500">Edit text and settings for public pages.</p>
+             <div className="mb-8 flex justify-between items-end">
+                <div>
+                    <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Content Management</h1>
+                    <p className="text-slate-500">Edit website copy and configuration.</p>
+                </div>
+                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+                    <button 
+                        onClick={() => setViewMode('visual')}
+                        className={cn("px-4 py-2 rounded-md text-xs font-bold flex items-center gap-2", viewMode === 'visual' ? "bg-white dark:bg-slate-600 shadow text-primary dark:text-white" : "text-slate-500")}
+                    >
+                        <LayoutTemplate className="w-4 h-4" /> Visual
+                    </button>
+                    <button 
+                        onClick={() => setViewMode('json')}
+                        className={cn("px-4 py-2 rounded-md text-xs font-bold flex items-center gap-2", viewMode === 'json' ? "bg-white dark:bg-slate-600 shadow text-primary dark:text-white" : "text-slate-500")}
+                    >
+                        <FileText className="w-4 h-4" /> JSON
+                    </button>
+                </div>
             </div>
 
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl overflow-hidden flex flex-col md:flex-row min-h-[500px] shadow-sm">
                 {/* Sidebar */}
                 <div className="w-full md:w-64 bg-slate-50 dark:bg-slate-950/50 border-r border-slate-200 dark:border-white/10 p-4">
-                    <h3 className="text-xs font-bold uppercase text-slate-500 mb-4">Pages</h3>
+                    <h3 className="text-xs font-bold uppercase text-slate-500 mb-4">Select Page</h3>
                     <div className="space-y-2">
                         {['home', 'about'].map(page => (
                             <button 
                                 key={page}
-                                onClick={() => {
-                                    setSelectedPage(page);
-                                    const p = pages.find(x => x.id === page);
-                                    setEditContent(p ? JSON.stringify(p.content, null, 2) : '{}');
-                                }}
+                                onClick={() => handlePageSelect(page)}
                                 className={cn(
-                                    "w-full text-left px-4 py-2 rounded-lg text-sm font-medium capitalize",
+                                    "w-full text-left px-4 py-2 rounded-lg text-sm font-medium capitalize transition-all",
                                     selectedPage === page ? "bg-white dark:bg-slate-800 text-primary shadow border border-slate-200 dark:border-transparent" : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
                                 )}
                             >
@@ -292,35 +320,84 @@ const ContentManager: React.FC = () => {
                 </div>
 
                 {/* Editor */}
-                <div className="flex-1 p-6 flex flex-col">
-                    <div className="flex justify-between items-center mb-4">
+                <div className="flex-1 p-8 flex flex-col bg-slate-50/50 dark:bg-slate-900/50">
+                    <div className="flex justify-between items-center mb-6">
                         <div className="text-sm font-mono text-slate-500">Editing: <span className="text-primary font-bold uppercase">{selectedPage}</span></div>
                         <button 
                             onClick={handleSave} 
-                            disabled={!isValidJson}
-                            className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 transition-colors shadow-lg shadow-green-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
                         >
                             <Save className="w-4 h-4" /> Save Changes
                         </button>
                     </div>
-                    <textarea 
-                        value={editContent}
-                        onChange={e => {
-                            setEditContent(e.target.value);
-                            validateJson(e.target.value);
-                        }}
-                        className={cn(
-                            "flex-1 w-full bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-green-400 font-mono text-sm p-4 rounded-xl border focus:ring-1 focus:ring-primary outline-none resize-none shadow-inner",
-                            isValidJson ? "border-slate-200 dark:border-slate-800 focus:border-primary" : "border-red-500 focus:border-red-500 text-red-500 dark:text-red-400"
-                        )}
-                        spellCheck={false}
-                    />
-                    <div className="flex justify-between items-center mt-2">
-                         <p className="text-xs text-slate-500">
-                            * Edit the JSON values directly. Use strict JSON format.
-                        </p>
-                        {!isValidJson && <span className="text-xs text-red-500 font-bold flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Invalid JSON</span>}
-                    </div>
+
+                    {viewMode === 'visual' ? (
+                        <div className="space-y-6 max-w-2xl">
+                            {selectedPage === 'home' && (
+                                <>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold uppercase text-slate-500">Hero Title</label>
+                                        <input 
+                                            value={editContent.hero_title || ''} 
+                                            onChange={(e) => updateField('hero_title', e.target.value)}
+                                            className="w-full p-3 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 outline-none font-bold text-lg"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold uppercase text-slate-500">Hero Subtitle</label>
+                                        <textarea 
+                                            value={editContent.hero_subtitle || ''} 
+                                            onChange={(e) => updateField('hero_subtitle', e.target.value)}
+                                            rows={4}
+                                            className="w-full p-3 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 outline-none resize-none"
+                                        />
+                                    </div>
+                                </>
+                            )}
+                            {selectedPage === 'about' && (
+                                <>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold uppercase text-slate-500">Page Title</label>
+                                        <input 
+                                            value={editContent.title || ''} 
+                                            onChange={(e) => updateField('title', e.target.value)}
+                                            className="w-full p-3 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 outline-none font-bold text-lg"
+                                        />
+                                    </div>
+                                     <div className="space-y-2">
+                                        <label className="text-xs font-bold uppercase text-slate-500">Description</label>
+                                        <textarea 
+                                            value={editContent.description || ''} 
+                                            onChange={(e) => updateField('description', e.target.value)}
+                                            rows={6}
+                                            className="w-full p-3 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 outline-none resize-none"
+                                        />
+                                    </div>
+                                </>
+                            )}
+                             {/* Fallback for other props */}
+                             <div className="pt-4 border-t border-slate-200 dark:border-white/10">
+                                 <p className="text-xs text-slate-500 mb-2">Other Properties (JSON)</p>
+                                 <pre className="text-xs bg-slate-100 dark:bg-slate-950 p-4 rounded-lg text-slate-600 dark:text-slate-400 overflow-auto">
+                                     {JSON.stringify(editContent, null, 2)}
+                                 </pre>
+                             </div>
+                        </div>
+                    ) : (
+                        <textarea 
+                            value={JSON.stringify(editContent, null, 2)}
+                            onChange={e => {
+                                try {
+                                    const parsed = JSON.parse(e.target.value);
+                                    setEditContent(parsed);
+                                } catch(err) {
+                                    // keep typing
+                                }
+                            }}
+                            className="flex-1 w-full bg-slate-900 text-green-400 font-mono text-sm p-4 rounded-xl border border-slate-800 focus:border-primary outline-none resize-none"
+                            spellCheck={false}
+                        />
+                    )}
                 </div>
             </div>
         </div>
@@ -661,8 +738,8 @@ const AssetManager: React.FC = () => {
     };
 
     const fetchVideos = async () => {
-         const { data } = await supabase.from('video_tutorials').select('*');
-         if (data && data.length > 0) setVideos(data as any);
+         const { data } = await supabase.from('video_tutorials').select('*').order('created_at', { ascending: false });
+         if (data) setVideos(data as any);
     };
 
     const handleCreateAlbum = async (e: React.FormEvent) => {
@@ -703,8 +780,15 @@ const AssetManager: React.FC = () => {
     };
 
     const handleUpdateVideoTitle = async (id: string, newTitle: string) => {
+        // Optimistic UI
         setVideos(videos.map(v => v.video_id === id ? { ...v, title: newTitle } : v));
         await supabase.from('video_tutorials').update({ title: newTitle }).eq('video_id', id);
+    };
+
+    const toggleVideoActive = async (id: string, currentState: boolean) => {
+        const newState = !currentState;
+        setVideos(videos.map(v => v.video_id === id ? { ...v, is_active: newState } as any : v));
+        await supabase.from('video_tutorials').update({ is_active: newState }).eq('video_id', id);
     };
 
     return (
@@ -787,26 +871,56 @@ const AssetManager: React.FC = () => {
 
                      <div className="space-y-4">
                          {videos.map((video, idx) => (
-                             <div key={idx} className="flex items-start gap-4 p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                                 <img src={video.thumbnail_url} alt="thumb" className="w-32 h-20 object-cover rounded-lg bg-slate-200" />
+                             <div key={idx} className="flex items-center gap-4 p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                                 <div className="w-32 h-20 shrink-0 relative rounded-lg overflow-hidden">
+                                    <img src={video.thumbnail_url} alt="thumb" className={cn("w-full h-full object-cover transition-opacity", (video as any).is_active === false ? "opacity-50 grayscale" : "")} />
+                                 </div>
+                                 
                                  <div className="flex-1">
-                                     <label className="text-xs text-slate-500 uppercase font-bold">Editable Title</label>
+                                     <label className="text-xs text-slate-500 uppercase font-bold mb-1 block">Video Title</label>
                                      <div className="flex gap-2 items-center">
                                          <input 
                                             value={video.title} 
                                             onChange={(e) => handleUpdateVideoTitle(video.video_id, e.target.value)} 
                                             className="flex-1 bg-transparent border-b border-slate-300 dark:border-white/10 focus:border-primary outline-none font-bold text-slate-900 dark:text-white p-1"
                                          />
-                                         <Save className="w-4 h-4 text-slate-400 cursor-pointer hover:text-primary" />
+                                         <span title="Auto-saves on change">
+                                            <Save className="w-4 h-4 text-slate-400 cursor-pointer hover:text-primary" />
+                                         </span>
                                      </div>
                                      <p className="text-xs text-slate-500 mt-1">ID: {video.video_id} • {video.channel_title}</p>
                                  </div>
-                                 <button 
-                                    onClick={() => handleDeleteVideo(video.video_id)}
-                                    className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
+
+                                 <div className="flex items-center gap-4">
+                                     <div className="flex flex-col items-center gap-1">
+                                         <span className="text-[10px] text-slate-500 uppercase font-bold">Status</span>
+                                         <button 
+                                            onClick={() => toggleVideoActive(video.video_id, (video as any).is_active)}
+                                            className={cn(
+                                                "flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold transition-colors",
+                                                (video as any).is_active !== false 
+                                                    ? "bg-cyan-500/10 text-cyan-500 border border-cyan-500/20" 
+                                                    : "bg-slate-200 dark:bg-slate-800 text-slate-500 border border-slate-300 dark:border-slate-700"
+                                            )}
+                                         >
+                                             {(video as any).is_active !== false ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+                                             {(video as any).is_active !== false ? "Active" : "Hidden"}
+                                         </button>
+                                     </div>
+                                     
+                                     <div className="h-8 w-px bg-slate-200 dark:bg-white/10"></div>
+
+                                     <div className="flex flex-col items-center gap-1">
+                                         <span className="text-[10px] text-slate-500 uppercase font-bold">Action</span>
+                                        <button 
+                                            onClick={() => handleDeleteVideo(video.video_id)}
+                                            className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded border border-transparent hover:border-red-500/20 transition-all"
+                                            title="Delete Permanently"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                     </div>
+                                 </div>
                              </div>
                          ))}
                      </div>
@@ -820,24 +934,24 @@ const ManualEntry: React.FC = () => {
     const location = useLocation();
     const state = location.state as { songToEdit?: Song } | null;
     const [formData, setFormData] = useState({
-        id: '', // Used for editing
+        id: '', 
         title: '',
         artist: '',
         difficulty: 'Medium',
-        spotify_url: '',
-        youtube_url: '',
+        spotify_id: '', // Track ID, not URL
+        youtube_id: '', // Video ID, not URL
         rawText: ''
     });
     const [loading, setLoading] = useState(false);
+    const [chordCategory, setChordCategory] = useState('Major');
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     useEffect(() => {
-        // Pre-fill if editing
         if (state?.songToEdit) {
             const s = state.songToEdit;
             let raw = '';
             if (s.chords) {
                 raw = s.chords.map((line: any) => {
-                    // Very basic reconstruction
                     if (line.line.startsWith('[')) return `\n${line.line}\n`;
                     return `${line.line}`;
                 }).join('\n');
@@ -848,8 +962,8 @@ const ManualEntry: React.FC = () => {
                 title: s.title,
                 artist: s.artist,
                 difficulty: s.difficulty,
-                spotify_url: s.spotify_track_id ? `https://open.spotify.com/track/${s.spotify_track_id}` : '',
-                youtube_url: s.youtube_video_id ? `https://www.youtube.com/watch?v=${s.youtube_video_id}` : '',
+                spotify_id: s.spotify_track_id || '',
+                youtube_id: s.youtube_video_id || '',
                 rawText: raw || ''
             });
         }
@@ -861,27 +975,21 @@ const ManualEntry: React.FC = () => {
 
         const parsedChords = parseChordsFromText(formData.rawText);
 
-        // Extract IDs from URLs
-        const spotifyId = formData.spotify_url.split('track/')[1]?.split('?')[0] || null;
-        const youtubeId = formData.youtube_url.split('v=')[1]?.split('&')[0] || null;
-
         const payload = {
             title: formData.title,
             artist: formData.artist,
             difficulty: formData.difficulty,
-            spotify_track_id: spotifyId,
-            youtube_video_id: youtubeId,
+            spotify_track_id: formData.spotify_id,
+            youtube_video_id: formData.youtube_id,
             chords: parsedChords,
         };
 
         let error;
         
         if (formData.id) {
-            // Update existing
             const { error: updateError } = await supabase.from('songs').update(payload).eq('id', formData.id);
             error = updateError;
         } else {
-            // Insert new
             const { error: insertError } = await supabase.from('songs').insert([{ ...payload, view_count: 0 }]);
             error = insertError;
         }
@@ -890,7 +998,26 @@ const ManualEntry: React.FC = () => {
         if (error) alert('Error: ' + error.message);
         else {
             alert(formData.id ? 'Song updated!' : 'Song added successfully!');
-            if (!formData.id) setFormData({ id: '', title: '', artist: '', difficulty: 'Medium', spotify_url: '', youtube_url: '', rawText: '' });
+            if (!formData.id) setFormData({ id: '', title: '', artist: '', difficulty: 'Medium', spotify_id: '', youtube_id: '', rawText: '' });
+        }
+    };
+
+    const insertAtCursor = (text: string) => {
+        if (textareaRef.current) {
+            const start = textareaRef.current.selectionStart;
+            const end = textareaRef.current.selectionEnd;
+            const currentText = formData.rawText;
+            const newText = currentText.substring(0, start) + text + currentText.substring(end);
+            setFormData({ ...formData, rawText: newText });
+            
+            // Restore focus and cursor
+            setTimeout(() => {
+                if (textareaRef.current) {
+                    textareaRef.current.focus();
+                    textareaRef.current.selectionStart = start + text.length;
+                    textareaRef.current.selectionEnd = start + text.length;
+                }
+            }, 0);
         }
     };
 
@@ -899,49 +1026,96 @@ const ManualEntry: React.FC = () => {
             <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-8">{formData.id ? 'Edit Song' : 'Manual Song Entry'}</h1>
             
             <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-1 space-y-6">
-                     <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-white/10 space-y-4 shadow-sm">
-                        <h3 className="font-bold text-slate-900 dark:text-white">Metadata</h3>
-                        <div>
-                            <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Title</label>
-                            <input required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full p-2 rounded border bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white" />
+                <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-6 bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-white/10 shadow-sm">
+                    <div>
+                        <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Title</label>
+                        <input required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} placeholder="Song title" className="w-full p-2.5 rounded-lg border bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:ring-1 focus:ring-primary outline-none" />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Artist</label>
+                        <input required value={formData.artist} onChange={e => setFormData({...formData, artist: e.target.value})} placeholder="Artist name" className="w-full p-2.5 rounded-lg border bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:ring-1 focus:ring-primary outline-none" />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Difficulty</label>
+                        <select value={formData.difficulty} onChange={e => setFormData({...formData, difficulty: e.target.value})} className="w-full p-2.5 rounded-lg border bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:ring-1 focus:ring-primary outline-none">
+                            <option>Easy</option>
+                            <option>Medium</option>
+                            <option>Hard</option>
+                            <option>Expert</option>
+                        </select>
+                    </div>
+                     <div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Spotify Track ID</label>
+                                <input value={formData.spotify_id} onChange={e => setFormData({...formData, spotify_id: e.target.value})} placeholder="Optional" className="w-full p-2.5 rounded-lg border bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:ring-1 focus:ring-primary outline-none" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold uppercase text-slate-500 mb-1">YouTube Video ID</label>
+                                <input value={formData.youtube_id} onChange={e => setFormData({...formData, youtube_id: e.target.value})} placeholder="Optional" className="w-full p-2.5 rounded-lg border bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:ring-1 focus:ring-primary outline-none" />
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Artist</label>
-                            <input required value={formData.artist} onChange={e => setFormData({...formData, artist: e.target.value})} className="w-full p-2 rounded border bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white" />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Difficulty</label>
-                            <select value={formData.difficulty} onChange={e => setFormData({...formData, difficulty: e.target.value})} className="w-full p-2 rounded border bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white">
-                                <option>Easy</option>
-                                <option>Medium</option>
-                                <option>Hard</option>
-                                <option>Expert</option>
-                            </select>
-                        </div>
-                        <div>
-                             <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Spotify URL</label>
-                             <input value={formData.spotify_url} onChange={e => setFormData({...formData, spotify_url: e.target.value})} className="w-full p-2 rounded border bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white" placeholder="https://open.spotify.com/..." />
-                        </div>
-                        <div>
-                             <label className="block text-xs font-bold uppercase text-slate-500 mb-1">YouTube URL</label>
-                             <input value={formData.youtube_url} onChange={e => setFormData({...formData, youtube_url: e.target.value})} className="w-full p-2 rounded border bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white" placeholder="https://youtube.com/..." />
-                        </div>
-                     </div>
+                    </div>
                 </div>
 
-                <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-white/10 h-full flex flex-col shadow-sm">
-                        <h3 className="font-bold text-slate-900 dark:text-white mb-2">Lyrics & Chords</h3>
-                        <p className="text-xs text-slate-500 mb-4">Enter lyrics line by line. Use [Chorus] for headers.</p>
-                        <textarea 
-                            required 
-                            value={formData.rawText} 
-                            onChange={e => setFormData({...formData, rawText: e.target.value})} 
-                            className="flex-1 w-full p-4 rounded border bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-white/10 font-mono text-sm text-slate-900 dark:text-slate-300 min-h-[400px]" 
-                            placeholder="[Verse 1]&#10;I'm walking down the street..."
-                        />
+                <div className="lg:col-span-3 space-y-4">
+                     {/* Toolbar */}
+                     <div className="flex items-center justify-between bg-slate-100 dark:bg-slate-800 p-2 rounded-t-xl border-b border-slate-200 dark:border-white/10">
+                        <div className="flex items-center gap-2 text-xs font-bold text-slate-500 px-2">
+                            <Music className="w-4 h-4" /> Chords & Lyrics Editor
+                        </div>
+                        <div className="flex items-center gap-2">
+                             <button type="button" className="flex items-center gap-1 text-xs font-bold px-3 py-1.5 bg-white dark:bg-slate-700 rounded hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors shadow-sm border border-slate-200 dark:border-transparent text-slate-700 dark:text-white">
+                                 <Zap className="w-3 h-3 text-yellow-500" /> Format with AI
+                             </button>
+                        </div>
+                     </div>
+                    
+                    {/* Quick Insert Panel */}
+                    <div className="bg-slate-900 p-4 rounded-xl border border-white/10 shadow-inner">
+                        <div className="flex items-center justify-between mb-4">
+                             <h3 className="text-cyan-400 font-bold text-sm flex items-center gap-2"><Grid className="w-4 h-4" /> Quick Insert Chords</h3>
+                             <div className="flex gap-1 bg-slate-800 p-1 rounded-lg">
+                                 {Object.keys(CHORD_FAMILIES).slice(0, 6).map(fam => (
+                                     <button 
+                                        type="button"
+                                        key={fam}
+                                        onClick={() => setChordCategory(fam)}
+                                        className={cn(
+                                            "px-2 py-1 rounded text-[10px] font-bold uppercase transition-colors",
+                                            chordCategory === fam ? "bg-cyan-500 text-slate-900" : "text-slate-400 hover:text-white"
+                                        )}
+                                    >
+                                        {fam}
+                                    </button>
+                                 ))}
+                             </div>
+                        </div>
+                        <div className="grid grid-cols-7 gap-2">
+                             {CHORD_FAMILIES[chordCategory]?.map(chord => (
+                                 <button
+                                    type="button"
+                                    key={chord}
+                                    onClick={() => insertAtCursor(chord + ' ')}
+                                    className="bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold py-2 rounded border border-white/5 transition-all active:scale-95"
+                                >
+                                    {chord}
+                                </button>
+                             ))}
+                        </div>
+                        <div className="text-center mt-2 text-[10px] text-slate-500">
+                            <span className="text-yellow-500">Tip:</span> Click any chord to insert at cursor position.
+                        </div>
                     </div>
+
+                    <textarea 
+                        ref={textareaRef}
+                        required 
+                        value={formData.rawText} 
+                        onChange={e => setFormData({...formData, rawText: e.target.value})} 
+                        className="w-full p-6 rounded-b-xl border border-t-0 bg-white dark:bg-slate-950 border-slate-200 dark:border-white/10 font-mono text-sm text-slate-900 dark:text-slate-300 min-h-[500px] focus:ring-0 outline-none leading-relaxed" 
+                        placeholder="Type lyrics and click chord buttons to insert, or use format: [C]Lyrics here [G]more lyrics..."
+                    />
                 </div>
 
                 <div className="lg:col-span-3 flex justify-end">
@@ -960,7 +1134,6 @@ const AdminDashboard: React.FC = () => {
   const [isDark, setIsDark] = useState(true);
 
   useEffect(() => {
-     // Sync initial state
      setIsDark(document.documentElement.classList.contains('dark'));
   }, []);
 
@@ -981,7 +1154,7 @@ const AdminDashboard: React.FC = () => {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex font-sans text-slate-900 dark:text-white transition-colors duration-300">
       <AdminSidebar open={sidebarOpen} />
       <div className={cn("flex-1 transition-all duration-300", sidebarOpen ? "ml-64" : "ml-20")}>
-        <header className="h-16 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-200 dark:border-white/10 sticky top-0 z-40 px-8 flex items-center justify-between shadow-sm">
+        <header className="h-16 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-200 dark:border-white/10 sticky top-0 z-40 px-8 flex items-center justify-between shadow-sm no-print">
            <div className="flex items-center gap-4">
                 <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg text-slate-500 dark:text-slate-400">
                     <LayoutDashboard className="w-5 h-5" />
@@ -1008,7 +1181,6 @@ const AdminDashboard: React.FC = () => {
                 <Route path="cms" element={<ContentManager />} />
                 <Route path="songs" element={<SongManager />} />
                 <Route path="manual-entry" element={<ManualEntry />} />
-                <Route path="smart-sync" element={<SmartSyncEditor />} />
                 <Route path="assets" element={<AssetManager />} />
                 <Route path="ai-create" element={<div className="p-8"><h2 className="text-2xl font-bold mb-6">AI Song Generator</h2><AIChordForm /></div>} />
                 <Route path="cache" element={<MaintenanceConsole />} />
