@@ -1,12 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Shield, Users, Music, Zap, Database, LogOut, LayoutDashboard, Disc, Youtube, RefreshCw, ExternalLink, Home, Plus, Save, Trash2, Edit, Search, Check, AlertTriangle, FileText, Crown, Terminal, Globe, PenTool, Sun, Moon } from 'lucide-react';
+import { Shield, Users, Music, Zap, Database, LogOut, LayoutDashboard, Disc, Youtube, RefreshCw, ExternalLink, Home, Plus, Save, Trash2, Edit, Search, Check, AlertTriangle, FileText, Crown, Terminal, Globe, PenTool, Sun, Moon, Mic } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { Profile, Song, Album, VideoTutorial } from '../../types';
 import AIChordForm from '../../components/AIChordForm';
+import SmartSyncEditor from './SmartSyncEditor';
 
 // --- Helper: Chord Parser for Manual Entry ---
 const parseChordsFromText = (text: string) => {
@@ -34,6 +35,7 @@ const AdminSidebar: React.FC<{ open: boolean }> = ({ open }) => {
 
     const menuItems = [
         { icon: <LayoutDashboard size={20} />, label: 'Overview', path: '/admin', permission: 'admin' },
+        { icon: <Mic size={20} />, label: 'Smart Sync', path: '/admin/smart-sync', permission: 'admin' },
         { icon: <Globe size={20} />, label: 'Page Content', path: '/admin/cms', permission: 'admin' },
         { icon: <Music size={20} />, label: 'Song Manager', path: '/admin/songs', permission: 'admin' },
         { icon: <FileText size={20} />, label: 'Manual Entry', path: '/admin/manual-entry', permission: 'admin' },
@@ -718,6 +720,7 @@ const AdminDashboard: React.FC = () => {
                 <Route path="cms" element={<ContentManager />} />
                 <Route path="songs" element={<SongManager />} />
                 <Route path="manual-entry" element={<ManualEntry />} />
+                <Route path="smart-sync" element={<SmartSyncEditor />} />
                 <Route path="assets" element={<AssetManager />} />
                 <Route path="ai-create" element={<div className="p-8"><h2 className="text-2xl font-bold mb-6">AI Song Generator</h2><AIChordForm /></div>} />
                 <Route path="cache" element={<div className="p-8 text-center text-slate-500">System Cache & Maintenance (Coming Soon)</div>} />

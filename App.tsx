@@ -87,11 +87,10 @@ API_KEY=your-google-gemini-api-key`;
 
 // --- SQL Setup Component ---
 const DatabaseSetupScreen: React.FC = () => {
-  const sqlCode = `
--- 1. Extensions
+  const sqlCode = `-- Enable UUID extension
 create extension if not exists "uuid-ossp";
 
--- 2. PROFILES
+-- 1. PROFILES
 create table if not exists public.profiles (
   id uuid references auth.users on delete cascade not null primary key,
   full_name text,
@@ -100,32 +99,14 @@ create table if not exists public.profiles (
   updated_at timestamp with time zone,
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
+
+-- RLS for Profiles
 alter table public.profiles enable row level security;
 create policy "Public profiles are viewable by everyone." on public.profiles for select using (true);
 create policy "Users can insert their own profile." on public.profiles for insert with check (auth.uid() = id);
 create policy "Users can update own profile." on public.profiles for update using (auth.uid() = id);
 
--- 3. SONGS
-create table if not exists public.songs (
-  id uuid default gen_random_uuid() primary key,
-  title text not null,
-  artist text not null,
-  chords jsonb,
-  tablature jsonb,
-  difficulty text,
-  spotify_track_id text,
-  youtube_video_id text,
-  file_path text,
-  view_count int default 0,
-  created_at timestamp with time zone default timezone('utc'::text, now())
-);
-alter table public.songs enable row level security;
-create policy "Songs are viewable by everyone" on public.songs for select using (true);
-create policy "Authenticated users can insert songs" on public.songs for insert with check (auth.role() = 'authenticated');
-create policy "Admins can update songs" on public.songs for update using (exists (select 1 from public.profiles where id = auth.uid() and role in ('admin', 'super_admin')));
-create policy "Admins can delete songs" on public.songs for delete using (exists (select 1 from public.profiles where id = auth.uid() and role in ('admin', 'super_admin')));
-
--- 4. ALBUMS
+-- 2. ALBUMS
 create table if not exists public.albums (
   id uuid default gen_random_uuid() primary key,
   title text not null,
@@ -134,12 +115,43 @@ create table if not exists public.albums (
   release_date date,
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
+
+-- RLS for Albums
 alter table public.albums enable row level security;
 create policy "Albums are viewable by everyone" on public.albums for select using (true);
-create policy "Admins can insert albums" on public.albums for insert with check (exists (select 1 from public.profiles where id = auth.uid() and role in ('admin', 'super_admin')));
-create policy "Admins can delete albums" on public.albums for delete using (exists (select 1 from public.profiles where id = auth.uid() and role in ('admin', 'super_admin')));
+create policy "Admins can manage albums" on public.albums for all using (
+  exists (select 1 from public.profiles where id = auth.uid() and role in ('admin', 'super_admin'))
+);
 
--- 5. VIDEO TUTORIALS
+-- 3. SONGS
+create table if not exists public.songs (
+  id uuid default gen_random_uuid() primary key,
+  title text not null,
+  artist text not null,
+  chords jsonb, 
+  tablature jsonb,
+  difficulty text check (difficulty in ('Easy', 'Medium', 'Hard', 'Expert')),
+  spotify_track_id text,
+  youtube_video_id text,
+  file_path text, 
+  view_count int default 0,
+  album_id uuid references public.albums(id) on delete set null,
+  created_at timestamp with time zone default timezone('utc'::text, now()),
+  updated_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+-- RLS for Songs
+alter table public.songs enable row level security;
+create policy "Songs are viewable by everyone" on public.songs for select using (true);
+create policy "Authenticated users can upload songs" on public.songs for insert with check (auth.role() = 'authenticated');
+create policy "Admins can update songs" on public.songs for update using (
+  exists (select 1 from public.profiles where id = auth.uid() and role in ('admin', 'super_admin'))
+);
+create policy "Admins can delete songs" on public.songs for delete using (
+  exists (select 1 from public.profiles where id = auth.uid() and role in ('admin', 'super_admin'))
+);
+
+-- 4. VIDEO TUTORIALS
 create table if not exists public.video_tutorials (
   id uuid default gen_random_uuid() primary key,
   video_id text not null,
@@ -149,39 +161,47 @@ create table if not exists public.video_tutorials (
   is_active boolean default true,
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
+
+-- RLS for Videos
 alter table public.video_tutorials enable row level security;
 create policy "Videos are viewable by everyone" on public.video_tutorials for select using (true);
-create policy "Admins can manage videos" on public.video_tutorials for all using (exists (select 1 from public.profiles where id = auth.uid() and role in ('admin', 'super_admin')));
+create policy "Admins can manage videos" on public.video_tutorials for all using (
+  exists (select 1 from public.profiles where id = auth.uid() and role in ('admin', 'super_admin'))
+);
 
--- 6. PAGE CONTENT (CMS)
+-- 5. PAGE CONTENT (CMS)
 create table if not exists public.page_content (
-  id text primary key, -- 'home', 'about'
+  id text primary key,
   content jsonb not null,
   updated_at timestamp with time zone default timezone('utc'::text, now())
 );
+
+-- RLS for CMS
 alter table public.page_content enable row level security;
 create policy "Content viewable by everyone" on public.page_content for select using (true);
-create policy "Admins can update content" on public.page_content for all using (exists (select 1 from public.profiles where id = auth.uid() and role in ('admin', 'super_admin')));
+create policy "Admins can update content" on public.page_content for all using (
+  exists (select 1 from public.profiles where id = auth.uid() and role in ('admin', 'super_admin'))
+);
 
--- Insert Default Content
 insert into public.page_content (id, content) values 
 ('home', '{"hero_title": "Master your chords in Hyperspeed.", "hero_subtitle": "The most advanced guitar platform for the modern musician."}'),
 ('about', '{"title": "About YourChords", "description": "Built for the future of music learning."}')
 on conflict (id) do nothing;
 
--- 7. FAVORITES
+-- 6. SONG FAVORITES
 create table if not exists public.song_favorites (
   user_id uuid references auth.users on delete cascade not null,
   song_id uuid references public.songs on delete cascade not null,
   created_at timestamp with time zone default timezone('utc'::text, now()),
   primary key (user_id, song_id)
 );
+
 alter table public.song_favorites enable row level security;
 create policy "Users can view own favorites" on public.song_favorites for select using (auth.uid() = user_id);
 create policy "Users can add favorites" on public.song_favorites for insert with check (auth.uid() = user_id);
 create policy "Users can remove favorites" on public.song_favorites for delete using (auth.uid() = user_id);
 
--- 8. RATINGS
+-- 7. SONG RATINGS
 create table if not exists public.song_ratings (
   user_id uuid references auth.users on delete cascade not null,
   song_id uuid references public.songs on delete cascade not null,
@@ -189,16 +209,12 @@ create table if not exists public.song_ratings (
   created_at timestamp with time zone default timezone('utc'::text, now()),
   primary key (user_id, song_id)
 );
+
 alter table public.song_ratings enable row level security;
 create policy "Ratings are viewable by everyone" on public.song_ratings for select using (true);
-create policy "Users can add/update own ratings" on public.song_ratings for all using (auth.uid() = user_id);
+create policy "Users can manage own ratings" on public.song_ratings for all using (auth.uid() = user_id);
 
--- 9. STORAGE
-insert into storage.buckets (id, name, public) values ('song-files', 'song-files', true) on conflict do nothing;
-create policy "Public Access" on storage.objects for select using ( bucket_id = 'song-files' );
-create policy "Authenticated Upload" on storage.objects for insert with check ( bucket_id = 'song-files' and auth.role() = 'authenticated' );
-
--- 10. TRIGGERS
+-- 8. TRIGGER FOR NEW USERS
 create or replace function public.handle_new_user() 
 returns trigger as $$
 begin
@@ -212,6 +228,14 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
+
+-- 9. STORAGE BUCKETS
+insert into storage.buckets (id, name, public) 
+values ('song-files', 'song-files', true) 
+on conflict (id) do nothing;
+
+create policy "Public Access" on storage.objects for select using ( bucket_id = 'song-files' );
+create policy "Authenticated Upload" on storage.objects for insert with check ( bucket_id = 'song-files' and auth.role() = 'authenticated' );
 `;
 
   const copyToClipboard = () => {
