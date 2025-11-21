@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, Music2, Zap, Disc } from 'lucide-react';
+import { ArrowRight, Music2, Zap, Disc, SearchX } from 'lucide-react';
 import { Spotlight } from '../components/ui/Spotlight';
 import { DOT_GRID_SVG, cn } from '../lib/utils';
 import SongCard from '../components/ui/SongCard';
@@ -17,33 +17,32 @@ const Home: React.FC = () => {
   const [difficultyFilter, setDifficultyFilter] = useState<string>('All');
   const [pageContent, setPageContent] = useState<any>(null);
 
-  const fallbackSongs: Song[] = [
-    { id: '11111111-1111-1111-1111-111111111111', title: 'Neon Blade', artist: 'MoonDeity', chords: [], tablature: {}, difficulty: 'Expert', spotify_track_id: '123', youtube_video_id: '456', view_count: 125000 },
-    { id: '22222222-2222-2222-2222-222222222222', title: 'After Dark', artist: 'Mr. Kitty', chords: [], tablature: {}, difficulty: 'Medium', spotify_track_id: '124', youtube_video_id: '457', view_count: 89000 },
-    { id: '33333333-3333-3333-3333-333333333333', title: 'Nightcall', artist: 'Kavinsky', chords: [], tablature: {}, difficulty: 'Easy', spotify_track_id: '125', youtube_video_id: '458', view_count: 45000 },
-  ];
-
-  const fallbackAlbums: Album[] = [
-      { id: 'a1', title: 'Random Access Memories', artist: 'Daft Punk', cover_url: 'https://upload.wikimedia.org/wikipedia/en/a/a7/Random_Access_Memories.jpg' },
-      { id: 'a2', title: 'The Dark Side of the Moon', artist: 'Pink Floyd', cover_url: 'https://upload.wikimedia.org/wikipedia/en/3/3b/Dark_Side_of_the_Moon.png' },
-  ];
-
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // 1. Content
         const { data: cmsData } = await supabase.from('page_content').select('content').eq('id', 'home').single();
         if (cmsData) setPageContent(cmsData.content);
 
+        // 2. Songs (Production Data Only)
         const { data, error } = await supabase.from('songs').select('*').order('view_count', { ascending: false }).limit(12);
-        setSongs((error || !data || data.length === 0) ? fallbackSongs : data as unknown as Song[]);
-        setFilteredSongs((error || !data || data.length === 0) ? fallbackSongs : data as unknown as Song[]);
+        
+        if (!error && data) {
+            const safeData = data as unknown as Song[];
+            setSongs(safeData);
+            setFilteredSongs(safeData);
+        } else {
+            setSongs([]);
+            setFilteredSongs([]);
+        }
 
+        // 3. Albums
         const { data: albumData } = await supabase.from('albums').select('*').limit(4);
-        setAlbums((!albumData || albumData.length === 0) ? fallbackAlbums : albumData as any);
+        if (albumData) setAlbums(albumData as any);
+
       } catch (err) {
-        setSongs(fallbackSongs);
-        setFilteredSongs(fallbackSongs);
-        setAlbums(fallbackAlbums);
+        console.error("Data load failed", err);
+        setSongs([]);
       } finally {
         setIsLoadingSongs(false);
       }
@@ -86,7 +85,7 @@ const Home: React.FC = () => {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
                 </span>
-                v2.0 is live with Gemini AI
+                v2.0 System Online
             </div>
 
             <h1 className="text-4xl md:text-7xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-slate-900 to-slate-500 dark:from-neutral-50 dark:to-neutral-400 tracking-tight mb-6" dangerouslySetInnerHTML={{__html: heroTitle.replace('Hyperspeed', '<span class="text-primary">Hyperspeed</span>')}}>
@@ -132,19 +131,20 @@ const Home: React.FC = () => {
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 min-h-[300px]">
-            {filteredSongs.length > 0 ? (
+            {isLoadingSongs ? (
+                [1, 2, 3, 4, 5, 6].map(n => (
+                    <div key={n} className="h-48 rounded-2xl bg-slate-200 dark:bg-white/5 animate-pulse"></div>
+                ))
+            ) : filteredSongs.length > 0 ? (
                 filteredSongs.slice(0, 6).map(song => (
                     <SongCard key={song.id} song={song} />
                 ))
             ) : (
-                <div className="col-span-3 text-center py-12 text-slate-500">
-                    No songs found for this difficulty.
+                <div className="col-span-3 flex flex-col items-center justify-center py-20 text-slate-500 bg-slate-100/50 dark:bg-white/5 rounded-3xl border border-dashed border-slate-300 dark:border-white/10">
+                    <SearchX className="w-12 h-12 mb-4 opacity-50" />
+                    <p className="font-medium">No songs found in the database.</p>
+                    <p className="text-sm opacity-70">Be the first to add a song using the AI Generator.</p>
                 </div>
-            )}
-            {isLoadingSongs && songs.length === 0 && (
-                [1, 2, 3].map(n => (
-                    <div key={n} className="h-48 rounded-2xl bg-slate-200 dark:bg-white/5 animate-pulse"></div>
-                ))
             )}
         </div>
       </div>
@@ -155,24 +155,30 @@ const Home: React.FC = () => {
             <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-8 flex items-center gap-2">
                 <Disc className="w-5 h-5 text-primary" /> Featured Albums
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                {albums.map(album => (
-                    <div key={album.id} className="group cursor-pointer">
-                        <div className="aspect-square rounded-xl overflow-hidden bg-slate-200 dark:bg-slate-800 mb-3 shadow-lg border border-slate-200 dark:border-white/10 relative">
-                            <img src={album.cover_url} alt={album.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                <Music2 className="w-8 h-8 text-white" />
+            {albums.length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    {albums.map(album => (
+                        <div key={album.id} className="group cursor-pointer">
+                            <div className="aspect-square rounded-xl overflow-hidden bg-slate-200 dark:bg-slate-800 mb-3 shadow-lg border border-slate-200 dark:border-white/10 relative">
+                                <img src={album.cover_url} alt={album.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <Music2 className="w-8 h-8 text-white" />
+                                </div>
                             </div>
+                            <h4 className="font-bold text-slate-900 dark:text-white truncate">{album.title}</h4>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 truncate">{album.artist}</p>
                         </div>
-                        <h4 className="font-bold text-slate-900 dark:text-white truncate">{album.title}</h4>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 truncate">{album.artist}</p>
-                    </div>
-                ))}
-            </div>
+                    ))}
+                </div>
+            ) : (
+                <div className="text-center py-12 text-slate-500 text-sm italic">
+                    No albums curated yet.
+                </div>
+            )}
          </div>
       </div>
 
-      {/* Video Tutorials Section (Integrated from Legacy) */}
+      {/* Video Tutorials Section */}
       <div id="tutorials" className="relative z-10 px-6 py-16 max-w-7xl mx-auto w-full mb-10">
         <VideoGallery />
       </div>

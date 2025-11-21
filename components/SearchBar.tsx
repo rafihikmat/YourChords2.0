@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, X, Music, Youtube, Loader2, Disc, Book, TrendingUp, Clock, Sparkles } from 'lucide-react';
+import { Search, X, Music, Youtube, Loader2, Disc, Book, TrendingUp, Sparkles } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { SearchResult } from '../types';
 import { cn } from '../lib/utils';
@@ -22,7 +22,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ className, variant = 'navbar' }) 
   const [activeTab, setActiveTab] = useState<SearchTab>('all');
   const searchRef = useRef<HTMLDivElement>(null);
 
-  // Close on click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
@@ -33,23 +32,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ className, variant = 'navbar' }) 
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Fetch Suggestions (Zero-Query State)
   useEffect(() => {
     const fetchSuggestions = async () => {
-      // Get trending songs
-      const { data: trending } = await supabase
-        .from('songs')
-        .select('id, title, artist')
-        .order('view_count', { ascending: false })
-        .limit(3);
-        
-      // Get recent additions
-      const { data: recent } = await supabase
-        .from('songs')
-        .select('id, title, artist')
-        .order('created_at', { ascending: false })
-        .limit(2);
-
+      const { data: trending } = await supabase.from('songs').select('id, title, artist').order('view_count', { ascending: false }).limit(3);
       const suggs: SearchResult[] = [];
       
       if (trending) {
@@ -59,17 +44,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ className, variant = 'navbar' }) 
               artist: s.artist,
               source: 'library' as const,
               url: `/song/${s.id}`,
-              thumbnail: 'trend' // Marker for UI
+              thumbnail: 'trend'
           })));
       }
-      
       setSuggestions(suggs);
     };
-    
     fetchSuggestions();
   }, []);
 
-  // Debounced Search
   useEffect(() => {
     const delayDebounceFn = setTimeout(async () => {
       if (query.length === 0) {
@@ -78,13 +60,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ className, variant = 'navbar' }) 
       }
       
       if (query.length < 2) return;
-
       setIsLoading(true);
       
       try {
         const newResults: SearchResult[] = [];
-
-        // 1. Search Internal Songs (Library) - Using ilike (Case Insensitive)
         if (activeTab === 'all' || activeTab === 'songs') {
             const { data: librarySongs } = await supabase
             .from('songs')
@@ -103,7 +82,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ className, variant = 'navbar' }) 
             }
         }
 
-        // 2. Search Albums (Internal)
         if (activeTab === 'all' || activeTab === 'albums') {
              const { data: libraryAlbums } = await supabase
                 .from('albums')
@@ -118,12 +96,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ className, variant = 'navbar' }) 
                     artist: a.artist,
                     thumbnail: a.cover_url,
                     source: 'library' as const,
-                    url: `#album-${a.id}` // placeholder link
+                    url: `#album-${a.id}`
                 })));
             }
         }
 
-        // 3. External Search (Tutorials / Spotify)
         const promises = [];
         if (activeTab === 'all' || activeTab === 'songs') {
             promises.push(supabase.functions.invoke('search-spotify', { body: { query } }));
@@ -137,7 +114,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ className, variant = 'navbar' }) 
         resultsExternal.forEach(res => {
             if (res.status === 'fulfilled' && res.value.data) {
                 const data = res.value.data;
-                // Spotify
                 if (data.tracks?.items) {
                      newResults.push(...data.tracks.items.slice(0, 2).map((item: any) => ({
                         id: item.id,
@@ -148,7 +124,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ className, variant = 'navbar' }) 
                         url: item.external_urls?.spotify
                     })));
                 }
-                // YouTube
                 if (data.items) {
                      newResults.push(...data.items.slice(0, 2).map((item: any) => ({
                         id: item.id.videoId,
@@ -161,16 +136,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ className, variant = 'navbar' }) 
                 }
             }
         });
-
         setResults(newResults);
-
-      } catch (err) {
-        console.error("Search failed", err);
-      } finally {
+      } catch (err) {} finally {
         setIsLoading(false);
       }
     }, 400);
-
     return () => clearTimeout(delayDebounceFn);
   }, [query, activeTab]);
 
@@ -201,7 +171,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ className, variant = 'navbar' }) 
             )}
         </div>
         
-        {/* Tabs - Visible when Open and User is Typing */}
         {showResults && (
              <div className="flex border-t border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-black/20">
                  {['all', 'songs', 'albums', 'tutorials'].map((tab) => (
@@ -233,7 +202,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ className, variant = 'navbar' }) 
                 variant === 'navbar' ? "w-[140%] -left-[20%]" : "w-full"
             )}
           >
-            {/* Zero Query State: Suggestions */}
             {showSuggestions && (
                 <div className="py-2">
                     <div className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-2">
@@ -257,7 +225,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ className, variant = 'navbar' }) 
                 </div>
             )}
 
-            {/* Loading State */}
             {isLoading && (
                 <div className="p-8 flex flex-col items-center justify-center text-slate-500 dark:text-neutral-400 text-sm gap-2">
                     <Loader2 className="w-6 h-6 animate-spin text-primary" /> 
@@ -265,7 +232,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ className, variant = 'navbar' }) 
                 </div>
             )}
 
-            {/* Results State */}
             {!isLoading && showResults && (
                 <div className="py-2 max-h-96 overflow-y-auto custom-scrollbar">
                     {results.length > 0 ? (

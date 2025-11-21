@@ -5,12 +5,13 @@ import { Music, User, Sun, Moon, LogOut, Shield, Heart, Info, Menu, X, Sparkles 
 import { cn } from '../lib/utils';
 import SearchBar from './SearchBar';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../lib/hooks';
 
 const Navbar: React.FC = () => {
   const [scrolled, setScrolled] = useState(false);
-  const [isDark, setIsDark] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const { isDark, toggleTheme } = useTheme();
   
   const { user, profile, signOut, isAdmin } = useAuth();
   const navigate = useNavigate();
@@ -19,33 +20,8 @@ const Navbar: React.FC = () => {
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll);
-    
-    const storedTheme = localStorage.getItem('theme');
-    const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    
-    if (storedTheme === 'dark' || (!storedTheme && systemDark)) {
-        document.documentElement.classList.add('dark');
-        setIsDark(true);
-    } else {
-        document.documentElement.classList.remove('dark');
-        setIsDark(false);
-    }
-
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-
-  const toggleTheme = () => {
-    const html = document.documentElement;
-    if (isDark) {
-        html.classList.remove('dark');
-        localStorage.setItem('theme', 'light');
-        setIsDark(false);
-    } else {
-        html.classList.add('dark');
-        localStorage.setItem('theme', 'dark');
-        setIsDark(true);
-    }
-  };
 
   const handleSignOut = async () => {
     await signOut();

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { LayoutDashboard, Sun, Moon } from 'lucide-react';
 import { cn } from '../../lib/utils';
@@ -13,27 +13,11 @@ import SongManager from './views/SongManager';
 import AssetManager from './views/AssetManager';
 import ManualEntry from './views/ManualEntry';
 import SmartSyncEditor from './SmartSyncEditor';
+import { useTheme } from '../../lib/hooks';
 
 const AdminDashboard: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [isDark, setIsDark] = useState(true);
-
-  useEffect(() => {
-     setIsDark(document.documentElement.classList.contains('dark'));
-  }, []);
-
-  const toggleTheme = () => {
-      const html = document.documentElement;
-      if (html.classList.contains('dark')) {
-          html.classList.remove('dark');
-          localStorage.setItem('theme', 'light');
-          setIsDark(false);
-      } else {
-          html.classList.add('dark');
-          localStorage.setItem('theme', 'dark');
-          setIsDark(true);
-      }
-  };
+  const { isDark, toggleTheme } = useTheme();
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex font-sans text-slate-900 dark:text-white transition-colors duration-300">

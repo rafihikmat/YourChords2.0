@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, ExternalLink, Edit, Trash2, Disc3, Filter, Eye } from 'lucide-react';
+import { Search, ExternalLink, Edit, Trash2, Disc3, Eye } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { Song, Album } from '../../../types';
-import { cn, fuzzySearch } from '../../../lib/utils';
+import { cn, fuzzySearch, DIFFICULTY_COLORS } from '../../../lib/utils';
 
 const SongManager: React.FC = () => {
     const [songs, setSongs] = useState<Song[]>([]);
@@ -30,9 +31,7 @@ const SongManager: React.FC = () => {
     const handleDelete = async (id: string, filePath?: string | null) => {
         if (confirm('WARNING: Are you sure you want to PERMANENTLY delete this song?')) {
             try {
-                if (filePath) {
-                   await supabase.storage.from('song-files').remove([filePath]);
-                }
+                if (filePath) await supabase.storage.from('song-files').remove([filePath]);
                 const { error } = await supabase.from('songs').delete().eq('id', id);
                 if (error) throw error;
                 setSongs(prev => prev.filter(s => s.id !== id));
@@ -48,18 +47,14 @@ const SongManager: React.FC = () => {
 
     const handleAlbumAssign = async (songId: string, albumId: string) => {
         const val = albumId === 'none' ? null : albumId;
-        
-        // Optimistic UI update
         setSongs(prev => prev.map(s => s.id === songId ? { ...s, album_id: val || undefined } : s));
-
         const { error } = await supabase.from('songs').update({ album_id: val }).eq('id', songId);
         if (error) {
             alert("Failed to update album");
-            fetchData(); // Revert on error
+            fetchData();
         }
     };
 
-    // Intelligent Filtering
     const filteredSongs = fuzzySearch<Song>(songs, searchTerm, ['title', 'artist']).filter(s => 
         difficultyFilter ? s.difficulty === difficultyFilter : true
     );
@@ -74,20 +69,10 @@ const SongManager: React.FC = () => {
                 <div className="flex items-center gap-3 bg-white dark:bg-slate-900 p-1.5 rounded-xl border border-slate-200 dark:border-white/10 shadow-sm">
                     <div className="relative">
                         <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                        <input 
-                            type="text" 
-                            placeholder="Search library..." 
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-10 pr-4 py-2 rounded-lg bg-transparent border-none focus:ring-0 text-sm w-64 text-slate-900 dark:text-white placeholder-slate-500"
-                        />
+                        <input type="text" placeholder="Search library..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 pr-4 py-2 rounded-lg bg-transparent border-none focus:ring-0 text-sm w-64 text-slate-900 dark:text-white placeholder-slate-500" />
                     </div>
                     <div className="h-6 w-px bg-slate-200 dark:bg-white/10"></div>
-                    <select 
-                        className="bg-transparent text-sm font-medium text-slate-600 dark:text-slate-400 focus:outline-none cursor-pointer"
-                        value={difficultyFilter || ''}
-                        onChange={(e) => setDifficultyFilter(e.target.value || null)}
-                    >
+                    <select className="bg-transparent text-sm font-medium text-slate-600 dark:text-slate-400 focus:outline-none cursor-pointer" value={difficultyFilter || ''} onChange={(e) => setDifficultyFilter(e.target.value || null)}>
                         <option value="">All Levels</option>
                         <option value="Easy">Easy</option>
                         <option value="Medium">Medium</option>
@@ -125,31 +110,17 @@ const SongManager: React.FC = () => {
                                         <td className="p-4">
                                             <div className="flex items-center gap-2">
                                                 <Disc3 className={cn("w-4 h-4", song.album_id ? "text-primary" : "text-slate-300 dark:text-slate-700")} />
-                                                <select
-                                                    value={song.album_id || 'none'}
-                                                    onChange={(e) => handleAlbumAssign(song.id, e.target.value)}
-                                                    className="bg-transparent text-xs border-none focus:ring-0 cursor-pointer max-w-[150px] truncate text-slate-600 dark:text-slate-300 hover:text-primary"
-                                                >
+                                                <select value={song.album_id || 'none'} onChange={(e) => handleAlbumAssign(song.id, e.target.value)} className="bg-transparent text-xs border-none focus:ring-0 cursor-pointer max-w-[150px] truncate text-slate-600 dark:text-slate-300 hover:text-primary">
                                                     <option value="none">No Album</option>
-                                                    {albums.map(a => (
-                                                        <option key={a.id} value={a.id}>{a.title}</option>
-                                                    ))}
+                                                    {albums.map(a => <option key={a.id} value={a.id}>{a.title}</option>)}
                                                 </select>
                                             </div>
                                         </td>
                                         <td className="p-4">
-                                            <span className={cn(
-                                                "px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border",
-                                                song.difficulty === 'Easy' ? "border-green-500/20 text-green-600 dark:text-green-400 bg-green-500/10" :
-                                                song.difficulty === 'Medium' ? "border-yellow-500/20 text-yellow-600 dark:text-yellow-400 bg-yellow-500/10" :
-                                                song.difficulty === 'Hard' ? "border-orange-500/20 text-orange-600 dark:text-orange-400 bg-orange-500/10" :
-                                                "border-red-500/20 text-red-600 dark:text-red-400 bg-red-500/10"
-                                            )}>{song.difficulty}</span>
+                                            <span className={cn("px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border", DIFFICULTY_COLORS[song.difficulty] || DIFFICULTY_COLORS['Medium'])}>{song.difficulty}</span>
                                         </td>
                                         <td className="p-4 text-center">
-                                            <div className="inline-flex items-center gap-1 text-xs text-slate-500 bg-slate-100 dark:bg-white/5 px-2 py-1 rounded-full">
-                                                <Eye className="w-3 h-3" /> {song.view_count.toLocaleString()}
-                                            </div>
+                                            <div className="inline-flex items-center gap-1 text-xs text-slate-500 bg-slate-100 dark:bg-white/5 px-2 py-1 rounded-full"><Eye className="w-3 h-3" /> {song.view_count.toLocaleString()}</div>
                                         </td>
                                         <td className="p-4 text-right">
                                             <div className="flex justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">

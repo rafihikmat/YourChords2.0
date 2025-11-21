@@ -9,7 +9,7 @@ interface AuthContextType {
   user: User | null;
   profile: Profile | null;
   loading: boolean;
-  dbConnectionError: boolean; // New state to track DB schema errors
+  dbConnectionError: boolean;
   signOut: () => Promise<void>;
   isAdmin: boolean;
   isSuperAdmin: boolean;
@@ -25,7 +25,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [dbConnectionError, setDbConnectionError] = useState(false);
 
   useEffect(() => {
-    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -33,7 +32,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       else setLoading(false);
     });
 
-    // Listen for changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -56,16 +54,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
 
       if (error) {
-        console.error('Supabase Error:', error);
-        
-        // Check for "relation does not exist" error (Postgres code 42P01)
         if (error.code === '42P01' || error.message.includes('does not exist')) {
           setDbConnectionError(true);
           setLoading(false);
           return;
         }
 
-        // If profile doesn't exist (but table does), create a default one
         if (error.code === 'PGRST116') {
            const { data: newProfile, error: createError } = await supabase
             .from('profiles')
@@ -81,7 +75,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setProfile(data as Profile);
       }
     } catch (error) {
-      console.error('Profile fetch error:', error);
     } finally {
       setLoading(false);
     }

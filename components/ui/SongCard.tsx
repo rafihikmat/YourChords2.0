@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Play, Eye, Star, Activity, Heart } from 'lucide-react';
 import { Song } from '../../types';
-import { cn } from '../../lib/utils';
+import { cn, DIFFICULTY_COLORS } from '../../lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -12,13 +12,6 @@ interface SongCardProps {
   song: Song;
   className?: string;
 }
-
-const difficultyColorMap = {
-  Easy: "text-green-400 bg-green-400/10 border-green-400/20",
-  Medium: "text-yellow-400 bg-yellow-400/10 border-yellow-400/20",
-  Hard: "text-orange-400 bg-orange-400/10 border-orange-400/20",
-  Expert: "text-red-500 bg-red-500/10 border-red-500/20",
-};
 
 const SongCard: React.FC<SongCardProps> = ({ song, className }) => {
   const navigate = useNavigate();
@@ -94,7 +87,6 @@ const SongCard: React.FC<SongCardProps> = ({ song, className }) => {
       )}
       onClick={handleCardClick}
     >
-      {/* Hover Gradient Effect */}
       <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-br from-primary/10 via-transparent to-transparent pointer-events-none" />
 
       <div className="flex items-start justify-between mb-4 relative z-10">
@@ -105,7 +97,7 @@ const SongCard: React.FC<SongCardProps> = ({ song, className }) => {
         <div className="flex items-center gap-2">
              <div className={cn(
                 "px-2 py-1 rounded-full text-[10px] font-mono font-bold uppercase border tracking-wider",
-                difficultyColorMap[song.difficulty] || "text-slate-400 bg-slate-400/10 border-slate-400/20"
+                DIFFICULTY_COLORS[song.difficulty] || DIFFICULTY_COLORS['Medium']
             )}>
                 {song.difficulty}
             </div>
@@ -129,8 +121,6 @@ const SongCard: React.FC<SongCardProps> = ({ song, className }) => {
       </div>
 
       <div className="pt-4 border-t border-slate-200 dark:border-white/5 flex flex-col gap-3 relative z-10">
-        
-        {/* Interactive Ratings */}
         <div className="flex items-center justify-between">
              <div className="flex items-center gap-1" onMouseLeave={() => setHoverRating(0)}>
                 {[1, 2, 3, 4, 5].map((star) => (

@@ -1,14 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Music, PenTool, AlertCircle, Save, Link as LinkIcon, BarChart } from 'lucide-react';
+import { Sparkles, Music, PenTool, AlertCircle, Save, Link as LinkIcon, BarChart, Cpu } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { cn } from '../lib/utils';
 import { AIChordFormData } from '../types';
 import AudioRecorder from './AudioRecorder';
-import { ai } from '../lib/gemini';
+import { useNavigate } from 'react-router-dom';
 
-// Extend type locally if needed or rely on looseness
 interface ExtendedFormData extends AIChordFormData {
     spotifyUrl?: string;
     youtubeUrl?: string;
@@ -16,6 +14,7 @@ interface ExtendedFormData extends AIChordFormData {
 }
 
 const AIChordForm: React.FC = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState<ExtendedFormData>({
     title: '',
     artist: '',
@@ -26,24 +25,19 @@ const AIChordForm: React.FC = () => {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [statusMessage, setStatusMessage] = useState('');
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
-  // Load draft from localStorage on mount
   useEffect(() => {
     const savedDraft = localStorage.getItem('chordFormDraft');
     if (savedDraft) {
       try {
         const parsed = JSON.parse(savedDraft);
-        if (parsed.lyrics) {
-            setFormData(prev => ({ ...prev, ...parsed }));
-        }
-      } catch (e) {
-        console.error("Failed to load draft", e);
-      }
+        if (parsed.lyrics) setFormData(prev => ({ ...prev, ...parsed }));
+      } catch (e) {}
     }
   }, []);
 
-  // Autosave draft
   useEffect(() => {
     const handler = setTimeout(() => {
         if (formData.lyrics || formData.title || formData.artist) {
@@ -58,74 +52,48 @@ const AIChordForm: React.FC = () => {
     e.preventDefault();
     setIsLoading(true);
     setStatus('idle');
+    setStatusMessage('');
 
     try {
-      // 1. Construct Prompt for Gemini
-      const prompt = `
-        Analyze the song "${formData.title}" by "${formData.artist}".
-        Lyrics:
-        ${formData.lyrics}
-
-        Context URLs (for reference only):
-        Spotify: ${formData.spotifyUrl}
-        YouTube: ${formData.youtubeUrl}
-
-        Task:
-        1. Place chords precisely over the lyrics.
-        2. Return ONLY a valid JSON object with this structure:
-        {
-          "title": "${formData.title}",
-          "artist": "${formData.artist}",
-          "chords": [
-            { "line": "Verse 1", "chords": [] },
-            { "line": "I'm walking down the street", "chords": ["C", "Am"] } 
-          ]
-        }
-        Do not include markdown formatting like \`\`\`json. Just the raw JSON.
-      `;
-
-      // 2. Call Gemini Direct (Client Side)
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
+      const { data: chordData, error: fnError } = await supabase.functions.invoke('generate-chords', {
+          body: {
+              title: formData.title,
+              artist: formData.artist,
+              lyrics: formData.lyrics
+          }
       });
 
-      const text = response.text || "{}";
-      const cleanJson = text.replace(/```json|```/g, '').trim();
-      
-      let chordData;
-      try {
-          chordData = JSON.parse(cleanJson);
-      } catch (parseError) {
-          console.error("JSON Parse Error:", parseError);
-          throw new Error("AI response was not valid JSON. Please try again.");
-      }
+      if (fnError) throw new Error(fnError.message || "Neural Uplink Failed");
+      if (!chordData || !chordData.chords) throw new Error("AI returned invalid structure.");
 
-      // 3. Extract IDs from URLs
       const spotifyId = formData.spotifyUrl ? (formData.spotifyUrl.split('track/')[1]?.split('?')[0] || null) : null;
       const youtubeId = formData.youtubeUrl ? (formData.youtubeUrl.split('v=')[1]?.split('&')[0] || null) : null;
 
-      // 4. Save to Supabase (Library)
-      // Manually use the selected difficulty, ignoring AI
-      const { error: dbError } = await supabase.from('songs').insert([{
+      const { data: insertedSong, error: dbError } = await supabase.from('songs').insert([{
           title: chordData.title || formData.title,
           artist: chordData.artist || formData.artist,
-          difficulty: formData.difficulty, 
+          difficulty: chordData.difficulty || formData.difficulty, 
           chords: chordData.chords,
           spotify_track_id: spotifyId,
           youtube_video_id: youtubeId,
           view_count: 0
-      }]);
+      }]).select().single();
 
       if (dbError) throw dbError;
 
       setStatus('success');
+      setStatusMessage('Song generated and indexed successfully.');
       localStorage.removeItem('chordFormDraft');
+      
+      if (insertedSong) {
+          setTimeout(() => navigate(`/song/${insertedSong.id}`), 1500);
+      }
+      
       setFormData({ title: '', artist: '', lyrics: '', spotifyUrl: '', youtubeUrl: '', difficulty: 'Medium' });
 
-    } catch (error) {
-      console.error('Error generating chords:', error);
+    } catch (error: any) {
       setStatus('error');
+      setStatusMessage(error.message || "Processing failed. Please check your connection.");
     } finally {
       setIsLoading(false);
     }
@@ -138,24 +106,23 @@ const AIChordForm: React.FC = () => {
   return (
     <div className="w-full max-w-2xl mx-auto">
       <div className="relative group rounded-2xl p-[1px] bg-gradient-to-b from-slate-200 to-transparent dark:from-white/10">
-        {/* Glass Panel */}
         <div className="relative rounded-2xl bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border border-slate-200 dark:border-white/10 p-6 md:p-8 overflow-hidden shadow-xl dark:shadow-none">
             <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 pointer-events-none" />
             
             <div className="relative z-10 mb-6 flex justify-between items-start">
                 <div>
                     <h2 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                        <Sparkles className="w-5 h-5 text-primary" />
-                        AI Chord Generator
+                        <Cpu className="w-6 h-6 text-primary" />
+                        Neural Chord Generator
                     </h2>
                     <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-                        Paste lyrics, add links, and let Gemini 2.5 Flash transcribe chords accurately.
+                        Powered by Gemini 2.5 Edge Runtime. High-fidelity music transcription.
                     </p>
                 </div>
                 {lastSaved && (
                     <div className="text-[10px] text-slate-400 flex items-center gap-1 opacity-70">
                         <Save className="w-3 h-3" />
-                        Saved {lastSaved.toLocaleTimeString()}
+                        Draft {lastSaved.toLocaleTimeString()}
                     </div>
                 )}
             </div>
@@ -193,7 +160,7 @@ const AIChordForm: React.FC = () => {
                 </div>
 
                 <div className="space-y-1">
-                     <label className="text-xs font-mono text-slate-500 dark:text-slate-400 uppercase">Difficulty (Manual)</label>
+                     <label className="text-xs font-mono text-slate-500 dark:text-slate-400 uppercase">Difficulty (Estimate)</label>
                      <div className="relative">
                         <BarChart className="absolute left-3 top-3 w-4 h-4 text-slate-500" />
                         <select 
@@ -209,7 +176,6 @@ const AIChordForm: React.FC = () => {
                      </div>
                 </div>
 
-                {/* URL Inputs for Higher Accuracy */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
                         <label className="text-xs font-mono text-slate-500 dark:text-slate-400 uppercase">Spotify URL (Optional)</label>
@@ -241,7 +207,7 @@ const AIChordForm: React.FC = () => {
 
                 <div className="space-y-1">
                     <div className="flex justify-between items-end">
-                        <label className="text-xs font-mono text-slate-500 dark:text-slate-400 uppercase">Lyrics</label>
+                        <label className="text-xs font-mono text-slate-500 dark:text-slate-400 uppercase">Lyrics / Text</label>
                         <AudioRecorder onTranscriptionComplete={handleTranscription} />
                     </div>
                     <textarea 
@@ -250,7 +216,7 @@ const AIChordForm: React.FC = () => {
                         onChange={(e) => setFormData({...formData, lyrics: e.target.value})}
                         rows={6}
                         className="w-full bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-lg p-4 text-sm font-mono text-slate-900 dark:text-slate-300 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary/50 transition-all resize-none"
-                        placeholder="Paste full lyrics here or record audio..."
+                        placeholder="Paste lyrics or raw text here..."
                     />
                 </div>
 
@@ -265,7 +231,7 @@ const AIChordForm: React.FC = () => {
                             {isLoading ? (
                                 <>
                                     <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                                    Analyzing frequencies...
+                                    Processing via Edge Node...
                                 </>
                             ) : (
                                 <>
@@ -278,17 +244,17 @@ const AIChordForm: React.FC = () => {
                 </div>
 
                 {status === 'success' && (
-                    <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-400/10 p-3 rounded-lg border border-green-200 dark:border-green-400/20">
+                    <motion.div initial={{opacity: 0, y: 10}} animate={{opacity: 1, y: 0}} className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-400/10 p-3 rounded-lg border border-green-200 dark:border-green-400/20">
                         <Sparkles className="w-3 h-3" />
-                        <span>Success! Song generated and added to Library.</span>
-                    </div>
+                        <span>{statusMessage || "Success! Redirecting..."}</span>
+                    </motion.div>
                 )}
                 
                 {status === 'error' && (
-                    <div className="flex items-center gap-2 text-xs text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-400/10 p-3 rounded-lg border border-red-200 dark:border-red-400/20">
+                    <motion.div initial={{opacity: 0, y: 10}} animate={{opacity: 1, y: 0}} className="flex items-center gap-2 text-xs text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-400/10 p-3 rounded-lg border border-red-200 dark:border-red-400/20">
                         <AlertCircle className="w-3 h-3" />
-                        <span>Processing failed. Please check your internet or API key.</span>
-                    </div>
+                        <span>{statusMessage}</span>
+                    </motion.div>
                 )}
             </form>
         </div>

@@ -49,15 +49,34 @@ const AssetManager: React.FC = () => {
     const fetchYoutubeMetadata = async () => {
         if (!newVideo.video_id) return;
         setMetadataLoading(true);
-        // Simulate fetch or implement Edge Function call if available
-        // For now, we'll auto-generate a thumbnail URL if missing
-        if (!newVideo.thumbnail_url) {
+        
+        try {
+            const { data, error } = await supabase.functions.invoke('get-video-details', {
+                body: { videoId: newVideo.video_id }
+            });
+
+            if (error) throw error;
+            if (data.error) throw new Error(data.error);
+
             setNewVideo(prev => ({
                 ...prev,
-                thumbnail_url: `https://img.youtube.com/vi/${prev.video_id}/mqdefault.jpg`
+                title: data.title,
+                channel_title: data.channel_title,
+                thumbnail_url: data.thumbnail_url
             }));
+        } catch (err: any) {
+            console.error('Metadata fetch failed:', err);
+            alert('Failed to fetch video details: ' + err.message);
+            // Fallback
+            if (!newVideo.thumbnail_url) {
+                setNewVideo(prev => ({
+                    ...prev,
+                    thumbnail_url: `https://img.youtube.com/vi/${prev.video_id}/mqdefault.jpg`
+                }));
+            }
+        } finally {
+            setMetadataLoading(false);
         }
-        setMetadataLoading(false);
     };
 
     const handleAddVideo = async (e: React.FormEvent) => {
@@ -170,8 +189,8 @@ const AssetManager: React.FC = () => {
                                     <label className="text-xs text-slate-500 uppercase font-bold mb-1 block">YouTube Video ID</label>
                                     <div className="flex gap-2">
                                         <input value={newVideo.video_id} onChange={e => setNewVideo({...newVideo, video_id: e.target.value})} className="w-full p-2 rounded border bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-sm" placeholder="e.g. dQw4w9WgXcQ" required />
-                                        <button type="button" onClick={fetchYoutubeMetadata} disabled={metadataLoading} className="px-3 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-white/10 text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-700">
-                                            {metadataLoading ? "..." : "Auto-Fill"}
+                                        <button type="button" onClick={fetchYoutubeMetadata} disabled={metadataLoading} className="px-3 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-white/10 text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-700 min-w-[80px] flex items-center justify-center">
+                                            {metadataLoading ? <div className="w-3 h-3 border-2 border-slate-500 border-t-transparent rounded-full animate-spin"></div> : "Auto-Fill"}
                                         </button>
                                     </div>
                                 </div>

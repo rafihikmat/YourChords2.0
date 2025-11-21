@@ -56,15 +56,10 @@ const ChatPage: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatSessionRef = useRef<Chat | null>(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
   useEffect(() => {
-    scrollToBottom();
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Reset chat session when mode changes
   useEffect(() => {
     chatSessionRef.current = null;
   }, [mode]);
@@ -79,31 +74,17 @@ const ChatPage: React.FC = () => {
     setIsStreaming(true);
 
     try {
-      // Configure the AI based on mode
       const currentMode = modes[mode];
-      
-      let config: any = {
-        systemInstruction: currentMode.systemInstruction,
-      };
+      let config: any = { systemInstruction: currentMode.systemInstruction };
 
       if (mode === 'thinking') {
-        config = {
-          ...config,
-          thinkingConfig: { thinkingBudget: 32768 } // Max for Gemini 3 Pro
-        };
+        config.thinkingConfig = { thinkingBudget: 32768 };
       } else if (mode === 'researcher') {
-        config = {
-          ...config,
-          tools: [{ googleSearch: {} }]
-        };
+        config.tools = [{ googleSearch: {} }];
       }
 
-      // Initialize chat if needed or if mode changed
       if (!chatSessionRef.current) {
-        chatSessionRef.current = ai.chats.create({
-          model: currentMode.model,
-          config: config
-        });
+        chatSessionRef.current = ai.chats.create({ model: currentMode.model, config });
       }
 
       const aiMessageId = (Date.now() + 1).toString();
@@ -123,7 +104,6 @@ const ChatPage: React.FC = () => {
           ));
         }
         
-        // Extract grounding chunks if available (for researcher mode)
         if (c.candidates?.[0]?.groundingMetadata?.groundingChunks) {
             const chunks = c.candidates[0].groundingMetadata.groundingChunks;
             chunks.forEach((chunk: any) => {
@@ -134,7 +114,6 @@ const ChatPage: React.FC = () => {
         }
       }
 
-      // Update with grounding URLs if found
       if (groundingUrls.length > 0) {
           setMessages(prev => prev.map(msg => 
             msg.id === aiMessageId ? { ...msg, groundingUrls } : msg
@@ -142,7 +121,6 @@ const ChatPage: React.FC = () => {
       }
 
     } catch (error) {
-      console.error("Chat error:", error);
       setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', text: "My neural link was interrupted. Please try again." }]);
     } finally {
       setIsStreaming(false);
@@ -159,7 +137,6 @@ const ChatPage: React.FC = () => {
 
       <div className="relative z-10 flex-1 max-w-5xl mx-auto w-full flex flex-col bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-200 dark:border-white/10 shadow-2xl overflow-hidden">
         
-        {/* Header / Mode Selector */}
         <div className="p-4 border-b border-slate-200 dark:border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 bg-white/60 dark:bg-slate-950/60">
             <div className="flex items-center gap-3">
                 <div className="p-2 bg-primary/10 rounded-lg"><Bot className="w-6 h-6 text-primary" /></div>
@@ -189,7 +166,6 @@ const ChatPage: React.FC = () => {
             </div>
         </div>
 
-        {/* Messages Area */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
             {messages.map((msg) => (
                 <div key={msg.id} className={cn("flex gap-4", msg.role === 'user' ? "flex-row-reverse" : "flex-row")}>
@@ -234,7 +210,6 @@ const ChatPage: React.FC = () => {
             <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Area */}
         <div className="p-4 bg-white/60 dark:bg-slate-950/60 border-t border-slate-200 dark:border-white/10">
             <form onSubmit={handleSend} className="relative flex items-center">
                 <input
