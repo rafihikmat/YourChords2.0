@@ -87,10 +87,10 @@ API_KEY=your-google-gemini-api-key`;
 
 // --- SQL Setup Component ---
 const DatabaseSetupScreen: React.FC = () => {
-  const sqlCode = `-- Enable UUID extension
+  const sqlCode = `-- Enable UUID extension for generating unique IDs
 create extension if not exists "uuid-ossp";
 
--- 1. PROFILES
+-- 1. PROFILES (Mengelola data user)
 create table if not exists public.profiles (
   id uuid references auth.users on delete cascade not null primary key,
   full_name text,
@@ -100,13 +100,19 @@ create table if not exists public.profiles (
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
 
--- RLS for Profiles
+-- RLS (Keamanan) untuk Profiles
 alter table public.profiles enable row level security;
+
+drop policy if exists "Public profiles are viewable by everyone." on public.profiles;
 create policy "Public profiles are viewable by everyone." on public.profiles for select using (true);
+
+drop policy if exists "Users can insert their own profile." on public.profiles;
 create policy "Users can insert their own profile." on public.profiles for insert with check (auth.uid() = id);
+
+drop policy if exists "Users can update own profile." on public.profiles;
 create policy "Users can update own profile." on public.profiles for update using (auth.uid() = id);
 
--- 2. ALBUMS
+-- 2. ALBUMS (Kategori Album)
 create table if not exists public.albums (
   id uuid default gen_random_uuid() primary key,
   title text not null,
@@ -116,14 +122,18 @@ create table if not exists public.albums (
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
 
--- RLS for Albums
+-- RLS untuk Albums
 alter table public.albums enable row level security;
+
+drop policy if exists "Albums are viewable by everyone" on public.albums;
 create policy "Albums are viewable by everyone" on public.albums for select using (true);
+
+drop policy if exists "Admins can manage albums" on public.albums;
 create policy "Admins can manage albums" on public.albums for all using (
   exists (select 1 from public.profiles where id = auth.uid() and role in ('admin', 'super_admin'))
 );
 
--- 3. SONGS
+-- 3. SONGS (Data Lagu Utama & Chords)
 create table if not exists public.songs (
   id uuid default gen_random_uuid() primary key,
   title text not null,
@@ -140,18 +150,26 @@ create table if not exists public.songs (
   updated_at timestamp with time zone default timezone('utc'::text, now())
 );
 
--- RLS for Songs
+-- RLS untuk Songs
 alter table public.songs enable row level security;
+
+drop policy if exists "Songs are viewable by everyone" on public.songs;
 create policy "Songs are viewable by everyone" on public.songs for select using (true);
+
+drop policy if exists "Authenticated users can upload songs" on public.songs;
 create policy "Authenticated users can upload songs" on public.songs for insert with check (auth.role() = 'authenticated');
+
+drop policy if exists "Admins can update songs" on public.songs;
 create policy "Admins can update songs" on public.songs for update using (
   exists (select 1 from public.profiles where id = auth.uid() and role in ('admin', 'super_admin'))
 );
+
+drop policy if exists "Admins can delete songs" on public.songs;
 create policy "Admins can delete songs" on public.songs for delete using (
   exists (select 1 from public.profiles where id = auth.uid() and role in ('admin', 'super_admin'))
 );
 
--- 4. VIDEO TUTORIALS
+-- 4. VIDEO TUTORIALS (Referensi Belajar)
 create table if not exists public.video_tutorials (
   id uuid default gen_random_uuid() primary key,
   video_id text not null,
@@ -162,23 +180,31 @@ create table if not exists public.video_tutorials (
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
 
--- RLS for Videos
+-- RLS untuk Videos
 alter table public.video_tutorials enable row level security;
+
+drop policy if exists "Videos are viewable by everyone" on public.video_tutorials;
 create policy "Videos are viewable by everyone" on public.video_tutorials for select using (true);
+
+drop policy if exists "Admins can manage videos" on public.video_tutorials;
 create policy "Admins can manage videos" on public.video_tutorials for all using (
   exists (select 1 from public.profiles where id = auth.uid() and role in ('admin', 'super_admin'))
 );
 
--- 5. PAGE CONTENT (CMS)
+-- 5. PAGE CONTENT (CMS Sederhana)
 create table if not exists public.page_content (
   id text primary key,
   content jsonb not null,
   updated_at timestamp with time zone default timezone('utc'::text, now())
 );
 
--- RLS for CMS
+-- RLS untuk CMS
 alter table public.page_content enable row level security;
+
+drop policy if exists "Content viewable by everyone" on public.page_content;
 create policy "Content viewable by everyone" on public.page_content for select using (true);
+
+drop policy if exists "Admins can update content" on public.page_content;
 create policy "Admins can update content" on public.page_content for all using (
   exists (select 1 from public.profiles where id = auth.uid() and role in ('admin', 'super_admin'))
 );
@@ -188,7 +214,7 @@ insert into public.page_content (id, content) values
 ('about', '{"title": "About YourChords", "description": "Built for the future of music learning."}')
 on conflict (id) do nothing;
 
--- 6. SONG FAVORITES
+-- 6. SONG FAVORITES (Bookmark User)
 create table if not exists public.song_favorites (
   user_id uuid references auth.users on delete cascade not null,
   song_id uuid references public.songs on delete cascade not null,
@@ -197,11 +223,17 @@ create table if not exists public.song_favorites (
 );
 
 alter table public.song_favorites enable row level security;
+
+drop policy if exists "Users can view own favorites" on public.song_favorites;
 create policy "Users can view own favorites" on public.song_favorites for select using (auth.uid() = user_id);
+
+drop policy if exists "Users can add favorites" on public.song_favorites;
 create policy "Users can add favorites" on public.song_favorites for insert with check (auth.uid() = user_id);
+
+drop policy if exists "Users can remove favorites" on public.song_favorites;
 create policy "Users can remove favorites" on public.song_favorites for delete using (auth.uid() = user_id);
 
--- 7. SONG RATINGS
+-- 7. SONG RATINGS (Rating Bintang)
 create table if not exists public.song_ratings (
   user_id uuid references auth.users on delete cascade not null,
   song_id uuid references public.songs on delete cascade not null,
@@ -211,10 +243,14 @@ create table if not exists public.song_ratings (
 );
 
 alter table public.song_ratings enable row level security;
+
+drop policy if exists "Ratings are viewable by everyone" on public.song_ratings;
 create policy "Ratings are viewable by everyone" on public.song_ratings for select using (true);
+
+drop policy if exists "Users can manage own ratings" on public.song_ratings;
 create policy "Users can manage own ratings" on public.song_ratings for all using (auth.uid() = user_id);
 
--- 8. TRIGGER FOR NEW USERS
+-- 8. OTOMATISASI USER BARU (Trigger)
 create or replace function public.handle_new_user() 
 returns trigger as $$
 begin
@@ -229,12 +265,15 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
--- 9. STORAGE BUCKETS
+-- 9. STORAGE BUCKETS (Untuk File Lagu)
 insert into storage.buckets (id, name, public) 
 values ('song-files', 'song-files', true) 
 on conflict (id) do nothing;
 
+drop policy if exists "Public Access" on storage.objects;
 create policy "Public Access" on storage.objects for select using ( bucket_id = 'song-files' );
+
+drop policy if exists "Authenticated Upload" on storage.objects;
 create policy "Authenticated Upload" on storage.objects for insert with check ( bucket_id = 'song-files' and auth.role() = 'authenticated' );
 `;
 
@@ -303,7 +342,12 @@ const AppContent: React.FC = () => {
   const { dbConnectionError } = useAuth();
   const location = useLocation();
 
-  // Global check for DB error
+  // Global Check: If environment variables are missing, show setup screen immediately
+  // This prevents "Invalid login credentials" error caused by fallback to dummy Supabase project
+  const hasEnv = (import.meta as any).env?.VITE_SUPABASE_URL && (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
+  if (!hasEnv) return <EnvSetupScreen />;
+
+  // Global Check: If DB connection has issues (missing tables), show SQL setup
   if (dbConnectionError) return <DatabaseSetupScreen />;
 
   // Determine if footer should be shown (Hide on Admin and Auth pages)

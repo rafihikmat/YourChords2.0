@@ -4,7 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'framer-motion';
-import { Music, Mail, Lock, ArrowRight, Loader2, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { Music, Mail, Lock, ArrowRight, Loader2, AlertTriangle, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { DOT_GRID_SVG, cn } from '../lib/utils';
 import { Spotlight } from '../components/ui/Spotlight';
 
@@ -14,27 +14,27 @@ const Auth: React.FC = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
 
-  // Auto-redirect if user is already logged in (e.g. returning from Facebook)
+  // Auto-redirect if user is already logged in
   useEffect(() => {
     if (!authLoading && user) {
         navigate('/');
     }
   }, [user, authLoading, navigate]);
 
-  // Detect errors returned in URL hash (Common with OAuth failures)
+  // Detect errors returned in URL hash (OAuth)
   useEffect(() => {
     const hash = window.location.hash;
     if (hash && hash.includes('error_description')) {
         try {
-            const params = new URLSearchParams(hash.substring(1)); // Remove #
+            const params = new URLSearchParams(hash.substring(1));
             const errorDesc = params.get('error_description');
             if (errorDesc) {
                 setError(decodeURIComponent(errorDesc).replace(/\+/g, ' '));
-                // Clean URL without reloading
                 window.history.replaceState(null, '', window.location.pathname);
             }
         } catch (e) {
@@ -47,6 +47,7 @@ const Auth: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setSuccessMsg(null);
 
     try {
       if (isLogin) {
@@ -62,28 +63,32 @@ const Auth: React.FC = () => {
           email,
           password,
           options: {
-            data: { full_name: email.split('@')[0] }, // Default name from email
+            data: { full_name: email.split('@')[0] },
           }
         });
         
         if (error) throw error;
 
-        // Check if session was created immediately (Email Confirmation Disabled)
         if (data.session) {
-            // Navigation handled by useEffect
-        } else {
-            // Email Confirmation Enabled
-            alert('Registration successful! Please check your email for verification link.');
+            // Session active immediately
+        } else if (data.user) {
+            // Email Confirmation Required
+            setSuccessMsg('Account created successfully! Please check your email to confirm your registration before logging in.');
             setIsLogin(true);
+            setPassword('');
         }
       }
     } catch (err: any) {
       console.error("Auth Error:", err);
-      // Provide more user-friendly error messages
-      if (err.message.includes('rate limit')) {
-         setError('Too many attempts. Please wait a moment or check your email.');
+      
+      // User-friendly error mapping
+      if (err.message.includes('Invalid login credentials')) {
+         setError('Incorrect email or password. If you just registered, please verify your email address.');
+         setPassword(''); // Clear password for retry
       } else if (err.message.includes('User already registered')) {
-         setError('This email is already registered. Please sign in.');
+         setError('This email is already in use. Please sign in instead.');
+      } else if (err.message.includes('rate limit')) {
+         setError('Too many attempts. Please try again in a few minutes.');
       } else {
          setError(err.message);
       }
@@ -100,7 +105,6 @@ const Auth: React.FC = () => {
             provider: provider,
             options: {
                 redirectTo: window.location.origin,
-                // Force consent prompt for Google to allow account switching
                 queryParams: provider === 'google' ? {
                     access_type: 'offline',
                     prompt: 'consent',
@@ -230,9 +234,20 @@ const Auth: React.FC = () => {
                                 <span>Authentication Error</span>
                             </div>
                             <p>{error}</p>
-                            {error.includes('configuration') && (
-                                <p className="mt-1 text-[10px] opacity-80">Developer Note: Check your OAuth Redirect URIs in Supabase and Provider Dashboard.</p>
-                            )}
+                        </motion.div>
+                    )}
+
+                    {successMsg && (
+                        <motion.div 
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-xs border border-green-200 dark:border-green-500/20 flex flex-col gap-1"
+                        >
+                            <div className="flex items-center gap-2 font-bold">
+                                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                                <span>Success</span>
+                            </div>
+                            <p>{successMsg}</p>
                         </motion.div>
                     )}
 
@@ -242,7 +257,7 @@ const Auth: React.FC = () => {
                         className="w-full bg-gradient-to-r from-primary to-secondary text-white font-medium py-2.5 rounded-lg shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all flex items-center justify-center gap-2 disabled:opacity-70 hover:scale-[1.02] active:scale-[0.98]"
                     >
                         {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
-                        {isLogin ? 'Sign In' : 'Sign Up'}
+                        {isLogin ? 'Sign In' : 'Create Account'}
                     </button>
                 </form>
 
@@ -253,6 +268,7 @@ const Auth: React.FC = () => {
                             onClick={() => {
                                 setIsLogin(!isLogin);
                                 setError(null);
+                                setSuccessMsg(null);
                             }}
                             className="ml-2 text-primary hover:text-primary/80 font-medium transition-colors"
                         >

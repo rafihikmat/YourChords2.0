@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Shield, Users, Music, Zap, Database, LogOut, LayoutDashboard, Disc, Youtube, RefreshCw, ExternalLink, Home, Plus, Save, Trash2, Edit, Search, Check, AlertTriangle, FileText, Crown, Terminal, Globe, PenTool, Sun, Moon, Mic } from 'lucide-react';
+import { Shield, Users, Music, Zap, LogOut, LayoutDashboard, Disc, RefreshCw, ExternalLink, Home, Plus, Save, Trash2, Edit, Search, Check, AlertTriangle, Globe, HardDrive, Layers, Mic, RotateCcw, Sun, Moon } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
@@ -38,10 +38,9 @@ const AdminSidebar: React.FC<{ open: boolean }> = ({ open }) => {
         { icon: <Mic size={20} />, label: 'Smart Sync', path: '/admin/smart-sync', permission: 'admin' },
         { icon: <Globe size={20} />, label: 'Page Content', path: '/admin/cms', permission: 'admin' },
         { icon: <Music size={20} />, label: 'Song Manager', path: '/admin/songs', permission: 'admin' },
-        { icon: <FileText size={20} />, label: 'Manual Entry', path: '/admin/manual-entry', permission: 'admin' },
         { icon: <Disc size={20} />, label: 'Asset Manager', path: '/admin/assets', permission: 'admin' },
         { icon: <Zap size={20} />, label: 'AI Generator', path: '/admin/ai-create', permission: 'admin' },
-        { icon: <RefreshCw size={20} />, label: 'Cache & Maint.', path: '/admin/cache', permission: 'super_admin' },
+        { icon: <RefreshCw size={20} />, label: 'System Maint.', path: '/admin/cache', permission: 'super_admin' },
         { icon: <Users size={20} />, label: 'Role Management', path: '/admin/roles', permission: 'super_admin' },
     ];
 
@@ -57,7 +56,7 @@ const AdminSidebar: React.FC<{ open: boolean }> = ({ open }) => {
         )}>
             <div className="p-6 flex items-center gap-3 border-b border-slate-200 dark:border-white/10 h-20">
                 <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0 shadow-sm", isSuperAdmin ? "bg-purple-600" : "bg-blue-600")}>
-                    {isSuperAdmin ? <Crown className="w-5 h-5 text-white" /> : <Shield className="w-5 h-5 text-white" />}
+                    <Shield className="w-5 h-5 text-white" />
                 </div>
                 {open && (
                     <div className="leading-tight overflow-hidden whitespace-nowrap">
@@ -111,11 +110,119 @@ const AdminSidebar: React.FC<{ open: boolean }> = ({ open }) => {
     );
 };
 
+// --- Role Management ---
+const RoleManager: React.FC = () => {
+    const [users, setUsers] = useState<Profile[]>([]);
+    const [loading, setLoading] = useState(true);
+    const { user: currentUser } = useAuth();
+
+    useEffect(() => {
+        fetchUsers();
+    }, []);
+
+    const fetchUsers = async () => {
+        setLoading(true);
+        const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+        if (error) alert('Error fetching users: ' + error.message);
+        else setUsers(data as Profile[]);
+        setLoading(false);
+    };
+
+    const handleRoleChange = async (userId: string, newRole: string) => {
+        if (userId === currentUser?.id) {
+            alert("You cannot change your own role.");
+            return;
+        }
+        
+        if (!confirm(`Are you sure you want to change this user's role to ${newRole}?`)) return;
+
+        const { error } = await supabase.from('profiles').update({ role: newRole }).eq('id', userId);
+        
+        if (error) {
+            alert("Failed to update role: " + error.message);
+        } else {
+            // Optimistic update
+            setUsers(users.map(u => u.id === userId ? { ...u, role: newRole as any } : u));
+        }
+    };
+
+    return (
+        <div className="p-8 animate-in fade-in">
+            <div className="mb-8">
+                <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Role Management</h1>
+                <p className="text-slate-500">Manage user permissions and access levels.</p>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl overflow-hidden shadow-sm">
+                <table className="w-full text-left text-sm">
+                    <thead className="bg-slate-50 dark:bg-white/5 text-slate-500 dark:text-slate-400 font-bold uppercase text-xs border-b border-slate-200 dark:border-white/5">
+                        <tr>
+                            <th className="p-4">User</th>
+                            <th className="p-4">Role</th>
+                            <th className="p-4">ID</th>
+                            <th className="p-4 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 dark:divide-white/5">
+                        {loading ? (
+                            <tr><td colSpan={4} className="p-8 text-center text-slate-500">Loading profiles...</td></tr>
+                        ) : users.length === 0 ? (
+                            <tr><td colSpan={4} className="p-8 text-center text-slate-500">No users found.</td></tr>
+                        ) : (
+                            users.map(u => (
+                                <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                                    <td className="p-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 overflow-hidden">
+                                                {u.avatar_url ? <img src={u.avatar_url} alt={u.full_name || 'User'} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-xs font-bold">{u.full_name?.charAt(0) || 'U'}</div>}
+                                            </div>
+                                            <div>
+                                                <div className="font-medium text-slate-900 dark:text-white">{u.full_name || 'Unknown User'}</div>
+                                                <div className="text-xs text-slate-500">Joined {u.id.slice(0,8)}...</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="p-4">
+                                        <span className={cn(
+                                            "px-2 py-1 rounded-full text-xs font-bold border uppercase",
+                                            u.role === 'super_admin' ? "border-purple-500/20 text-purple-600 dark:text-purple-400 bg-purple-500/10" :
+                                            u.role === 'admin' ? "border-blue-500/20 text-blue-600 dark:text-blue-400 bg-blue-500/10" :
+                                            "border-slate-500/20 text-slate-600 dark:text-slate-400 bg-slate-500/10"
+                                        )}>
+                                            {u.role}
+                                        </span>
+                                    </td>
+                                    <td className="p-4 text-xs text-slate-500 font-mono">
+                                        {u.id}
+                                    </td>
+                                    <td className="p-4 text-right">
+                                        <select 
+                                            value={u.role}
+                                            onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                                            disabled={u.id === currentUser?.id}
+                                            className="bg-slate-100 dark:bg-slate-800 border-none text-xs rounded-lg p-2 focus:ring-2 focus:ring-primary/50 outline-none text-slate-900 dark:text-white"
+                                        >
+                                            <option value="user">User</option>
+                                            <option value="admin">Admin</option>
+                                            <option value="super_admin">Super Admin</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+};
+
 // --- CMS Component ---
 const ContentManager: React.FC = () => {
     const [pages, setPages] = useState<{id: string, content: any}[]>([]);
     const [selectedPage, setSelectedPage] = useState<string>('home');
     const [editContent, setEditContent] = useState<string>('');
+    const [isValidJson, setIsValidJson] = useState(true);
 
     useEffect(() => {
         fetchContent();
@@ -130,15 +237,24 @@ const ContentManager: React.FC = () => {
         }
     };
 
+    const validateJson = (val: string) => {
+        try {
+            JSON.parse(val);
+            setIsValidJson(true);
+        } catch (e) {
+            setIsValidJson(false);
+        }
+    };
+
     const handleSave = async () => {
         try {
             const json = JSON.parse(editContent);
             const { error } = await supabase
                 .from('page_content')
-                .upsert({ id: selectedPage, content: json, updated_at: new Date() });
+                .upsert({ id: selectedPage, content: json, updated_at: new Date().toISOString() });
             
             if (error) throw error;
-            alert('Content updated successfully!');
+            alert('Content updated successfully! Changes are live.');
             fetchContent();
         } catch (e: any) {
             alert('Error saving: ' + e.message);
@@ -180,20 +296,179 @@ const ContentManager: React.FC = () => {
                 <div className="flex-1 p-6 flex flex-col">
                     <div className="flex justify-between items-center mb-4">
                         <div className="text-sm font-mono text-slate-500">Editing: <span className="text-primary font-bold uppercase">{selectedPage}</span></div>
-                        <button onClick={handleSave} className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 transition-colors shadow-lg shadow-green-500/20">
+                        <button 
+                            onClick={handleSave} 
+                            disabled={!isValidJson}
+                            className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 transition-colors shadow-lg shadow-green-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
                             <Save className="w-4 h-4" /> Save Changes
                         </button>
                     </div>
                     <textarea 
                         value={editContent}
-                        onChange={e => setEditContent(e.target.value)}
-                        className="flex-1 w-full bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-green-400 font-mono text-sm p-4 rounded-xl border border-slate-200 dark:border-slate-800 focus:border-primary focus:ring-1 focus:ring-primary outline-none resize-none shadow-inner"
+                        onChange={e => {
+                            setEditContent(e.target.value);
+                            validateJson(e.target.value);
+                        }}
+                        className={cn(
+                            "flex-1 w-full bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-green-400 font-mono text-sm p-4 rounded-xl border focus:ring-1 focus:ring-primary outline-none resize-none shadow-inner",
+                            isValidJson ? "border-slate-200 dark:border-slate-800 focus:border-primary" : "border-red-500 focus:border-red-500 text-red-500 dark:text-red-400"
+                        )}
                         spellCheck={false}
                     />
-                    <p className="text-xs text-slate-500 mt-2">
-                        * Edit the JSON values directly. Do not change keys unless you update the frontend code.
-                    </p>
+                    <div className="flex justify-between items-center mt-2">
+                         <p className="text-xs text-slate-500">
+                            * Edit the JSON values directly. Use strict JSON format.
+                        </p>
+                        {!isValidJson && <span className="text-xs text-red-500 font-bold flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Invalid JSON</span>}
+                    </div>
                 </div>
+            </div>
+        </div>
+    );
+};
+
+// --- System Maintenance ---
+const MaintenanceConsole: React.FC = () => {
+    const [status, setStatus] = useState<string>('');
+    const [loading, setLoading] = useState(false);
+
+    const handleOrphanCleanup = async () => {
+        if (!confirm("This will delete files from storage that are not linked to any song in the database. Continue?")) return;
+        setLoading(true);
+        setStatus('Scanning for orphaned files...');
+        try {
+            // 1. Get all songs with file_path
+            const { data: songs } = await supabase.from('songs').select('file_path');
+            const activeFiles = new Set(songs?.map(s => s.file_path).filter(Boolean));
+
+            // 2. List all files in storage
+            const { data: files, error } = await supabase.storage.from('song-files').list();
+            
+            if (error) throw error;
+
+            if (files) {
+                const orphans = files.filter(f => f.name !== '.emptyFolderPlaceholder' && !activeFiles.has(f.name));
+                if (orphans.length > 0) {
+                    setStatus(`Found ${orphans.length} orphaned files. Deleting...`);
+                    const pathsToRemove = orphans.map(o => o.name);
+                    await supabase.storage.from('song-files').remove(pathsToRemove);
+                    setStatus(`Successfully deleted ${orphans.length} orphaned files.`);
+                } else {
+                    setStatus('System Clean. No orphaned files found.');
+                }
+            }
+        } catch (e: any) {
+            setStatus('Error: ' + e.message);
+        }
+        setLoading(false);
+    };
+
+    const handleAutoAlbum = async () => {
+        if (!confirm("This will group songs by artist and create albums automatically. Continue?")) return;
+        setLoading(true);
+        setStatus('Analyzing song database for album clusters...');
+        try {
+             // 1. Fetch all songs
+             const { data: songs } = await supabase.from('songs').select('id, artist, album_id');
+             if (!songs) throw new Error("No songs found");
+
+             // 2. Group by Artist
+             const artistMap: Record<string, Song[]> = {};
+             songs.forEach((s: any) => {
+                 // Normalize artist name to avoid case sensitivity issues
+                 const key = s.artist.trim();
+                 if (!artistMap[key]) artistMap[key] = [];
+                 artistMap[key].push(s);
+             });
+
+             let albumsCreated = 0;
+
+             // 3. Check groups
+             for (const artist in artistMap) {
+                 const artistSongs = artistMap[artist];
+                 
+                 // Only process if artist has > 1 song
+                 if (artistSongs.length > 1) {
+                     // Check if ANY of the songs already belong to an album
+                     const hasAlbum = artistSongs.some(s => s.album_id);
+                     
+                     if (!hasAlbum) {
+                         // Create Album
+                         const albumTitle = `${artist} Essentials`;
+                         const { data: newAlbum, error: albumError } = await supabase.from('albums').insert([{
+                             title: albumTitle,
+                             artist: artist,
+                             cover_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(albumTitle)}&background=random&size=512`
+                         }]).select().single();
+
+                         if (newAlbum) {
+                             // Update Songs to link to new album
+                             const songIds = artistSongs.map(s => s.id);
+                             await supabase.from('songs').update({ album_id: newAlbum.id }).in('id', songIds);
+                             albumsCreated++;
+                         }
+                     }
+                 }
+             }
+             setStatus(`Maintenance Complete: Created ${albumsCreated} new albums from existing artist clusters.`);
+
+        } catch (e: any) {
+            setStatus('Error: ' + e.message);
+        }
+        setLoading(false);
+    };
+
+    return (
+        <div className="p-8 animate-in fade-in">
+            <div className="mb-8">
+                <h1 className="text-3xl font-bold text-slate-900 dark:text-white">System Maintenance</h1>
+                <p className="text-slate-500">Database optimization and storage cleanup tools.</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Storage Cleaner */}
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-white/10 shadow-sm">
+                    <div className="flex items-center gap-3 mb-4 text-orange-500">
+                        <HardDrive className="w-6 h-6" />
+                        <h3 className="font-bold text-lg">Storage Garbage Collector</h3>
+                    </div>
+                    <p className="text-sm text-slate-500 mb-6">
+                        Scans the 'song-files' bucket for files that are no longer linked to any song in the database and permanently deletes them.
+                    </p>
+                    <button 
+                        onClick={handleOrphanCleanup}
+                        disabled={loading}
+                        className="w-full py-2 bg-slate-100 dark:bg-white/5 hover:bg-orange-500 hover:text-white dark:hover:bg-orange-600 rounded-lg transition-colors text-sm font-bold"
+                    >
+                        Run Cleanup
+                    </button>
+                </div>
+
+                {/* Auto Album */}
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-white/10 shadow-sm">
+                    <div className="flex items-center gap-3 mb-4 text-blue-500">
+                        <Layers className="w-6 h-6" />
+                        <h3 className="font-bold text-lg">Smart Album Clustering</h3>
+                    </div>
+                    <p className="text-sm text-slate-500 mb-6">
+                        Analyzes the song database. If an artist has multiple songs (>1), this tool automatically creates an album and links them.
+                    </p>
+                    <button 
+                         onClick={handleAutoAlbum}
+                         disabled={loading}
+                         className="w-full py-2 bg-slate-100 dark:bg-white/5 hover:bg-blue-500 hover:text-white dark:hover:bg-blue-600 rounded-lg transition-colors text-sm font-bold"
+                    >
+                        Generate Albums
+                    </button>
+                </div>
+            </div>
+
+            {/* Console Output */}
+            <div className="mt-8 bg-black rounded-xl p-4 font-mono text-xs text-green-400 h-40 overflow-y-auto border border-white/10 shadow-inner">
+                <div className="mb-2 opacity-50">admin@yourchords:~$ ready...</div>
+                {loading && <div className="mb-2 animate-pulse text-yellow-400">Processing...</div>}
+                {status && <div className="mb-2">{status}</div>}
             </div>
         </div>
     );
@@ -273,13 +548,24 @@ const SongManager: React.FC = () => {
         setLoading(false);
     };
 
-    const handleDelete = async (id: string) => {
+    const handleDelete = async (id: string, filePath?: string | null) => {
         if (confirm('WARNING: Are you sure you want to PERMANENTLY delete this song? This action cannot be undone.')) {
-            const { error } = await supabase.from('songs').delete().eq('id', id);
-            if (error) {
-                alert("Error deleting song: " + error.message);
-            } else {
-                fetchSongs(); // Refresh list
+            try {
+                // 1. If file exists, delete from storage
+                if (filePath) {
+                   const { error: storageError } = await supabase.storage.from('song-files').remove([filePath]);
+                   if (storageError) console.error("File delete warning:", storageError);
+                }
+
+                // 2. Delete record
+                const { error } = await supabase.from('songs').delete().eq('id', id);
+                if (error) {
+                    alert("Error deleting song: " + error.message);
+                } else {
+                    fetchSongs(); // Refresh list
+                }
+            } catch (e: any) {
+                alert("System Error: " + e.message);
             }
         }
     };
@@ -328,7 +614,10 @@ const SongManager: React.FC = () => {
                         ) : (
                             filteredSongs.map(song => (
                                 <tr key={song.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
-                                    <td className="p-4 font-medium text-slate-900 dark:text-white">{song.title}</td>
+                                    <td className="p-4 font-medium text-slate-900 dark:text-white">
+                                        {song.title}
+                                        {song.file_path && <span className="ml-2 text-[10px] bg-blue-500/10 text-blue-500 px-1.5 py-0.5 rounded border border-blue-500/20">FILE</span>}
+                                    </td>
                                     <td className="p-4 text-slate-500 dark:text-slate-400">{song.artist}</td>
                                     <td className="p-4">
                                         <span className={cn(
@@ -343,7 +632,7 @@ const SongManager: React.FC = () => {
                                     <td className="p-4 text-right flex justify-end gap-2">
                                         <Link to={`/song/${song.id}`} className="p-2 hover:bg-blue-500/10 text-blue-500 rounded" title="View"><ExternalLink className="w-4 h-4" /></Link>
                                         <button onClick={() => handleEdit(song)} className="p-2 hover:bg-yellow-500/10 text-yellow-500 rounded" title="Edit"><Edit className="w-4 h-4" /></button>
-                                        <button onClick={() => handleDelete(song.id)} className="p-2 hover:bg-red-500/10 text-red-500 rounded" title="Delete Permanently"><Trash2 className="w-4 h-4" /></button>
+                                        <button onClick={() => handleDelete(song.id, song.file_path)} className="p-2 hover:bg-red-500/10 text-red-500 rounded" title="Delete Permanently"><Trash2 className="w-4 h-4" /></button>
                                     </td>
                                 </tr>
                             ))
@@ -389,7 +678,7 @@ const AssetManager: React.FC = () => {
     };
 
     const handleDeleteAlbum = async (id: string) => {
-        if (confirm("Permanently delete this album?")) {
+        if (confirm("Permanently delete this album? This will not delete the songs, but unlink them.")) {
             await supabase.from('albums').delete().eq('id', id);
             fetchAlbums();
         }
@@ -723,8 +1012,8 @@ const AdminDashboard: React.FC = () => {
                 <Route path="smart-sync" element={<SmartSyncEditor />} />
                 <Route path="assets" element={<AssetManager />} />
                 <Route path="ai-create" element={<div className="p-8"><h2 className="text-2xl font-bold mb-6">AI Song Generator</h2><AIChordForm /></div>} />
-                <Route path="cache" element={<div className="p-8 text-center text-slate-500">System Cache & Maintenance (Coming Soon)</div>} />
-                <Route path="roles" element={<div className="p-8 text-center text-slate-500">Role Management (Coming Soon)</div>} />
+                <Route path="cache" element={<MaintenanceConsole />} />
+                <Route path="roles" element={<RoleManager />} />
             </Routes>
         </main>
       </div>
