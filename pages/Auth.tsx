@@ -1,100 +1,192 @@
 
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { motion } from 'framer-motion';
-import { Music, Mail, Lock, ArrowRight, Loader2, AlertTriangle, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Mail, Lock, ArrowRight, Loader2, AlertCircle, ArrowLeft, CheckCircle2, ShieldCheck, UserPlus, LogIn, Fingerprint, XCircle, Globe, Music } from 'lucide-react';
 import { DOT_GRID_SVG, cn } from '../lib/utils';
 import { Spotlight } from '../components/ui/Spotlight';
 
+type AuthView = 'login' | 'register' | 'forgot_password';
+
+// --- Security Helpers ---
+const calculateStrength = (pwd: string) => {
+    let score = 0;
+    if (pwd.length > 7) score++;
+    if (/[A-Z]/.test(pwd)) score++;
+    if (/\d/.test(pwd)) score++;
+    if (/[^A-Za-z0-9]/.test(pwd)) score++;
+    return score; // 0 to 4
+};
+
 const Auth: React.FC = () => {
-  const [isLogin, setIsLogin] = useState(true);
+  const [view, setView] = useState<AuthView>('login');
+  
+  // Form State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [honeypot, setHoneypot] = useState('');
+  
+  // Security State
+  const [isHuman, setIsHuman] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verifyProgress, setVerifyProgress] = useState(0);
+  const verifyTimerRef = useRef<number | null>(null);
+
+  // Status State
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [rateLimitTime, setRateLimitTime] = useState<number>(0);
   
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+  const [searchParams] = useSearchParams();
 
-  // Auto-redirect if user is already logged in
+  // --- Redirect Errors ---
   useEffect(() => {
-    if (!authLoading && user) {
-        navigate('/');
+    const errorDesc = searchParams.get('error_description');
+    if (errorDesc) {
+        setError(decodeURIComponent(errorDesc).replace(/\+/g, ' '));
     }
+  }, [searchParams]);
+
+  // --- Auto Redirect ---
+  useEffect(() => {
+    if (!authLoading && user) navigate('/');
   }, [user, authLoading, navigate]);
 
-  // Detect errors returned in URL hash (OAuth)
+  // --- Rate Limiting ---
   useEffect(() => {
-    const hash = window.location.hash;
-    if (hash && hash.includes('error_description')) {
-        try {
-            const params = new URLSearchParams(hash.substring(1));
-            const errorDesc = params.get('error_description');
-            if (errorDesc) {
-                setError(decodeURIComponent(errorDesc).replace(/\+/g, ' '));
-                window.history.replaceState(null, '', window.location.pathname);
-            }
-        } catch (e) {
-            console.error("Error parsing hash", e);
-        }
-    }
-  }, []);
+      if (rateLimitTime > 0) {
+          const timer = setInterval(() => setRateLimitTime(prev => prev - 1), 1000);
+          return () => clearInterval(timer);
+      }
+  }, [rateLimitTime]);
 
-  const handleAuth = async (e: React.FormEvent) => {
+  const handleRateLimit = () => {
+      const attempts = parseInt(localStorage.getItem('auth_attempts') || '0');
+      if (attempts > 4) {
+          setRateLimitTime(30);
+          localStorage.setItem('auth_attempts', '0');
+          return true;
+      }
+      localStorage.setItem('auth_attempts', (attempts + 1).toString());
+      return false;
+  };
+
+  // --- Verification Logic ---
+  const handleVerifyStart = () => {
+      if (isHuman) return;
+      setIsVerifying(true);
+      let progress = 0;
+      verifyTimerRef.current = window.setInterval(() => {
+          progress += 4;
+          setVerifyProgress(progress);
+          if (progress >= 100) {
+              if (verifyTimerRef.current) clearInterval(verifyTimerRef.current);
+              setIsHuman(true);
+              setIsVerifying(false);
+          }
+      }, 20);
+  };
+
+  const handleVerifyEnd = () => {
+      if (isHuman) return;
+      if (verifyTimerRef.current) clearInterval(verifyTimerRef.current);
+      setIsVerifying(false);
+      setVerifyProgress(0);
+  };
+
+  // --- Handlers ---
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (rateLimitTime > 0 || honeypot) return;
+
     setLoading(true);
     setError(null);
-    setSuccessMsg(null);
+
+    if (handleRateLimit()) {
+        setError("Too many attempts. Please wait 30 seconds.");
+        setLoading(false);
+        return;
+    }
 
     try {
-      if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-        // Navigation handled by useEffect above
-      } else {
-        // Sign Up Logic
-        const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+          setError("Invalid login credentials.");
+      }
+    } catch (err: any) {
+      setError("An unexpected error occurred.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (rateLimitTime > 0 || honeypot) return;
+
+    if (!isHuman) {
+        setError("Please verify you are human below.");
+        return;
+    }
+
+    if (calculateStrength(password) < 3) {
+        setError("Password is too weak.");
+        return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+       const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             data: { full_name: email.split('@')[0] },
+            emailRedirectTo: `${window.location.origin}/auth`,
           }
-        });
-        
-        if (error) throw error;
+       });
 
-        if (data.session) {
-            // Session active immediately
-        } else if (data.user) {
-            // Email Confirmation Required
-            setSuccessMsg('Account created successfully! Please check your email to confirm your registration before logging in.');
-            setIsLogin(true);
-            setPassword('');
-        }
-      }
+       if (error) {
+           setError(error.message);
+       } else {
+           if (data.session) {
+               setSuccessMsg("Account created! Logging in...");
+           } else {
+               setSuccessMsg("Verification email sent to " + email);
+               setPassword('');
+           }
+       }
     } catch (err: any) {
-      console.error("Auth Error:", err);
-      
-      // User-friendly error mapping
-      if (err.message.includes('Invalid login credentials')) {
-         setError('Incorrect email or password. If you just registered, please verify your email address.');
-         setPassword(''); // Clear password for retry
-      } else if (err.message.includes('User already registered')) {
-         setError('This email is already in use. Please sign in instead.');
-      } else if (err.message.includes('rate limit')) {
-         setError('Too many attempts. Please try again in a few minutes.');
-      } else {
-         setError(err.message);
-      }
+        setError("Registration failed. Please try again.");
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (honeypot) return;
+      setLoading(true);
+      setError(null);
+      setSuccessMsg(null);
+
+      try {
+          const { error } = await supabase.auth.resetPasswordForEmail(email, {
+              redirectTo: `${window.location.origin}/update-password`,
+          });
+          if (error) throw error;
+          setSuccessMsg("If an account exists, a reset link has been sent.");
+      } catch (err: any) {
+          setError("Unable to process request.");
+      } finally {
+          setLoading(false);
+      }
   };
 
   const handleOAuth = async (provider: 'google' | 'facebook') => {
@@ -103,13 +195,7 @@ const Auth: React.FC = () => {
     try {
         const { error } = await supabase.auth.signInWithOAuth({
             provider: provider,
-            options: {
-                redirectTo: window.location.origin,
-                queryParams: provider === 'google' ? {
-                    access_type: 'offline',
-                    prompt: 'consent',
-                } : undefined,
-            },
+            options: { redirectTo: window.location.origin },
         });
         if (error) throw error;
     } catch (err: any) {
@@ -118,163 +204,294 @@ const Auth: React.FC = () => {
     }
   };
 
+  const switchTo = (newView: AuthView) => {
+      setError(null);
+      setSuccessMsg(null);
+      setIsHuman(false);
+      setView(newView);
+  };
+
   return (
-    <div className="relative min-h-screen w-full flex items-center justify-center bg-slate-50 dark:bg-slate-950 overflow-hidden p-4">
-      <div 
-        className="absolute inset-0 pointer-events-none z-0 opacity-30"
+    <div className="min-h-screen w-full flex items-center justify-center bg-slate-950 relative overflow-hidden">
+       {/* Global Styles for Autofill Visibility */}
+       <style>{`
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover, 
+        input:-webkit-autofill:focus, 
+        input:-webkit-autofill:active{
+            -webkit-box-shadow: 0 0 0 30px #0f172a inset !important;
+            -webkit-text-fill-color: white !important;
+            caret-color: white !important;
+        }
+       `}</style>
+
+       <div 
+        className="absolute inset-0 pointer-events-none z-0 opacity-20"
         style={{ backgroundImage: `url('data:image/svg+xml;utf8,${encodeURIComponent(DOT_GRID_SVG)}')`, backgroundSize: '20px 20px' }}
       />
-      <Spotlight className="-top-40 left-0 hidden dark:block" fill="white" />
+      <Spotlight className="-top-40 left-0" fill="white" />
 
-      <div className="absolute top-8 left-8 z-20">
-         <Link to="/" className="flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors text-sm font-medium">
-             <ArrowLeft className="w-4 h-4" /> Back to Home
-         </Link>
-      </div>
+      {/* Back Link */}
+      <Link to="/" className="absolute top-8 left-8 flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm group z-50">
+         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Back to Home
+      </Link>
 
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="relative z-10 w-full max-w-md"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="relative z-10 w-full max-w-[440px] p-4"
       >
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl overflow-hidden">
-            {/* Header */}
-            <div className="p-8 bg-slate-50 dark:bg-white/5 border-b border-slate-200 dark:border-white/5 text-center">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-secondary mb-4 shadow-lg shadow-primary/20">
-                    <Music className="w-6 h-6 text-white" />
-                </div>
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">
-                    {isLogin ? 'Welcome Back' : 'Create Account'}
-                </h2>
-                <p className="text-slate-500 dark:text-slate-400 text-sm">
-                    {isLogin ? 'Enter your credentials to access your chords' : 'Join the future of music learning'}
-                </p>
+        {/* Card */}
+        <div className="bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl overflow-hidden relative">
+            
+            {/* Card Header */}
+            <div className="pt-10 pb-6 px-8 text-center relative z-10">
+                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-purple-600 mb-6 shadow-lg shadow-primary/30">
+                    {view === 'register' ? <UserPlus className="w-8 h-8 text-white" /> : <ShieldCheck className="w-8 h-8 text-white" />}
+                 </div>
+                 
+                 <AnimatePresence mode="wait">
+                    <motion.div
+                        key={view}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                    >
+                        <h1 className="text-2xl font-bold text-white mb-2 tracking-tight">
+                            {view === 'login' && "Secure Login"}
+                            {view === 'register' && "Create Account"}
+                            {view === 'forgot_password' && "Reset Password"}
+                        </h1>
+                        <p className="text-xs font-bold tracking-widest uppercase text-slate-500">
+                            {view === 'login' && "ENTER YOUR CREDENTIALS"}
+                            {view === 'register' && "JOIN THE NETWORK"}
+                            {view === 'forgot_password' && "RECOVER ACCESS"}
+                        </p>
+                    </motion.div>
+                </AnimatePresence>
             </div>
 
-            {/* Form */}
-            <div className="p-8">
-                {/* OAuth Buttons */}
-                <div className="grid grid-cols-2 gap-3 mb-6">
-                    <button 
-                        type="button"
-                        onClick={() => handleOAuth('google')}
-                        className="relative group flex items-center justify-center gap-2 py-2.5 px-4 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/10 transition-all text-sm font-medium text-slate-700 dark:text-white overflow-hidden"
-                    >
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
-                        <svg className="w-5 h-5" viewBox="0 0 24 24">
-                            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-                            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-                        </svg>
-                        Google
-                    </button>
-                    <button 
-                        type="button"
-                        onClick={() => handleOAuth('facebook')}
-                        className="relative group flex items-center justify-center gap-2 py-2.5 px-4 bg-[#1877F2] hover:bg-[#1864D9] border border-transparent rounded-lg transition-all text-sm font-medium text-white overflow-hidden"
-                    >
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
-                         <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.791-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                        </svg>
-                        Facebook
-                    </button>
-                </div>
-
-                <div className="relative mb-6">
-                    <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-slate-200 dark:border-white/10"></div>
-                    </div>
-                    <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-white dark:bg-slate-900 px-2 text-slate-500 dark:text-slate-400">Or continue with email</span>
-                    </div>
-                </div>
-
-                <form onSubmit={handleAuth} className="space-y-4">
-                    <div>
-                        <label className="block text-xs font-mono uppercase text-slate-500 dark:text-slate-400 mb-1">Email Address</label>
-                        <div className="relative">
-                            <Mail className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
-                            <input 
-                                type="email" 
-                                required
-                                value={email}
-                                onChange={e => setEmail(e.target.value)}
-                                className="w-full bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-white/10 rounded-lg py-2.5 pl-10 pr-4 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all placeholder-slate-400"
-                                placeholder="musician@example.com"
-                            />
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="block text-xs font-mono uppercase text-slate-500 dark:text-slate-400 mb-1">Password</label>
-                        <div className="relative">
-                            <Lock className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
-                            <input 
-                                type="password" 
-                                required
-                                value={password}
-                                onChange={e => setPassword(e.target.value)}
-                                className="w-full bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-white/10 rounded-lg py-2.5 pl-10 pr-4 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all placeholder-slate-400"
-                                placeholder="••••••••"
-                                minLength={6}
-                            />
-                        </div>
-                    </div>
-
-                    {error && (
-                        <motion.div 
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs border border-red-200 dark:border-red-500/20 flex flex-col gap-1"
+            {/* Card Body */}
+            <div className="px-8 pb-10 relative z-10">
+                <AnimatePresence mode="wait">
+                    {/* --- LOGIN FORM --- */}
+                    {view === 'login' && (
+                        <motion.form 
+                            key="login"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                            onSubmit={handleLogin}
+                            className="space-y-5"
                         >
-                            <div className="flex items-center gap-2 font-bold">
-                                <AlertTriangle className="w-4 h-4 shrink-0" />
-                                <span>Authentication Error</span>
+                            <input type="text" name="honeypot" className="hidden" value={honeypot} onChange={e => setHoneypot(e.target.value)} tabIndex={-1} autoComplete="off" />
+                            
+                            <div className="space-y-1.5">
+                                <div className="relative group">
+                                    <Mail className="absolute left-4 top-3.5 w-5 h-5 text-slate-500 group-focus-within:text-primary transition-colors" />
+                                    <input 
+                                        type="email" 
+                                        required 
+                                        value={email} 
+                                        onChange={e => setEmail(e.target.value)} 
+                                        className="w-full bg-slate-950/50 border border-white/10 rounded-xl py-3.5 pl-12 pr-4 text-white placeholder:text-slate-600 focus:ring-2 focus:ring-primary/50 focus:border-primary/50 outline-none transition-all text-sm" 
+                                        placeholder="Email Address" 
+                                    />
+                                </div>
                             </div>
-                            <p>{error}</p>
-                        </motion.div>
+                            
+                            <div className="space-y-1.5">
+                                <div className="relative group">
+                                    <Lock className="absolute left-4 top-3.5 w-5 h-5 text-slate-500 group-focus-within:text-primary transition-colors" />
+                                    <input 
+                                        type="password" 
+                                        required 
+                                        value={password} 
+                                        onChange={e => setPassword(e.target.value)} 
+                                        className="w-full bg-slate-950/50 border border-white/10 rounded-xl py-3.5 pl-12 pr-4 text-white placeholder:text-slate-600 focus:ring-2 focus:ring-primary/50 focus:border-primary/50 outline-none transition-all text-sm" 
+                                        placeholder="Password" 
+                                    />
+                                </div>
+                                <div className="flex justify-end">
+                                    <button type="button" onClick={() => switchTo('forgot_password')} className="text-xs font-medium text-slate-500 hover:text-primary transition-colors">Forgot Password?</button>
+                                </div>
+                            </div>
+
+                            <button type="submit" disabled={loading || rateLimitTime > 0} className="w-full bg-white text-slate-950 font-bold py-3.5 rounded-xl shadow-lg shadow-white/10 hover:bg-slate-100 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed">
+                                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <LogIn className="w-5 h-5" />}
+                                {rateLimitTime > 0 ? `Wait ${rateLimitTime}s` : 'Sign In'}
+                            </button>
+                        </motion.form>
                     )}
 
-                    {successMsg && (
-                        <motion.div 
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-xs border border-green-200 dark:border-green-500/20 flex flex-col gap-1"
+                    {/* --- REGISTER FORM --- */}
+                    {view === 'register' && (
+                        <motion.form 
+                            key="register"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                            onSubmit={handleRegister}
+                            className="space-y-5"
                         >
-                            <div className="flex items-center gap-2 font-bold">
-                                <CheckCircle2 className="w-4 h-4 shrink-0" />
-                                <span>Success</span>
+                             <input type="text" name="honeypot" className="hidden" value={honeypot} onChange={e => setHoneypot(e.target.value)} tabIndex={-1} autoComplete="off" />
+
+                            <div className="space-y-1.5">
+                                <div className="relative group">
+                                    <Mail className="absolute left-4 top-3.5 w-5 h-5 text-slate-500 group-focus-within:text-primary transition-colors" />
+                                    <input 
+                                        type="email" 
+                                        required 
+                                        value={email} 
+                                        onChange={e => setEmail(e.target.value)} 
+                                        className="w-full bg-slate-950/50 border border-white/10 rounded-xl py-3.5 pl-12 pr-4 text-white placeholder:text-slate-600 focus:ring-2 focus:ring-primary/50 focus:border-primary/50 outline-none transition-all text-sm" 
+                                        placeholder="Email Address" 
+                                    />
+                                </div>
                             </div>
-                            <p>{successMsg}</p>
-                        </motion.div>
+
+                            <div className="space-y-1.5">
+                                <div className="relative group">
+                                    <Lock className="absolute left-4 top-3.5 w-5 h-5 text-slate-500 group-focus-within:text-primary transition-colors" />
+                                    <input 
+                                        type="password" 
+                                        required 
+                                        value={password} 
+                                        onChange={e => setPassword(e.target.value)} 
+                                        className="w-full bg-slate-950/50 border border-white/10 rounded-xl py-3.5 pl-12 pr-4 text-white placeholder:text-slate-600 focus:ring-2 focus:ring-primary/50 focus:border-primary/50 outline-none transition-all text-sm" 
+                                        placeholder="Password" 
+                                    />
+                                </div>
+                                {/* Minimal Strength Meter */}
+                                <div className="flex gap-1 h-1 mt-2 px-1">
+                                    {[1, 2, 3, 4].map(i => (
+                                        <div key={i} className={cn("flex-1 rounded-full transition-colors h-1", calculateStrength(password) >= i ? (calculateStrength(password) === 4 ? "bg-green-500" : "bg-primary") : "bg-white/10")} />
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Biometric Verify Button */}
+                            <div 
+                                className={cn(
+                                    "relative h-14 rounded-xl overflow-hidden border transition-all select-none cursor-pointer group",
+                                    isHuman ? "bg-green-500/10 border-green-500/50" : "bg-slate-950/50 border-white/10 hover:border-primary/50"
+                                )}
+                                onMouseDown={handleVerifyStart}
+                                onMouseUp={handleVerifyEnd}
+                                onMouseLeave={handleVerifyEnd}
+                                onTouchStart={handleVerifyStart}
+                                onTouchEnd={handleVerifyEnd}
+                            >
+                                <div 
+                                    className="absolute top-0 left-0 bottom-0 bg-primary/20 transition-[width] ease-linear duration-0"
+                                    style={{ width: `${isHuman ? 100 : verifyProgress}%` }}
+                                />
+                                <div className="absolute inset-0 flex items-center justify-center gap-3 z-10">
+                                    {isHuman ? (
+                                        <ShieldCheck className="w-6 h-6 text-green-400" />
+                                    ) : (
+                                        <Fingerprint className={cn("w-6 h-6 text-slate-500 group-hover:text-primary transition-colors", isVerifying && "animate-pulse text-primary")} />
+                                    )}
+                                    <span className={cn("font-bold text-sm uppercase tracking-wider", isHuman ? "text-green-400" : "text-slate-400 group-hover:text-white transition-colors")}>
+                                        {isHuman ? "Identity Verified" : (isVerifying ? "Verifying..." : "Hold to Verify")}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <button type="submit" disabled={loading || !isHuman || rateLimitTime > 0} className="w-full bg-gradient-to-r from-primary to-purple-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed">
+                                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <UserPlus className="w-5 h-5" />}
+                                {rateLimitTime > 0 ? `Wait ${rateLimitTime}s` : 'Create Account'}
+                            </button>
+                        </motion.form>
                     )}
 
-                    <button 
-                        type="submit" 
-                        disabled={loading}
-                        className="w-full bg-gradient-to-r from-primary to-secondary text-white font-medium py-2.5 rounded-lg shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all flex items-center justify-center gap-2 disabled:opacity-70 hover:scale-[1.02] active:scale-[0.98]"
-                    >
-                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
-                        {isLogin ? 'Sign In' : 'Create Account'}
-                    </button>
-                </form>
-
-                <div className="mt-6 text-center">
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                        {isLogin ? "Don't have an account?" : "Already have an account?"}
-                        <button 
-                            onClick={() => {
-                                setIsLogin(!isLogin);
-                                setError(null);
-                                setSuccessMsg(null);
-                            }}
-                            className="ml-2 text-primary hover:text-primary/80 font-medium transition-colors"
+                    {/* --- FORGOT PASSWORD --- */}
+                    {view === 'forgot_password' && (
+                        <motion.form 
+                            key="forgot"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                            onSubmit={handleResetPassword}
+                            className="space-y-5"
                         >
-                            {isLogin ? 'Register Now' : 'Sign In'}
-                        </button>
-                    </p>
+                            <input type="text" name="honeypot" className="hidden" value={honeypot} onChange={e => setHoneypot(e.target.value)} tabIndex={-1} autoComplete="off" />
+
+                            <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl flex gap-3">
+                                <AlertCircle className="w-5 h-5 text-blue-400 shrink-0" />
+                                <p className="text-xs text-blue-200 leading-relaxed">
+                                    Enter your email. We'll send a secure link to reset your access credentials.
+                                </p>
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <div className="relative group">
+                                    <Mail className="absolute left-4 top-3.5 w-5 h-5 text-slate-500 group-focus-within:text-primary transition-colors" />
+                                    <input 
+                                        type="email" 
+                                        required 
+                                        value={email} 
+                                        onChange={e => setEmail(e.target.value)} 
+                                        className="w-full bg-slate-950/50 border border-white/10 rounded-xl py-3.5 pl-12 pr-4 text-white placeholder:text-slate-600 focus:ring-2 focus:ring-primary/50 focus:border-primary/50 outline-none transition-all text-sm" 
+                                        placeholder="Email Address" 
+                                    />
+                                </div>
+                            </div>
+
+                            <button type="submit" disabled={loading || rateLimitTime > 0} className="w-full bg-white text-slate-950 font-bold py-3.5 rounded-xl shadow-lg hover:bg-slate-100 transition-all flex items-center justify-center gap-2 disabled:opacity-70">
+                                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ArrowRight className="w-5 h-5" />}
+                                Send Reset Link
+                            </button>
+                            
+                            <button type="button" onClick={() => switchTo('login')} className="w-full py-2 text-sm font-bold text-slate-500 hover:text-white transition-colors">
+                                Cancel
+                            </button>
+                        </motion.form>
+                    )}
+                </AnimatePresence>
+                
+                {/* Social Login & Errors */}
+                <div className="mt-8 space-y-6">
+                    {view !== 'forgot_password' && (
+                        <>
+                            <div className="relative">
+                                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10"></div></div>
+                                <div className="relative flex justify-center text-xs uppercase font-bold"><span className="bg-[#0B1121] px-3 text-slate-600 rounded-full">Or Connect With</span></div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <button onClick={() => handleOAuth('google')} className="flex items-center justify-center gap-2 py-2.5 px-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all text-sm font-bold text-white">
+                                    <Globe className="w-4 h-4" /> Google
+                                </button>
+                                <button onClick={() => handleOAuth('facebook')} className="flex items-center justify-center gap-2 py-2.5 px-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all text-sm font-bold text-white">
+                                    <span className="text-blue-500 font-black text-lg leading-none">f</span> Facebook
+                                </button>
+                            </div>
+                        </>
+                    )}
+
+                    <AnimatePresence>
+                        {error && (
+                            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-start gap-3">
+                                <XCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                                <span>{error}</span>
+                            </motion.div>
+                        )}
+                        {successMsg && (
+                            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="p-4 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-sm flex items-start gap-3">
+                                <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
+                                <span>{successMsg}</span>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    {view !== 'forgot_password' && (
+                        <div className="text-center text-sm text-slate-400">
+                            {view === 'login' ? "Don't have an account? " : "Already have an account? "}
+                            <button onClick={() => switchTo(view === 'login' ? 'register' : 'login')} className="text-primary font-bold hover:text-white transition-colors">
+                                {view === 'login' ? "Join Now" : "Sign In"}
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

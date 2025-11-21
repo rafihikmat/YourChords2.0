@@ -3,15 +3,16 @@ import React, { useState, useRef, useEffect } from 'react';
 import AIChordForm from '../components/AIChordForm';
 import SongUploader from '../components/SongUploader';
 import ChordDiagram from '../components/ChordDiagram';
-import { CHORD_DATA } from '../lib/musicUtils';
-import { Sparkles, Upload, Activity, Book, Play, Mic2, Pause } from 'lucide-react';
+import { CHORD_FAMILIES, normalizeChordName } from '../lib/musicUtils';
+import { Sparkles, Upload, Activity, Book, Play, Mic2, Pause, Send, GraduationCap, Lightbulb, Info, Search } from 'lucide-react';
 import { DOT_GRID_SVG, cn } from '../lib/utils';
 import { Spotlight } from '../components/ui/Spotlight';
 import { useAuth } from '../contexts/AuthContext';
+import { ai } from '../lib/gemini';
 
 const ToolsPage: React.FC = () => {
   const { isAdmin } = useAuth();
-  const [activeTab, setActiveTab] = useState<'ai' | 'upload' | 'tuner' | 'library' | 'metronome'>('tuner');
+  const [activeTab, setActiveTab] = useState<'ai' | 'upload' | 'tuner' | 'library' | 'metronome' | 'assistant'>('tuner');
   
   // Tuner State
   const tunerAudioContextRef = useRef<AudioContext | null>(null);
@@ -23,6 +24,15 @@ const ToolsPage: React.FC = () => {
   const metroAudioContextRef = useRef<AudioContext | null>(null);
   const nextNoteTimeRef = useRef(0);
   const timerIDRef = useRef<number | null>(null);
+  
+  // AI Assistant State
+  const [assistantQuery, setAssistantQuery] = useState('');
+  const [assistantResponse, setAssistantResponse] = useState<string | null>(null);
+  const [isAssistantLoading, setIsAssistantLoading] = useState(false);
+
+  // Chord Search State
+  const [chordSearchTerm, setChordSearchTerm] = useState('');
+  const [searchedChord, setSearchedChord] = useState<string | null>(null);
 
   // --- Tuner Logic ---
   const playNote = (frequency: number, note: string) => {
@@ -68,16 +78,14 @@ const ToolsPage: React.FC = () => {
           timerIDRef.current = null;
       }
     }
-    // Cleanup handled by separate effect or component unmount generally, 
-    // but here we persist logic while on tab unless component unmounts
     return () => {
         if (timerIDRef.current) window.clearTimeout(timerIDRef.current);
     };
   }, [isMetroPlaying]);
 
   const scheduler = () => {
-      const lookahead = 25.0; // How frequently to call scheduling function (in milliseconds)
-      const scheduleAheadTime = 0.1; // How far ahead to schedule audio (in seconds)
+      const lookahead = 25.0;
+      const scheduleAheadTime = 0.1;
 
       if (!metroAudioContextRef.current) return;
 
@@ -98,12 +106,47 @@ const ToolsPage: React.FC = () => {
       const osc = metroAudioContextRef.current.createOscillator();
       const gain = metroAudioContextRef.current.createGain();
       
-      osc.frequency.value = 1000; // Click sound pitch
+      osc.frequency.value = 1000;
       osc.connect(gain);
       gain.connect(metroAudioContextRef.current.destination);
       
       osc.start(time);
       osc.stop(time + 0.05);
+  };
+  
+  // --- AI Assistant Logic ---
+  const handleAssistantSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!assistantQuery.trim()) return;
+      
+      setIsAssistantLoading(true);
+      try {
+          const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: `You are a friendly and expert Guitar Learning Assistant. 
+            The user is asking: "${assistantQuery}"
+            
+            Provide a concise, helpful, and encouraging answer. 
+            If they ask about a specific chord, describe finger positioning clearly.
+            If they ask about theory, explain it simply.
+            Keep the tone "Cyber-Zen" (calm, futuristic, helpful).`
+          });
+          
+          setAssistantResponse(response.text || "I couldn't tune into that frequency. Try asking again.");
+      } catch (error) {
+          console.error(error);
+          setAssistantResponse("Connection interrupted. Please check your neural link (internet/API key).");
+      } finally {
+          setIsAssistantLoading(false);
+      }
+  };
+
+  // --- Chord Search Logic ---
+  const handleChordSearch = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!chordSearchTerm) return;
+      const normalized = normalizeChordName(chordSearchTerm);
+      setSearchedChord(normalized);
   };
 
   // Cleanup on unmount
@@ -128,7 +171,8 @@ const ToolsPage: React.FC = () => {
   const tabs = [
       { id: 'tuner', label: 'Guitar Tuner', icon: Activity, visible: true },
       { id: 'metronome', label: 'Metronome', icon: Mic2, visible: true },
-      { id: 'library', label: 'Chord Library', icon: Book, visible: true },
+      { id: 'library', label: 'Chord Visualizer', icon: Book, visible: true },
+      { id: 'assistant', label: 'AI Assistant', icon: GraduationCap, visible: true },
       { id: 'upload', label: 'Upload', icon: Upload, visible: true },
       { id: 'ai', label: 'AI Generator', icon: Sparkles, visible: isAdmin },
   ];
@@ -148,7 +192,7 @@ const ToolsPage: React.FC = () => {
             </div>
             <h1 className="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white mb-4 tracking-tight">Tools & Utilities</h1>
             <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
-                Generate chords, tune your guitar, browse fingerings, or upload your own files.
+                Generate chords, tune your guitar, visualize diagrams, or ask the AI for help.
             </p>
         </div>
 
@@ -160,8 +204,8 @@ const ToolsPage: React.FC = () => {
                         key={tab.id}
                         onClick={() => {
                             setActiveTab(tab.id as any);
-                            stopNote(); // Stop tuner if switching
-                            setIsMetroPlaying(false); // Stop metronome if switching
+                            stopNote();
+                            setIsMetroPlaying(false);
                         }}
                         className={cn(
                             "flex items-center gap-2 px-6 py-2 rounded-lg text-sm font-bold transition-all",
@@ -250,19 +294,120 @@ const ToolsPage: React.FC = () => {
         )}
 
         {activeTab === 'library' && (
-             <div className="w-full mx-auto">
-                 <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 p-8 shadow-xl">
-                     <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
-                        <Book className="w-6 h-6 text-primary" /> Chord Dictionary
-                     </h2>
-                     <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-6">
-                         {Object.keys(CHORD_DATA).map(chord => (
-                             <div key={chord} className="flex flex-col items-center p-2 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-white/5 hover:border-primary/30 transition-colors">
-                                 <ChordDiagram name={chord} />
-                             </div>
-                         ))}
-                     </div>
+             <div className="w-full mx-auto space-y-8">
+                 <div className="text-center mb-4">
+                     <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Chord Diagram Visualizer</h2>
+                     <p className="text-slate-500 text-sm">Comprehensive dictionary organized by family.</p>
                  </div>
+
+                 <div className="max-w-md mx-auto mb-10">
+                    <form onSubmit={handleChordSearch} className="relative">
+                        <input
+                            type="text"
+                            value={chordSearchTerm}
+                            onChange={(e) => setChordSearchTerm(e.target.value)}
+                            placeholder="Enter chord name (e.g., C, Am, G7, F#m)"
+                            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-full py-3 pl-12 pr-4 text-sm shadow-lg focus:ring-2 focus:ring-primary/50 outline-none text-slate-900 dark:text-white"
+                        />
+                        <Search className="absolute left-4 top-3 w-5 h-5 text-slate-400" />
+                        <button type="submit" className="absolute right-2 top-2 p-1.5 bg-primary rounded-full text-white hover:bg-primary/90">
+                            <Search className="w-3 h-3" />
+                        </button>
+                    </form>
+
+                    {searchedChord && (
+                        <div className="mt-6 flex flex-col items-center animate-in fade-in slide-in-from-bottom-4">
+                            <div className="p-6 bg-white dark:bg-slate-900 rounded-2xl border border-primary/30 shadow-xl shadow-primary/10">
+                                <h3 className="text-sm font-bold text-center mb-4 text-primary">Search Result: {searchedChord}</h3>
+                                <div className="transform scale-125 mb-2">
+                                    <ChordDiagram name={searchedChord} />
+                                </div>
+                            </div>
+                            <button onClick={() => {setSearchedChord(null); setChordSearchTerm('');}} className="mt-4 text-xs text-slate-500 hover:text-white">
+                                Clear Search
+                            </button>
+                        </div>
+                    )}
+                 </div>
+                 
+                 {Object.entries(CHORD_FAMILIES).map(([family, chords]) => (
+                     <div key={family} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 p-6 shadow-lg">
+                         <div className="flex items-center gap-2 mb-6 border-b border-slate-200 dark:border-white/5 pb-2">
+                            <div className="p-1.5 bg-primary/10 rounded-lg text-primary">
+                                <Book className="w-4 h-4" />
+                            </div>
+                            <h3 className="text-lg font-bold text-slate-900 dark:text-white uppercase tracking-wider">{family} Chords</h3>
+                         </div>
+                         
+                         <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-6">
+                             {chords.map(chord => (
+                                 <div key={chord} className="flex flex-col items-center p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-white/5 hover:border-primary/30 transition-all hover:-translate-y-1 hover:shadow-md group cursor-pointer" onClick={() => {setSearchedChord(chord); window.scrollTo({top:0, behavior:'smooth'})}}>
+                                     <ChordDiagram name={chord} />
+                                 </div>
+                             ))}
+                         </div>
+                     </div>
+                 ))}
+             </div>
+        )}
+        
+        {activeTab === 'assistant' && (
+             <div className="w-full max-w-3xl mx-auto">
+                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 p-1 shadow-xl overflow-hidden">
+                    <div className="bg-gradient-to-r from-primary/20 to-purple-500/20 p-8 pb-12 text-center">
+                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2 flex items-center justify-center gap-2">
+                            <GraduationCap className="w-6 h-6 text-primary" /> AI Chord Learning Assistant
+                        </h2>
+                        <p className="text-slate-600 dark:text-slate-300 max-w-lg mx-auto text-sm">
+                            Ask me anything about how to play a chord, transitioning tips, or basic theory. I'm here to help you learn.
+                        </p>
+                    </div>
+                    
+                    <div className="-mt-6 px-6 pb-6">
+                        <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-white/10 rounded-xl p-6 shadow-lg">
+                             <div className="mb-6 min-h-[100px]">
+                                 {assistantResponse ? (
+                                     <div className="flex gap-4 animate-in fade-in">
+                                         <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shrink-0">
+                                             <Sparkles className="w-5 h-5 text-white" />
+                                         </div>
+                                         <div className="bg-white dark:bg-slate-900 p-4 rounded-xl rounded-tl-none border border-slate-200 dark:border-white/10 text-sm leading-relaxed text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
+                                             {assistantResponse}
+                                         </div>
+                                     </div>
+                                 ) : (
+                                     <div className="text-center text-slate-400 py-8 flex flex-col items-center gap-2">
+                                         <Lightbulb className="w-8 h-8 text-yellow-500/50" />
+                                         <p className="text-sm">"How do I play an F barre chord?"</p>
+                                         <p className="text-xs opacity-50">"What's the difference between C and Cadd9?"</p>
+                                     </div>
+                                 )}
+                             </div>
+                             
+                             <form onSubmit={handleAssistantSubmit} className="relative">
+                                 <input 
+                                    type="text" 
+                                    value={assistantQuery}
+                                    onChange={(e) => setAssistantQuery(e.target.value)}
+                                    placeholder="Ask a question about chords or guitar..."
+                                    className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl py-4 pl-4 pr-12 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 outline-none shadow-inner"
+                                 />
+                                 <button 
+                                    type="submit"
+                                    disabled={isAssistantLoading || !assistantQuery.trim()}
+                                    className="absolute right-2 top-2 p-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+                                 >
+                                     {isAssistantLoading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send className="w-4 h-4" />}
+                                 </button>
+                             </form>
+                        </div>
+                    </div>
+                </div>
+                
+                <div className="mt-4 flex gap-3 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-600 dark:text-blue-400 text-xs">
+                    <Info className="w-4 h-4 shrink-0" />
+                    <p>Pro Tip: Ask for "fingering tips" or "common progressions" for the best results. The AI analyzes musical theory to guide you.</p>
+                </div>
              </div>
         )}
         

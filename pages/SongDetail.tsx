@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import TablatureView from '../components/TablatureView';
 import { transposeChord, CHORD_DATA } from '../lib/musicUtils';
 import ChordDiagram from '../components/ChordDiagram';
+import YouTubePlayer from '../components/YouTubePlayer';
 
 // Mock data for fallback
 const MOCK_SONGS: Record<string, Song> = {
@@ -64,6 +65,9 @@ const SongDetail: React.FC = () => {
   const [fontSize, setFontSize] = useState(16); // px
   const [isMetronomeOn, setIsMetronomeOn] = useState(false);
   const [bpm, setBpm] = useState(120);
+  
+  // Interactive Chord State
+  const [selectedChord, setSelectedChord] = useState<string | null>(null);
   
   // Metronome Refs
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -247,6 +251,41 @@ const SongDetail: React.FC = () => {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white pt-20 pb-40 relative transition-colors duration-300 print:bg-white print:text-black print:pt-0 print:pb-0">
        <div className="absolute inset-0 pointer-events-none z-0 opacity-30 fixed no-print" style={{ backgroundImage: `url('data:image/svg+xml;utf8,${encodeURIComponent(DOT_GRID_SVG)}')`, backgroundSize: '20px 20px' }} />
       
+      {/* Interactive Chord Modal */}
+      <AnimatePresence>
+        {selectedChord && (
+            <motion.div 
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+                onClick={() => setSelectedChord(null)}
+            >
+                <motion.div 
+                    initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+                    className="bg-[#0f172a] border border-white/10 rounded-2xl p-6 shadow-2xl max-w-sm w-full relative overflow-hidden"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    {/* Neon Glow Effect */}
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-32 bg-cyan-500/20 rounded-full blur-[50px] pointer-events-none"></div>
+                    
+                    <div className="flex justify-between items-center mb-4 relative z-10">
+                        <h3 className="text-xl font-bold text-cyan-400">Chord Diagram</h3>
+                        <button onClick={() => setSelectedChord(null)} className="text-slate-400 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
+                    </div>
+                    
+                    <div className="flex flex-col items-center justify-center py-4 bg-white/5 rounded-xl border border-white/5 relative z-10">
+                         {/* Using a scale transform to make diagram larger in modal */}
+                         <div className="transform scale-125 origin-center my-4">
+                            <ChordDiagram name={selectedChord} />
+                         </div>
+                         <div className="mt-6 flex gap-2 text-xs text-slate-400 font-mono">
+                             <span>{CHORD_DATA[selectedChord]?.map(f => f === -1 ? 'x' : f).join(' - ')}</span>
+                         </div>
+                    </div>
+                </motion.div>
+            </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Fixed Compact Header */}
       <AnimatePresence>
         {isHeaderCompact && (
@@ -436,10 +475,20 @@ const SongDetail: React.FC = () => {
                         <div className="space-y-8 font-mono selection:bg-primary/30 print:text-black" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: `${fontSize}px` }}>
                             {song.chords && Array.isArray(song.chords) ? song.chords.map((section: any, idx: number) => (
                                 <div key={idx} className="relative mb-8 group/line break-inside-avoid">
-                                    <div className="min-h-[1.6em] mb-1.5 flex flex-wrap gap-x-4 font-bold select-none text-primary dark:text-[#60A5FA] print:text-black print:font-extrabold">
-                                        {section.chords?.length > 0 ? section.chords.map((chord: string, cIdx: number) => (
-                                            <span key={cIdx} className="cursor-pointer hover:scale-110 transition-transform inline-block">{transposeChord(chord, effectiveTranspose)}</span>
-                                        )) : <span className="opacity-0">.</span>}
+                                    {/* Render interactive chords with specific styling (Cyan on Dark) */}
+                                    <div className="min-h-[1.6em] mb-1.5 flex flex-wrap gap-x-4 font-bold select-none text-cyan-400 print:text-black print:font-extrabold">
+                                        {section.chords?.length > 0 ? section.chords.map((chord: string, cIdx: number) => {
+                                            const transposed = transposeChord(chord, effectiveTranspose);
+                                            return (
+                                                <button 
+                                                    key={cIdx} 
+                                                    onClick={() => setSelectedChord(transposed)}
+                                                    className="hover:scale-110 hover:text-white hover:bg-cyan-500/20 rounded px-1 transition-all inline-block cursor-pointer"
+                                                >
+                                                    {transposed}
+                                                </button>
+                                            );
+                                        }) : <span className="opacity-0">.</span>}
                                     </div>
                                     <div className="text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-wrap print:text-gray-800">{section.line || " "}</div>
                                 </div>
@@ -474,9 +523,7 @@ const SongDetail: React.FC = () => {
                         <iframe src={`https://open.spotify.com/embed/track/${song.spotify_track_id}?theme=0`} width="100%" height="152" frameBorder="0" allow="encrypted-media" className="rounded-xl shadow-lg"></iframe>
                     )}
                     {song.youtube_video_id && (
-                         <div className="rounded-xl overflow-hidden shadow-lg aspect-video bg-black">
-                            <iframe width="100%" height="100%" src={`https://www.youtube.com/embed/${song.youtube_video_id}`} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen></iframe>
-                         </div>
+                         <YouTubePlayer videoId={song.youtube_video_id} />
                     )}
                     
                     {/* Metronome in Sidebar for easy access */}

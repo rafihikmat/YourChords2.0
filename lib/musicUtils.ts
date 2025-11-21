@@ -33,6 +33,24 @@ export const transposeChord = (chord: string, semitones: number): string => {
   return newChord;
 };
 
+export const normalizeChordName = (input: string): string => {
+  if (!input) return "";
+  let normalized = input.trim();
+  
+  // Capitalize first letter
+  normalized = normalized.charAt(0).toUpperCase() + normalized.slice(1);
+  
+  // Intelligent replacements for common variations
+  normalized = normalized.replace(/min$/, 'm'); // Amin -> Am
+  normalized = normalized.replace(/minor$/, 'm'); // Aminor -> Am
+  normalized = normalized.replace(/maj$/, 'maj7'); // Cmaj -> Cmaj7 (assumption for jazz/pop context, or keep as maj)
+  normalized = normalized.replace(/major$/, ''); // Cmajor -> C
+  
+  return normalized;
+};
+
+// --- Chord Data & Visuals ---
+
 // Format: [E, A, D, G, B, e] strings. -1 = mute, 0 = open, 1+ = fret
 export const CHORD_DATA: Record<string, number[]> = {
   // Major
@@ -71,6 +89,7 @@ export const CHORD_DATA: Record<string, number[]> = {
   'C7': [-1, 3, 2, 3, 1, 0],
   'D7': [-1, -1, 0, 2, 1, 2],
   'E7': [0, 2, 0, 1, 0, 0],
+  'F7': [1, 3, 1, 2, 1, 1],
   'G7': [3, 2, 0, 0, 0, 1],
   'A7': [-1, 0, 2, 0, 2, 0],
   'B7': [-1, 2, 1, 2, 0, 2],
@@ -82,6 +101,7 @@ export const CHORD_DATA: Record<string, number[]> = {
   'Fmaj7': [-1, 3, 3, 2, 1, 0],
   'Gmaj7': [3, 2, 0, 0, 0, 2],
   'Amaj7': [-1, 0, 2, 1, 2, 0],
+  'Bmaj7': [-1, 2, 4, 3, 4, 2],
 
   // Minor 7ths
   'Am7': [-1, 0, 2, 0, 1, 0],
@@ -93,9 +113,9 @@ export const CHORD_DATA: Record<string, number[]> = {
   'Gm7': [3, 5, 3, 3, 3, 3],
 
   // Suspended
-  'Dsus4': [-1, -1, 0, 2, 3, 3],
-  'Asus4': [-1, 0, 2, 2, 3, 0],
-  'Esus4': [0, 2, 2, 2, 0, 0],
+  'Dsus4': [-1, -1, 0, 2, 3, 3], 'Dsus2': [-1, -1, 0, 2, 3, 0],
+  'Asus4': [-1, 0, 2, 2, 3, 0], 'Asus2': [-1, 0, 2, 2, 0, 0],
+  'Esus4': [0, 2, 2, 2, 0, 0], 
   'Gsus4': [3, 2, 0, 0, 1, 3],
   'Csus4': [-1, 3, 3, 0, 1, 1],
 
@@ -103,6 +123,24 @@ export const CHORD_DATA: Record<string, number[]> = {
   'Cadd9': [-1, 3, 2, 0, 3, 0],
   'Gadd9': [3, 2, 0, 2, 0, 3],
   'Aadd9': [-1, 0, 2, 4, 2, 0],
+  'Dadd9': [-1, -1, 0, 2, 5, 2],
+  
+  // 6th
+  'C6': [-1, 3, 2, 2, 1, 0],
+  'G6': [3, 2, 0, 0, 0, 0],
+  'D6': [-1, -1, 0, 2, 0, 2],
+  'A6': [-1, 0, 2, 2, 2, 2],
+};
+
+export const CHORD_FAMILIES: Record<string, string[]> = {
+    'Major': ['C', 'D', 'E', 'F', 'G', 'A', 'B'],
+    'Minor': ['Cm', 'Dm', 'Em', 'Fm', 'Gm', 'Am', 'Bm'],
+    '7th': ['C7', 'D7', 'E7', 'F7', 'G7', 'A7', 'B7'],
+    'Maj7': ['Cmaj7', 'Dmaj7', 'Emaj7', 'Fmaj7', 'Gmaj7', 'Amaj7', 'Bmaj7'],
+    'Min7': ['Cm7', 'Dm7', 'Em7', 'Fm7', 'Gm7', 'Am7', 'Bm7'],
+    'Sus': ['Csus4', 'Gsus4', 'Asus4', 'Dsus4', 'Esus4', 'Asus2', 'Dsus2'],
+    'Dim/Aug': ['Cdim', 'Caug', 'Ddim', 'Daug', 'Edim', 'Eaug'],
+    'Add9/6': ['Cadd9', 'Gadd9', 'Aadd9', 'C6', 'D6', 'G6', 'A6']
 };
 
 export const getChordFingering = (name: string) => {
@@ -121,8 +159,39 @@ export const getChordFingering = (name: string) => {
         if (quality.includes('m7')) return CHORD_DATA[root + 'm7'] || CHORD_DATA[root + 'm'];
         if (quality.includes('m')) return CHORD_DATA[root + 'm'];
         if (quality.includes('7')) return CHORD_DATA[root + '7'] || CHORD_DATA[root];
+        if (quality.includes('sus')) return CHORD_DATA[root + 'sus4'] || CHORD_DATA[root];
+        if (quality.includes('add9')) return CHORD_DATA[root + 'add9'] || CHORD_DATA[root];
         
         return CHORD_DATA[root];
     }
     return null;
+};
+
+// --- Helper: Parse Raw Text to JSON Chords ---
+export const parseChordsFromText = (text: string) => {
+    const lines = text.split('\n');
+    const jsonOutput = [];
+    
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trimEnd();
+        // We keep empty lines to maintain song structure if desired, or skip them.
+        // Here we push empty chords array to represent space.
+        if (!line) {
+            jsonOutput.push({ line: "", chords: [] });
+            continue;
+        }
+
+        // Detect section headers [Chorus], [Verse]
+        if (line.trim().startsWith('[') && line.trim().endsWith(']')) {
+             jsonOutput.push({ line: line, chords: [] });
+             continue;
+        }
+        
+        // valid chord regex
+        const chordRegex = /\b[A-G][#b]?(m|maj|dim|aug|sus|add|7|9|11|13|6)*(\/[A-G][#b]?)?\b/g;
+        const foundChords = line.match(chordRegex) || [];
+        
+        jsonOutput.push({ line: line, chords: foundChords });
+    }
+    return jsonOutput;
 };

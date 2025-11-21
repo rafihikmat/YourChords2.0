@@ -1,84 +1,56 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, Music2, Zap, Disc, Youtube } from 'lucide-react';
+import { ArrowRight, Music2, Zap, Disc } from 'lucide-react';
 import { Spotlight } from '../components/ui/Spotlight';
 import { DOT_GRID_SVG, cn } from '../lib/utils';
 import SongCard from '../components/ui/SongCard';
-import { Song, Album, VideoTutorial } from '../types';
+import { Song, Album } from '../types';
 import { supabase } from '../lib/supabase';
+import { VideoGallery } from '../components/VideoGallery';
 
 const Home: React.FC = () => {
   const [songs, setSongs] = useState<Song[]>([]);
   const [filteredSongs, setFilteredSongs] = useState<Song[]>([]);
   const [albums, setAlbums] = useState<Album[]>([]);
-  const [videos, setVideos] = useState<VideoTutorial[]>([]);
   const [isLoadingSongs, setIsLoadingSongs] = useState(true);
   const [difficultyFilter, setDifficultyFilter] = useState<string>('All');
   const [pageContent, setPageContent] = useState<any>(null);
 
-  // Enhanced Mock Data for "Cyber-Zen" aesthetic fallback
-  // IDs must be valid UUIDs to prevent database errors on Detail page
   const fallbackSongs: Song[] = [
     { id: '11111111-1111-1111-1111-111111111111', title: 'Neon Blade', artist: 'MoonDeity', chords: [], tablature: {}, difficulty: 'Expert', spotify_track_id: '123', youtube_video_id: '456', view_count: 125000 },
     { id: '22222222-2222-2222-2222-222222222222', title: 'After Dark', artist: 'Mr. Kitty', chords: [], tablature: {}, difficulty: 'Medium', spotify_track_id: '124', youtube_video_id: '457', view_count: 89000 },
     { id: '33333333-3333-3333-3333-333333333333', title: 'Nightcall', artist: 'Kavinsky', chords: [], tablature: {}, difficulty: 'Easy', spotify_track_id: '125', youtube_video_id: '458', view_count: 45000 },
-    { id: '44444444-4444-4444-4444-444444444444', title: 'Resonance', artist: 'Home', chords: [], tablature: {}, difficulty: 'Medium', spotify_track_id: '126', youtube_video_id: '459', view_count: 32000 },
-    { id: '55555555-5555-5555-5555-555555555555', title: 'Memory Reboot', artist: 'VØJ, Narvent', chords: [], tablature: {}, difficulty: 'Hard', spotify_track_id: '127', youtube_video_id: '460', view_count: 28000 },
-    { id: '66666666-6666-6666-6666-666666666666', title: 'SimpsonWave 1995', artist: 'FrankJavCee', chords: [], tablature: {}, difficulty: 'Easy', spotify_track_id: '128', youtube_video_id: '461', view_count: 15000 }
   ];
 
   const fallbackAlbums: Album[] = [
       { id: 'a1', title: 'Random Access Memories', artist: 'Daft Punk', cover_url: 'https://upload.wikimedia.org/wikipedia/en/a/a7/Random_Access_Memories.jpg' },
       { id: 'a2', title: 'The Dark Side of the Moon', artist: 'Pink Floyd', cover_url: 'https://upload.wikimedia.org/wikipedia/en/3/3b/Dark_Side_of_the_Moon.png' },
-      { id: 'a3', title: 'Currents', artist: 'Tame Impala', cover_url: 'https://upload.wikimedia.org/wikipedia/en/9/9b/Tame_Impala_-_Currents.png' },
-      { id: 'a4', title: 'AM', artist: 'Arctic Monkeys', cover_url: 'https://upload.wikimedia.org/wikipedia/en/0/04/Arctic_Monkeys_-_AM.png' }
-  ];
-
-  const fallbackVideos: VideoTutorial[] = [
-      { video_id: 'v1', title: 'Mastering Barre Chords in 10 Mins', channel_title: 'GuitarHero', thumbnail_url: 'https://img.youtube.com/vi/d_UVn7Z_sZ8/mqdefault.jpg' },
-      { video_id: 'v2', title: 'Learn Fingerstyle Fast', channel_title: 'AcousticLife', thumbnail_url: 'https://img.youtube.com/vi/C4j_4l-6Ff0/mqdefault.jpg' },
-      { video_id: 'v3', title: 'Music Theory for Beginners', channel_title: 'Rick Beato', thumbnail_url: 'https://img.youtube.com/vi/Dq2W4b38yGs/mqdefault.jpg' }
   ];
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch CMS Content
         const { data: cmsData } = await supabase.from('page_content').select('content').eq('id', 'home').single();
         if (cmsData) setPageContent(cmsData.content);
 
-        // Fetch Songs
         const { data, error } = await supabase.from('songs').select('*').order('view_count', { ascending: false }).limit(12);
-        let songList: Song[] = [];
-        if (error || !data || data.length === 0) songList = fallbackSongs;
-        else songList = data as unknown as Song[];
-        
-        setSongs(songList);
-        setFilteredSongs(songList);
+        setSongs((error || !data || data.length === 0) ? fallbackSongs : data as unknown as Song[]);
+        setFilteredSongs((error || !data || data.length === 0) ? fallbackSongs : data as unknown as Song[]);
 
-        // Fetch Albums (Mock logic since table might not be populated yet)
         const { data: albumData } = await supabase.from('albums').select('*').limit(4);
-        if (!albumData || albumData.length === 0) setAlbums(fallbackAlbums);
-        else setAlbums(albumData as any);
-
-        // Fetch Videos (Mock logic)
-        setVideos(fallbackVideos);
-
+        setAlbums((!albumData || albumData.length === 0) ? fallbackAlbums : albumData as any);
       } catch (err) {
         setSongs(fallbackSongs);
         setFilteredSongs(fallbackSongs);
         setAlbums(fallbackAlbums);
-        setVideos(fallbackVideos);
       } finally {
         setIsLoadingSongs(false);
       }
     };
-
     fetchData();
   }, []);
 
-  // Filter Logic
   useEffect(() => {
       if (difficultyFilter === 'All') {
           setFilteredSongs(songs);
@@ -87,13 +59,11 @@ const Home: React.FC = () => {
       }
   }, [difficultyFilter, songs]);
 
-  // Use dynamic content or fallback defaults
   const heroTitle = pageContent?.hero_title || "Master your chords in Hyperspeed.";
   const heroSubtitle = pageContent?.hero_subtitle || "The most advanced guitar platform for the modern musician. AI-generated chords, immersive tablature, and distraction-free practice modes.";
 
   return (
     <div className="relative w-full min-h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden flex flex-col transition-colors duration-500">
-      {/* Background Pattern */}
       <div 
         className="absolute inset-0 pointer-events-none z-0 opacity-30"
         style={{ backgroundImage: `url('data:image/svg+xml;utf8,${encodeURIComponent(DOT_GRID_SVG)}')`, backgroundSize: '20px 20px' }}
@@ -202,29 +172,9 @@ const Home: React.FC = () => {
          </div>
       </div>
 
-      {/* Video Tutorials */}
+      {/* Video Tutorials Section (Integrated from Legacy) */}
       <div id="tutorials" className="relative z-10 px-6 py-16 max-w-7xl mx-auto w-full mb-10">
-        <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-8 flex items-center gap-2">
-            <Youtube className="w-5 h-5 text-red-500" /> Popular Tutorials
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {videos.map(video => (
-                <div key={video.video_id} className="group cursor-pointer bg-slate-50 dark:bg-slate-900 rounded-xl overflow-hidden border border-slate-200 dark:border-white/10 hover:border-primary/50 transition-all">
-                    <div className="aspect-video bg-slate-800 relative overflow-hidden">
-                         <img src={video.thumbnail_url} alt={video.title} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
-                         <div className="absolute inset-0 flex items-center justify-center">
-                             <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:scale-110 transition-transform">
-                                 <div className="w-0 h-0 border-t-[6px] border-t-transparent border-l-[10px] border-l-white border-b-[6px] border-b-transparent ml-1"></div>
-                             </div>
-                         </div>
-                    </div>
-                    <div className="p-4">
-                        <h4 className="font-bold text-slate-900 dark:text-white line-clamp-2 mb-1 group-hover:text-primary transition-colors">{video.title}</h4>
-                        <p className="text-xs text-slate-500">{video.channel_title}</p>
-                    </div>
-                </div>
-            ))}
-        </div>
+        <VideoGallery />
       </div>
     </div>
   );
