@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 declare const Deno: any;
@@ -25,10 +26,14 @@ serve(async (req) => {
     const apiKey = Deno.env.get('YOUTUBE_API_KEY');
     
     if (!apiKey) {
-      throw new Error('YOUTUBE_API_KEY not configured');
+      // Graceful error that tells client configuration is missing, not just 'crash'
+      console.error('YOUTUBE_API_KEY missing in edge function environment');
+      return new Response(
+        JSON.stringify({ error: 'Server configuration missing: YOUTUBE_API_KEY' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // Logic extracted from legacy fetch-youtube-video-metadata
     const response = await fetch(
       `https://www.googleapis.com/youtube/v3/videos?key=${apiKey}&id=${videoId}&part=snippet`,
       {
@@ -38,14 +43,18 @@ serve(async (req) => {
     );
 
     if (!response.ok) {
-      throw new Error('YouTube API error: ' + await response.text());
+      const text = await response.text();
+      return new Response(
+        JSON.stringify({ error: `YouTube API Error: ${text}` }),
+        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const data = await response.json();
     
     if (!data.items || data.items.length === 0) {
       return new Response(
-        JSON.stringify({ error: 'Video not found' }),
+        JSON.stringify({ error: 'Video not found or invalid ID' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
