@@ -57,9 +57,12 @@ export const useChordSheetParser = ({ songData, transposeSteps = 0 }: UseChordSh
 
         const parseSong = async () => {
             try {
-                // Dynamic Import
+                // Dynamic Import with Vite Ignore
+                // The library is loaded via CDN in index.html (importmap).
+                // We must tell Vite to IGNORE this import during build, otherwise it looks for it in node_modules and fails.
+                
                 // @ts-ignore
-                const ChordSheetJSModule = await import('chordsheetjs');
+                const ChordSheetJSModule = await import(/* @vite-ignore */ "chordsheetjs");
                 
                 // Helper to find exports recursively in case of weird bundler wrapping
                 const getExport = (mod: any, key: string): any => {
