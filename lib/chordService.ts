@@ -125,7 +125,7 @@ export class ChordAdapter {
      * @returns An array of 6 numbers representing frets, or null if not found.
      */
     static getExternalChord(chordName: string): number[] | null {
-        if (!chordName) return null;
+        if (!chordName || typeof chordName !== 'string') return null;
 
         // 1. Parse the chord name into Root and Suffix
         // Matches "C", "C#", "Bb", "Am7", "F#maj7"

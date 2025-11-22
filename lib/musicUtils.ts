@@ -4,7 +4,7 @@ export const NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#'
 
 // --- Shared Helpers ---
 export const normalizeChordName = (input: string): string => {
-  if (!input) return "";
+  if (!input || typeof input !== 'string') return "";
   let normalized = input.trim().charAt(0).toUpperCase() + input.trim().slice(1);
   return normalized
     .replace(/min$/, 'm').replace(/minor$/, 'm')
@@ -13,7 +13,7 @@ export const normalizeChordName = (input: string): string => {
 };
 
 export const transposeChord = (chord: string, semitones: number): string => {
-  if (!chord?.trim()) return chord;
+  if (!chord || typeof chord !== 'string' || !chord.trim()) return chord;
   const match = chord.match(/^([A-G][#b]?)(.*?)(\/([A-G][#b]?))?$/);
   if (!match) return chord;
 
@@ -32,6 +32,7 @@ export const transposeChord = (chord: string, semitones: number): string => {
 };
 
 export const parseChordsFromText = (text: string) => {
+  if (!text || typeof text !== 'string') return [];
   const chordRegex = /\b[A-G][#b]?(m|maj|dim|aug|sus|add|7|9|11|13|6)*(\/[A-G][#b]?)?\b/g;
   return text.split('\n').map(line => {
     const trimmed = line.trimEnd();
@@ -72,7 +73,7 @@ const convertFrets = (hex: string): number[] => hex.split('').map(c => c.toLower
 
 // --- Main Lookup Function ---
 export const getChordFingering = (name: string): number[] | null => {
-  if (!name) return null;
+  if (!name || typeof name !== 'string') return null;
   
   // 1. Internal Fast Lookup
   if (INTERNAL_DB[name]) return INTERNAL_DB[name];
