@@ -1,8 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Save, ToggleRight, ToggleLeft, AlertCircle, PlayCircle, Disc3 } from 'lucide-react';
+import { Plus, Trash2, Save, ToggleRight, ToggleLeft, AlertCircle, PlayCircle, Disc3, Video, RefreshCw, ExternalLink, Image as ImageIcon } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { Album, VideoTutorial } from '../../../types';
 import { cn, fuzzySearch } from '../../../lib/utils';
+import YouTubePlayer from '../../../components/YouTubePlayer';
 
 const AssetManager: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'albums' | 'videos'>('albums');
@@ -179,77 +181,132 @@ const AssetManager: React.FC = () => {
              )}
 
              {activeTab === 'videos' && (
-                 <div className="space-y-8">
-                     {/* Create Video Form */}
-                     <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-white/10 shadow-sm">
-                        <h3 className="font-bold mb-4 text-slate-900 dark:text-white flex items-center gap-2"><Plus className="w-4 h-4" /> Add Tutorial Video</h3>
-                        <form onSubmit={handleAddVideo} className="space-y-4">
-                            <div className="flex gap-4 items-end">
-                                <div className="flex-1">
+                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                     {/* LEFT COLUMN: CREATE FORM */}
+                     <div className="lg:col-span-1 space-y-6">
+                        <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-white/10 shadow-sm sticky top-24">
+                            <h3 className="font-bold mb-6 text-slate-900 dark:text-white flex items-center gap-2">
+                                <Plus className="w-4 h-4 text-primary" /> Add Tutorial Video
+                            </h3>
+                            
+                            <form onSubmit={handleAddVideo} className="space-y-5">
+                                {/* Video ID + Auto-fill */}
+                                <div>
                                     <label className="text-xs text-slate-500 uppercase font-bold mb-1 block">YouTube Video ID</label>
                                     <div className="flex gap-2">
-                                        <input value={newVideo.video_id} onChange={e => setNewVideo({...newVideo, video_id: e.target.value})} className="w-full p-2 rounded border bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-sm" placeholder="e.g. dQw4w9WgXcQ" required />
-                                        <button type="button" onClick={fetchYoutubeMetadata} disabled={metadataLoading} className="px-3 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-white/10 text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-700 min-w-[80px] flex items-center justify-center">
-                                            {metadataLoading ? <div className="w-3 h-3 border-2 border-slate-500 border-t-transparent rounded-full animate-spin"></div> : "Auto-Fill"}
+                                        <div className="relative flex-1">
+                                            <Video className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                                            <input 
+                                                value={newVideo.video_id} 
+                                                onChange={e => setNewVideo({...newVideo, video_id: e.target.value})} 
+                                                className="w-full pl-9 p-2 rounded border bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-sm font-mono focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none" 
+                                                placeholder="e.g. dQw4w9WgXcQ" 
+                                                required 
+                                            />
+                                        </div>
+                                        <button 
+                                            type="button" 
+                                            onClick={fetchYoutubeMetadata} 
+                                            disabled={metadataLoading || !newVideo.video_id} 
+                                            className="px-3 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-white/10 text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-700 min-w-[80px] flex items-center justify-center transition-colors text-slate-700 dark:text-slate-300"
+                                        >
+                                            {metadataLoading ? <RefreshCw className="w-3 h-3 animate-spin" /> : "Auto-Fill"}
                                         </button>
                                     </div>
                                 </div>
-                                <div className="flex-1">
+
+                                {/* Video Preview (If ID exists) */}
+                                {newVideo.video_id && (
+                                    <div className="rounded-lg overflow-hidden border border-slate-200 dark:border-white/10 bg-black aspect-video relative group">
+                                        <YouTubePlayer videoId={newVideo.video_id} />
+                                        <div className="absolute top-2 right-2 px-2 py-1 bg-red-600 text-white text-[10px] font-bold rounded uppercase shadow-md pointer-events-none">
+                                            Preview
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div>
                                     <label className="text-xs text-slate-500 uppercase font-bold mb-1 block">Custom Title</label>
-                                    <input value={newVideo.title} onChange={e => setNewVideo({...newVideo, title: e.target.value})} className="w-full p-2 rounded border bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-sm" required />
+                                    <input value={newVideo.title} onChange={e => setNewVideo({...newVideo, title: e.target.value})} className="w-full p-2 rounded border bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-sm focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none" required />
                                 </div>
-                            </div>
-                             <div className="flex gap-4">
-                                <div className="flex-1">
+
+                                <div>
                                     <label className="text-xs text-slate-500 uppercase font-bold mb-1 block">Channel Name</label>
-                                    <input value={newVideo.channel_title} onChange={e => setNewVideo({...newVideo, channel_title: e.target.value})} className="w-full p-2 rounded border bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-sm" required />
+                                    <input value={newVideo.channel_title} onChange={e => setNewVideo({...newVideo, channel_title: e.target.value})} className="w-full p-2 rounded border bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-sm focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none" required />
                                 </div>
-                                <div className="flex-1">
-                                    <label className="text-xs text-slate-500 uppercase font-bold mb-1 block">Thumbnail URL</label>
-                                    <input value={newVideo.thumbnail_url} onChange={e => setNewVideo({...newVideo, thumbnail_url: e.target.value})} className="w-full p-2 rounded border bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-sm" required />
+
+                                <div>
+                                    <label className="text-xs text-slate-500 uppercase font-bold mb-1 flex items-center justify-between">
+                                        <span>Thumbnail URL</span>
+                                        {newVideo.thumbnail_url && (
+                                            <a href={newVideo.thumbnail_url} target="_blank" rel="noreferrer" className="text-primary hover:underline flex items-center gap-1">
+                                                <ExternalLink className="w-3 h-3" /> View
+                                            </a>
+                                        )}
+                                    </label>
+                                    <div className="relative">
+                                        <ImageIcon className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                                        <input value={newVideo.thumbnail_url} onChange={e => setNewVideo({...newVideo, thumbnail_url: e.target.value})} className="w-full pl-9 p-2 rounded border bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-sm focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none truncate" required />
+                                    </div>
                                 </div>
-                            </div>
-                            <button type="submit" className="w-full bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700 font-bold shadow-lg shadow-red-500/20 text-sm">Add Video to Library</button>
-                        </form>
+
+                                <button type="submit" className="w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded-lg font-bold shadow-lg shadow-red-500/20 text-sm transition-all active:scale-95 flex items-center justify-center gap-2">
+                                    <Save className="w-4 h-4" /> Add Video to Library
+                                </button>
+                            </form>
+                        </div>
                      </div>
 
-                     <div className="space-y-4">
-                         {filteredVideos.map((video, idx) => (
-                             <div key={idx} className="flex items-center gap-4 p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl shadow-sm hover:shadow-md transition-shadow group">
-                                 <div className="w-32 h-20 shrink-0 relative rounded-lg overflow-hidden bg-black">
-                                    <img src={video.thumbnail_url} alt="thumb" className={cn("w-full h-full object-cover transition-opacity", (video as any).is_active === false ? "opacity-50 grayscale" : "")} />
-                                 </div>
-                                 
-                                 <div className="flex-1 min-w-0">
-                                     <h4 className="font-bold text-sm text-slate-900 dark:text-white truncate">{video.title}</h4>
-                                     <p className="text-xs text-slate-500">{video.channel_title}</p>
-                                     <p className="text-[10px] font-mono text-slate-400 mt-1">{video.video_id}</p>
-                                 </div>
+                     {/* RIGHT COLUMN: LIST */}
+                     <div className="lg:col-span-2">
+                        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-white/10 overflow-hidden">
+                            <div className="p-4 border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 flex justify-between items-center">
+                                <h3 className="font-bold text-slate-700 dark:text-slate-300 text-sm">Video Library ({filteredVideos.length})</h3>
+                            </div>
+                            <div className="divide-y divide-slate-200 dark:divide-white/5">
+                                {filteredVideos.map((video, idx) => (
+                                    <div key={idx} className="flex items-start gap-4 p-4 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors group">
+                                        <div className="w-40 h-24 shrink-0 relative rounded-lg overflow-hidden bg-black shadow-sm">
+                                            <img src={video.thumbnail_url} alt="thumb" className={cn("w-full h-full object-cover transition-opacity", (video as any).is_active === false ? "opacity-50 grayscale" : "")} />
+                                            <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                 <PlayCircle className="w-8 h-8 text-white opacity-80" />
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="flex-1 min-w-0 py-1">
+                                            <h4 className="font-bold text-sm text-slate-900 dark:text-white truncate">{video.title}</h4>
+                                            <p className="text-xs text-slate-500 mb-2">{video.channel_title}</p>
+                                            <p className="text-[10px] font-mono text-slate-400 bg-slate-100 dark:bg-white/10 px-1.5 py-0.5 rounded w-fit">{video.video_id}</p>
+                                        </div>
 
-                                 <div className="flex items-center gap-4">
-                                     <button 
-                                        onClick={() => toggleVideoActive(video.video_id, (video as any).is_active)}
-                                        className={cn(
-                                            "flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold uppercase transition-colors",
-                                            (video as any).is_active !== false 
-                                                ? "bg-green-500/10 text-green-600 border border-green-500/20" 
-                                                : "bg-slate-200 dark:bg-slate-800 text-slate-500 border border-slate-300 dark:border-slate-700"
-                                        )}
-                                     >
-                                         {(video as any).is_active !== false ? <ToggleRight className="w-3 h-3" /> : <ToggleLeft className="w-3 h-3" />}
-                                         {(video as any).is_active !== false ? "Live" : "Hidden"}
-                                     </button>
-                                     
-                                     <button 
-                                        onClick={() => handleDeleteVideo(video.video_id)}
-                                        className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded transition-all opacity-0 group-hover:opacity-100"
-                                        title="Delete"
-                                     >
-                                        <Trash2 className="w-4 h-4" />
-                                     </button>
-                                 </div>
-                             </div>
-                         ))}
+                                        <div className="flex flex-col gap-2 items-end py-1">
+                                            <button 
+                                                onClick={() => toggleVideoActive(video.video_id, (video as any).is_active)}
+                                                className={cn(
+                                                    "flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold uppercase transition-colors w-24 justify-center",
+                                                    (video as any).is_active !== false 
+                                                        ? "bg-green-500/10 text-green-600 border border-green-500/20" 
+                                                        : "bg-slate-200 dark:bg-slate-800 text-slate-500 border border-slate-300 dark:border-slate-700"
+                                                )}
+                                            >
+                                                {(video as any).is_active !== false ? <ToggleRight className="w-3 h-3" /> : <ToggleLeft className="w-3 h-3" />}
+                                                {(video as any).is_active !== false ? "Active" : "Hidden"}
+                                            </button>
+                                            
+                                            <button 
+                                                onClick={() => handleDeleteVideo(video.video_id)}
+                                                className="flex items-center gap-1 px-3 py-1 rounded-lg text-[10px] font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                            >
+                                                <Trash2 className="w-3 h-3" /> Remove
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                                {filteredVideos.length === 0 && (
+                                    <div className="p-8 text-center text-slate-500 text-sm">No videos found.</div>
+                                )}
+                            </div>
+                        </div>
                      </div>
                  </div>
              )}
