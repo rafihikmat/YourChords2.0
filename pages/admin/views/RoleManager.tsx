@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -24,20 +25,30 @@ const RoleManager: React.FC = () => {
         setLoading(false);
     };
 
-    const handleRoleChange = async (userId: string, newRole: string) => {
-        if (userId === currentUser?.id) {
-            alert("Security Protocol: You cannot modify your own clearance level.");
+    const handleRoleChange = async (targetId: string, newRole: string) => {
+        // SECURITY: Prevent Self-Demotion
+        if (targetId === currentUser?.id) {
+            alert("Security Protocol: You cannot modify your own clearance level to prevent lockout.");
+            return;
+        }
+
+        // Validate Role (ensure strictly typed)
+        if (!['user', 'admin', 'super_admin'].includes(newRole)) {
+            alert("Invalid Role Assignment.");
             return;
         }
         
         if (!confirm(`Authorize role change to [${newRole.toUpperCase()}] for this user?`)) return;
 
-        const { error } = await supabase.from('profiles').update({ role: newRole }).eq('id', userId);
+        // LOGIC: If removing admin privileges (setting to user), we ensure it falls back gracefully
+        const safeRole = newRole || 'user'; // Fallback logic
+
+        const { error } = await supabase.from('profiles').update({ role: safeRole }).eq('id', targetId);
         
         if (error) {
             alert("Operation Failed: " + error.message);
         } else {
-            setUsers(users.map(u => u.id === userId ? { ...u, role: newRole as any } : u));
+            setUsers(users.map(u => u.id === targetId ? { ...u, role: safeRole as any } : u));
         }
     };
 

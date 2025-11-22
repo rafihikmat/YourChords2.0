@@ -1,22 +1,31 @@
+
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent } from "./ui/card";
-import { Input } from "./ui/input";
 import { supabase } from '../lib/supabase';
-import { PlayCircle, Search, Youtube, Video } from "lucide-react";
+import { PlayCircle, Search, Youtube, Video, Heart } from "lucide-react";
 import { VideoTutorial } from '../types';
-import { cn, fuzzySearch } from '../lib/utils';
+import { cn } from '../lib/utils';
 import YouTubePlayer from './YouTubePlayer';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import Fuse from 'fuse.js';
 
 export const VideoGallery: React.FC = () => {
   const [videos, setVideos] = useState<VideoTutorial[]>([]);
+  const [allVideos, setAllVideos] = useState<VideoTutorial[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
+  
+  // Favorites Logic
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
 
   useEffect(() => {
     fetchVideos();
-  }, []);
+    if (user) fetchFavorites();
+  }, [user]);
 
   const fetchVideos = async () => {
     try {
@@ -26,14 +35,62 @@ export const VideoGallery: React.FC = () => {
         .eq('is_active', true)
         .order('created_at', { ascending: false });
 
-      if (data) setVideos(data as unknown as VideoTutorial[]);
+      if (data) {
+          const vids = data as unknown as VideoTutorial[];
+          setAllVideos(vids);
+          setVideos(vids);
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  // Use our optimized fuzzy search
-  const filteredVideos = fuzzySearch<VideoTutorial>(videos, searchQuery, ['title', 'channel_title']);
+  const fetchFavorites = async () => {
+      if (!user) return;
+      // Assuming a video_favorites table exists or reusing structure. 
+      // If table doesn't exist, this might fail silently or error depending on backend.
+      // Based on typical patterns, we fetch where user_id matches.
+      const { data } = await supabase.from('video_favorites').select('video_id').eq('user_id', user.id);
+      if (data) {
+          setFavoriteIds(data.map((item: any) => item.video_id));
+      }
+  };
+
+  const toggleFavorite = async (e: React.MouseEvent, videoId: string) => {
+      e.stopPropagation();
+      if (!user) {
+          navigate('/auth');
+          return;
+      }
+
+      if (favoriteIds.includes(videoId)) {
+          // Remove
+          setFavoriteIds(prev => prev.filter(id => id !== videoId));
+          await supabase.from('video_favorites').delete().eq('user_id', user.id).eq('video_id', videoId);
+      } else {
+          // Add
+          setFavoriteIds(prev => [...prev, videoId]);
+          await supabase.from('video_favorites').insert({ user_id: user.id, video_id: videoId });
+      }
+  };
+
+  // Fuse.js Implementation
+  useEffect(() => {
+    if (searchQuery.trim().length < 2) {
+        setVideos(allVideos);
+        return;
+    }
+
+    const fuse = new Fuse(allVideos, {
+        keys: ['title', 'channel_title'],
+        threshold: 0.4,
+        distance: 100,
+        minMatchCharLength: 2,
+    });
+
+    const results = fuse.search(searchQuery);
+    setVideos(results.map(result => result.item));
+  }, [searchQuery, allVideos]);
 
   return (
     <div className="space-y-8">
@@ -64,13 +121,13 @@ export const VideoGallery: React.FC = () => {
               [1,2,3].map(i => (
                   <div key={i} className="aspect-video bg-slate-200 dark:bg-white/5 rounded-xl animate-pulse" />
               ))
-          ) : filteredVideos.length === 0 ? (
+          ) : videos.length === 0 ? (
               <div className="col-span-full py-12 text-center bg-slate-100 dark:bg-white/5 rounded-2xl border border-slate-200 dark:border-white/5">
                   <Video className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
                   <p className="text-slate-500 font-medium">No tutorials found matching "{searchQuery}"</p>
               </div>
           ) : (
-              filteredVideos.map((video) => (
+              videos.map((video) => (
                   <motion.div 
                     layoutId={video.video_id}
                     key={video.video_id} 
@@ -88,6 +145,15 @@ export const VideoGallery: React.FC = () => {
                                    <PlayCircle className="w-12 h-12 text-white fill-white/20" />
                                </div>
                            </div>
+                           
+                           {/* Favorites Button */}
+                           <button
+                                onClick={(e) => toggleFavorite(e, video.video_id)}
+                                className="absolute top-2 right-2 p-2 rounded-full bg-black/40 backdrop-blur-sm text-white hover:bg-black/60 transition-colors z-20"
+                           >
+                               <Heart className={cn("w-4 h-4", favoriteIds.includes(video.video_id) ? "fill-red-500 text-red-500" : "text-white")} />
+                           </button>
+
                            <div className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] font-bold px-2 py-1 rounded">
                                VIDEO
                            </div>

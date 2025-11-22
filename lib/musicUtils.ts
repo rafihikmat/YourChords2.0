@@ -46,13 +46,18 @@ export const getChordFingering = (name: string): number[] | null => {
   return ChordAdapter.getExternalChord(name);
 };
 
+// Expanded Chord Families for Manual Entry Editor
 export const CHORD_FAMILIES: Record<string, string[]> = {
-  'Major': ['C', 'D', 'E', 'F', 'G', 'A', 'B'],
-  'Minor': ['Cm', 'Dm', 'Em', 'Fm', 'Gm', 'Am', 'Bm'],
-  '7th': ['C7', 'D7', 'E7', 'F7', 'G7', 'A7', 'B7'],
+  'Major': ['C', 'D', 'E', 'F', 'G', 'A', 'B', 'C#', 'Eb', 'F#', 'Ab', 'Bb'],
+  'Minor': ['Cm', 'Dm', 'Em', 'Fm', 'Gm', 'Am', 'Bm', 'C#m', 'Ebm', 'F#m', 'G#m', 'Bbm'],
+  '7th': ['C7', 'D7', 'E7', 'F7', 'G7', 'A7', 'B7', 'B7', 'C#7', 'F#7'],
   'Maj7': ['Cmaj7', 'Dmaj7', 'Emaj7', 'Fmaj7', 'Gmaj7', 'Amaj7', 'Bmaj7'],
   'Min7': ['Cm7', 'Dm7', 'Em7', 'Fm7', 'Gm7', 'Am7', 'Bm7'],
-  'Sus': ['Csus4', 'Gsus4', 'Asus4', 'Dsus4', 'Esus4'],
-  'Dim/Aug': ['Cdim', 'Caug', 'Ddim', 'Daug'],
-  'Add9': ['Cadd9', 'Gadd9', 'Aadd9', 'Dadd9']
+  'Sus2': ['Csus2', 'Dsus2', 'Esus2', 'Fsus2', 'Gsus2', 'Asus2', 'Bsus2'],
+  'Sus4': ['Csus4', 'Dsus4', 'Esus4', 'Fsus4', 'Gsus4', 'Asus4', 'Bsus4'],
+  'Add9': ['Cadd9', 'Dadd9', 'Eadd9', 'Fadd9', 'Gadd9', 'Aadd9', 'Badd9'],
+  'Dim': ['Cdim', 'Ddim', 'Edim', 'Fdim', 'Gdim', 'Adim', 'Bdim'],
+  'Aug': ['Caug', 'Daug', 'Eaug', 'Faug', 'Gaug', 'Aaug', 'Baug'],
+  'Slash': ['D/F#', 'G/B', 'C/G', 'Am/G', 'F/C', 'E/G#'],
+  'Power': ['C5', 'D5', 'E5', 'F5', 'G5', 'A5', 'B5']
 };

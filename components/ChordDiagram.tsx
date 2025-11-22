@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { memo } from 'react';
 import { getChordFingering } from '../lib/musicUtils';
 
 interface ChordDiagramProps {
@@ -117,4 +117,4 @@ const ChordDiagram: React.FC<ChordDiagramProps> = ({ name, className }) => {
   );
 };
 
-export default ChordDiagram;
+export default memo(ChordDiagram);
