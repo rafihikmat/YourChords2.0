@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, Music2, Zap, Disc, SearchX, Database, Loader2 } from 'lucide-react';
+import { ArrowRight, Music2, Zap, Disc, SearchX, Database, Loader2, AlertTriangle } from 'lucide-react';
 import { Spotlight } from '../components/ui/Spotlight';
 import { DOT_GRID_SVG, cn } from '../lib/utils';
 import SongCard from '../components/ui/SongCard';
@@ -9,8 +9,10 @@ import { Song, Album } from '../types';
 import { supabase } from '../lib/supabase';
 import { VideoGallery } from '../components/VideoGallery';
 import { seedDatabase } from '../lib/seeder';
+import { useNavigate } from 'react-router-dom';
 
 const Home: React.FC = () => {
+  const navigate = useNavigate();
   const [songs, setSongs] = useState<Song[]>([]);
   const [filteredSongs, setFilteredSongs] = useState<Song[]>([]);
   const [albums, setAlbums] = useState<Album[]>([]);
@@ -18,32 +20,37 @@ const Home: React.FC = () => {
   const [isSeeding, setIsSeeding] = useState(false);
   const [difficultyFilter, setDifficultyFilter] = useState<string>('All');
   const [pageContent, setPageContent] = useState<any>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const fetchData = async () => {
       setIsLoadingSongs(true);
+      setFetchError(null);
       try {
         // 1. Content
         const { data: cmsData } = await supabase.from('page_content').select('content').eq('id', 'home').single();
         if (cmsData) setPageContent(cmsData.content);
 
-        // 2. Songs (Production Data Only)
+        // 2. Songs
         const { data, error } = await supabase.from('songs').select('*').order('view_count', { ascending: false }).limit(12);
         
-        if (!error && data) {
+        if (error) {
+            console.error("Supabase Song Error:", error);
+            setFetchError(error.message);
+            setSongs([]);
+            setFilteredSongs([]);
+        } else if (data) {
             const safeData = data as unknown as Song[];
             setSongs(safeData);
             setFilteredSongs(safeData);
-        } else {
-            setSongs([]);
-            setFilteredSongs([]);
         }
 
         // 3. Albums
         const { data: albumData } = await supabase.from('albums').select('*').limit(4);
         if (albumData) setAlbums(albumData as any);
 
-      } catch (err) {
+      } catch (err: any) {
         console.error("Data load failed", err);
+        setFetchError(err.message || "Unknown error");
         setSongs([]);
       } finally {
         setIsLoadingSongs(false);
@@ -64,9 +71,19 @@ const Home: React.FC = () => {
 
   const handleSeed = async () => {
       setIsSeeding(true);
-      await seedDatabase();
-      await fetchData(); // Reload data
-      setIsSeeding(false);
+      try {
+          const result = await seedDatabase();
+          if (result.failed > 0 && result.success === 0) {
+              alert("Seeding failed. You might need to Sign In first due to security policies.");
+              navigate('/auth');
+          } else {
+              await fetchData();
+          }
+      } catch (e) {
+          alert("Seeding error. See console.");
+      } finally {
+          setIsSeeding(false);
+      }
   };
 
   const heroTitle = pageContent?.hero_title || "Master your chords in Hyperspeed.";
@@ -120,9 +137,23 @@ const Home: React.FC = () => {
       {/* Trending Songs Section */}
       <div id="library-section" className="relative z-10 px-6 pb-20 max-w-7xl mx-auto w-full scroll-mt-24">
         <div className="flex flex-col md:flex-row items-end md:items-center justify-between mb-8 gap-4">
-            <h3 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Zap className="w-5 h-5 text-yellow-400" /> Trending Now
-            </h3>
+            <div className="flex items-center gap-4">
+                <h3 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Zap className="w-5 h-5 text-yellow-400" /> Trending Now
+                </h3>
+                {/* Always show seed button if empty, right in header */}
+                {!isLoadingSongs && songs.length === 0 && (
+                    <button 
+                        onClick={handleSeed} 
+                        disabled={isSeeding}
+                        className="text-xs bg-primary/10 text-primary hover:bg-primary/20 px-3 py-1 rounded-full font-bold flex items-center gap-1 transition-colors"
+                    >
+                        {isSeeding ? <Loader2 className="w-3 h-3 animate-spin" /> : <Database className="w-3 h-3" />}
+                        {isSeeding ? 'Seeding...' : 'Seed Data'}
+                    </button>
+                )}
+            </div>
+            
             <div className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 p-1 rounded-lg">
                 {['All', 'Easy', 'Medium', 'Hard', 'Expert'].map((level) => (
                     <button
@@ -146,6 +177,13 @@ const Home: React.FC = () => {
                 [1, 2, 3, 4, 5, 6].map(n => (
                     <div key={n} className="h-48 rounded-2xl bg-slate-200 dark:bg-white/5 animate-pulse"></div>
                 ))
+            ) : fetchError ? (
+                <div className="col-span-3 flex flex-col items-center justify-center py-20 text-red-500 bg-red-50 dark:bg-red-900/10 rounded-3xl border border-red-200 dark:border-red-900/20">
+                    <AlertTriangle className="w-12 h-12 mb-4 opacity-80" />
+                    <p className="font-bold mb-2">Database Connection Error</p>
+                    <p className="text-sm opacity-80 mb-4">{fetchError}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Did you run the SQL setup script?</p>
+                </div>
             ) : filteredSongs.length > 0 ? (
                 filteredSongs.slice(0, 6).map(song => (
                     <SongCard key={song.id} song={song} />

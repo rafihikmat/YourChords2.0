@@ -57,29 +57,26 @@ export const useChordSheetParser = ({ songData, transposeSteps = 0 }: UseChordSh
 
         const parseSong = async () => {
             try {
-                // Dynamic Import to prevent app crash if CDN fails
+                // Dynamic Import
                 // @ts-ignore
                 const ChordSheetJSModule = await import('chordsheetjs');
                 
-                // Robustly check for exports whether it's a default export bundle or named exports
-                let ParserClass = ChordSheetJSModule.ChordsOverLyricsParser;
-                let HtmlDivFormatter = ChordSheetJSModule.HtmlDivFormatter;
+                // Helper to find exports recursively in case of weird bundler wrapping
+                const getExport = (mod: any, key: string): any => {
+                    if (mod[key]) return mod[key];
+                    if (mod.default) {
+                        if (mod.default[key]) return mod.default[key];
+                        if (mod.default.default && mod.default.default[key]) return mod.default.default[key];
+                    }
+                    return null;
+                };
 
-                // Fallback 1: Default export
-                if (!ParserClass && ChordSheetJSModule.default) {
-                    ParserClass = ChordSheetJSModule.default.ChordsOverLyricsParser;
-                    HtmlDivFormatter = ChordSheetJSModule.default.HtmlDivFormatter;
-                }
-
-                // Fallback 2: Default export nested
-                if (!ParserClass && ChordSheetJSModule.default && ChordSheetJSModule.default.default) {
-                    ParserClass = ChordSheetJSModule.default.default.ChordsOverLyricsParser;
-                    HtmlDivFormatter = ChordSheetJSModule.default.default.HtmlDivFormatter;
-                }
+                const ParserClass = getExport(ChordSheetJSModule, 'ChordsOverLyricsParser');
+                const HtmlDivFormatter = getExport(ChordSheetJSModule, 'HtmlDivFormatter');
 
                 if (!ParserClass || !HtmlDivFormatter) {
-                     console.warn("ChordSheetJS exports found:", Object.keys(ChordSheetJSModule));
-                     throw new Error("ChordSheetJS classes not found in loaded module");
+                     console.warn("ChordSheetJS Module Structure:", ChordSheetJSModule);
+                     throw new Error("Required ChordSheetJS classes not found");
                 }
 
                 const parser = new ParserClass();
@@ -125,7 +122,7 @@ export const useChordSheetParser = ({ songData, transposeSteps = 0 }: UseChordSh
                 console.error("ChordSheetJS Loading/Parsing Failed:", error);
                 // Graceful Fallback: Show raw text if library fails
                 setParsedData({
-                    html: `<pre class="whitespace-pre-wrap font-mono text-sm text-slate-600 dark:text-slate-300">${rawSource}</pre>`,
+                    html: `<pre class="whitespace-pre-wrap font-mono text-sm text-slate-600 dark:text-slate-300 p-4 bg-slate-100 dark:bg-slate-900 rounded-lg overflow-x-auto">${rawSource}</pre>`,
                     uniqueChords: [],
                     metadata: {}
                 });
