@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Save, ToggleRight, ToggleLeft, PlayCircle, Video, RefreshCw, ExternalLink, Image as ImageIcon, Edit2, X } from 'lucide-react';
+import { Plus, Trash2, Save, ToggleRight, ToggleLeft, PlayCircle, Video, RefreshCw, ExternalLink, Image as ImageIcon, Edit2, X, Youtube } from 'lucide-react';
 import { supabase } from '../../../../lib/supabase';
 import { VideoTutorial } from '../../../../types';
 import { cn, fuzzySearch } from '../../../../lib/utils';
@@ -12,6 +12,7 @@ interface VideoManagerProps {
 
 export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
     const [videos, setVideos] = useState<VideoTutorial[]>([]);
+    const [inputUrl, setInputUrl] = useState(''); // Raw input for URL/ID
     const [videoForm, setVideoForm] = useState({ video_id: '', title: '', channel_title: '', thumbnail_url: '' });
     const [editingVideoId, setEditingVideoId] = useState<string | null>(null);
     const [metadataLoading, setMetadataLoading] = useState(false);
@@ -21,6 +22,19 @@ export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
         fetchVideos();
     }, []);
 
+    // Auto-extract ID when input changes
+    useEffect(() => {
+        if (!editingVideoId) {
+            const extractedId = extractVideoId(inputUrl);
+            if (extractedId) {
+                setVideoForm(prev => ({ ...prev, video_id: extractedId }));
+            } else if (inputUrl.length === 11) {
+                // Fallback for raw ID paste
+                setVideoForm(prev => ({ ...prev, video_id: inputUrl }));
+            }
+        }
+    }, [inputUrl, editingVideoId]);
+
     const fetchVideos = async () => {
         setLoading(true);
         const { data } = await supabase.from('video_tutorials').select('*').order('created_at', { ascending: false });
@@ -28,13 +42,32 @@ export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
         setLoading(false);
     };
 
+    const extractVideoId = (url: string): string | null => {
+        const patterns = [
+            /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+            /^([a-zA-Z0-9_-]{11})$/,
+        ];
+
+        for (const pattern of patterns) {
+            const match = url.match(pattern);
+            if (match) return match[1];
+        }
+        return null;
+    };
+
     const fetchYoutubeMetadata = async () => {
-        if (!videoForm.video_id) return;
+        const targetId = videoForm.video_id || extractVideoId(inputUrl);
+        
+        if (!targetId) {
+            alert("Please enter a valid YouTube URL or ID first.");
+            return;
+        }
+
         setMetadataLoading(true);
         
         try {
             const { data, error } = await supabase.functions.invoke('get-video-details', {
-                body: { videoId: videoForm.video_id }
+                body: { videoId: targetId }
             });
 
             if (error) throw error;
@@ -42,18 +75,25 @@ export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
 
             setVideoForm(prev => ({
                 ...prev,
+                video_id: targetId,
                 title: data.title,
                 channel_title: data.channel_title,
                 thumbnail_url: data.thumbnail_url
             }));
+            
+            // Update the raw input to show the ID if it was a URL
+            if (!editingVideoId) setInputUrl(targetId);
+
         } catch (err: any) {
             console.error('Metadata fetch failed:', err);
-            const fallbackThumb = `https://img.youtube.com/vi/${videoForm.video_id}/mqdefault.jpg`;
+            // Fallback: Construct standard thumbnail if API fails
+            const fallbackThumb = `https://img.youtube.com/vi/${targetId}/maxresdefault.jpg`;
             setVideoForm(prev => ({
                 ...prev,
+                video_id: targetId,
                 thumbnail_url: prev.thumbnail_url || fallbackThumb
             }));
-            alert(`Auto-fill failed (${err.message}). You can enter details manually.`);
+            alert(`Auto-fill warning: ${err.message}. \n\nWe've set the ID and a default thumbnail, but you may need to enter the Title manually.`);
         } finally {
             setMetadataLoading(false);
         }
@@ -62,6 +102,12 @@ export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
     const handleSaveVideo = async (e: React.FormEvent) => {
         e.preventDefault();
         
+        // Final check for ID
+        if (!videoForm.video_id) {
+            alert("Video ID is required");
+            return;
+        }
+
         let error;
         if (editingVideoId) {
             // Update existing
@@ -90,6 +136,7 @@ export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
 
     const handleEditVideo = (video: VideoTutorial) => {
         setEditingVideoId(video.video_id);
+        setInputUrl(video.video_id);
         setVideoForm({
             video_id: video.video_id,
             title: video.title,
@@ -113,6 +160,7 @@ export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
     };
 
     const resetVideoForm = () => {
+        setInputUrl('');
         setVideoForm({ video_id: '', title: '', channel_title: '', thumbnail_url: '' });
         setEditingVideoId(null);
     };
@@ -144,31 +192,37 @@ export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
                     <form onSubmit={handleSaveVideo} className="space-y-5">
                         {/* Video ID + Auto-fill */}
                         <div>
-                            <label className="text-xs text-slate-500 uppercase font-bold mb-1 block">YouTube Video ID</label>
+                            <label className="text-xs text-slate-500 uppercase font-bold mb-1 block">YouTube URL or ID</label>
                             <div className="flex gap-2">
                                 <div className="relative flex-1">
-                                    <Video className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                                    <Youtube className="absolute left-3 top-2.5 w-4 h-4 text-red-500" />
                                     <input 
-                                        value={videoForm.video_id} 
-                                        onChange={e => setVideoForm({...videoForm, video_id: e.target.value})} 
+                                        value={inputUrl} 
+                                        onChange={e => setInputUrl(e.target.value)} 
                                         className="w-full pl-9 p-2 rounded border bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-sm font-mono focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none disabled:opacity-50 disabled:cursor-not-allowed" 
-                                        placeholder="e.g. dQw4w9WgXcQ" 
+                                        placeholder="https://youtube.com/watch?v=..." 
                                         required 
-                                        disabled={!!editingVideoId} // Disable ID edit as it's PK
+                                        disabled={!!editingVideoId} 
                                     />
                                 </div>
                                 {!editingVideoId && (
                                     <button 
                                         type="button" 
                                         onClick={fetchYoutubeMetadata} 
-                                        disabled={metadataLoading || !videoForm.video_id} 
-                                        className="px-3 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-white/10 text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-700 min-w-[80px] flex items-center justify-center transition-colors text-slate-700 dark:text-slate-300"
+                                        disabled={metadataLoading || !inputUrl} 
+                                        className="px-3 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-white/10 text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-700 min-w-[80px] flex items-center justify-center transition-colors text-slate-700 dark:text-slate-300 disabled:opacity-50"
                                     >
                                         {metadataLoading ? <RefreshCw className="w-3 h-3 animate-spin" /> : "Auto-Fill"}
                                     </button>
                                 )}
                             </div>
-                            {editingVideoId && <p className="text-[10px] text-slate-400 mt-1 italic">Video ID cannot be changed once created.</p>}
+                            {editingVideoId ? (
+                                <p className="text-[10px] text-slate-400 mt-1 italic">ID cannot be changed. Create new to change.</p>
+                            ) : videoForm.video_id && (
+                                <p className="text-[10px] text-green-500 mt-1 flex items-center gap-1">
+                                    <RefreshCw className="w-3 h-3" /> ID Extracted: {videoForm.video_id}
+                                </p>
+                            )}
                         </div>
 
                         {/* Video Preview (If ID exists) */}
@@ -182,13 +236,25 @@ export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
                         )}
 
                         <div>
-                            <label className="text-xs text-slate-500 uppercase font-bold mb-1 block">Custom Title</label>
-                            <input value={videoForm.title} onChange={e => setVideoForm({...videoForm, title: e.target.value})} className="w-full p-2 rounded border bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-sm focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none" required />
+                            <label className="text-xs text-slate-500 uppercase font-bold mb-1 block">Title</label>
+                            <input 
+                                value={videoForm.title} 
+                                onChange={e => setVideoForm({...videoForm, title: e.target.value})} 
+                                className="w-full p-2 rounded border bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-sm focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none" 
+                                placeholder="Video Title"
+                                required 
+                            />
                         </div>
 
                         <div>
                             <label className="text-xs text-slate-500 uppercase font-bold mb-1 block">Channel Name</label>
-                            <input value={videoForm.channel_title} onChange={e => setVideoForm({...videoForm, channel_title: e.target.value})} className="w-full p-2 rounded border bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-sm focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none" required />
+                            <input 
+                                value={videoForm.channel_title} 
+                                onChange={e => setVideoForm({...videoForm, channel_title: e.target.value})} 
+                                className="w-full p-2 rounded border bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-sm focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none" 
+                                placeholder="Channel Name"
+                                required 
+                            />
                         </div>
 
                         <div>
@@ -202,15 +268,24 @@ export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
                             </label>
                             <div className="relative">
                                 <ImageIcon className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                                <input value={videoForm.thumbnail_url} onChange={e => setVideoForm({...videoForm, thumbnail_url: e.target.value})} className="w-full pl-9 p-2 rounded border bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-sm focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none truncate" required />
+                                <input 
+                                    value={videoForm.thumbnail_url} 
+                                    onChange={e => setVideoForm({...videoForm, thumbnail_url: e.target.value})} 
+                                    className="w-full pl-9 p-2 rounded border bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-sm focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none truncate" 
+                                    placeholder="https://..."
+                                    required 
+                                />
                             </div>
                         </div>
 
                         <button 
                             type="submit" 
+                            disabled={!videoForm.video_id}
                             className={cn(
                                 "w-full py-3 rounded-lg font-bold shadow-lg text-sm transition-all active:scale-95 flex items-center justify-center gap-2",
-                                editingVideoId ? "bg-yellow-500 hover:bg-yellow-600 text-white shadow-yellow-500/20" : "bg-red-600 hover:bg-red-700 text-white shadow-red-500/20"
+                                editingVideoId 
+                                    ? "bg-yellow-500 hover:bg-yellow-600 text-white shadow-yellow-500/20" 
+                                    : "bg-red-600 hover:bg-red-700 text-white shadow-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
                             )}
                         >
                             {editingVideoId ? <Save className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
@@ -231,7 +306,7 @@ export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
                             <div className="p-8 text-center text-slate-500">Loading videos...</div>
                         ) : filteredVideos.map((video, idx) => (
                             <div key={idx} className={cn("flex items-start gap-4 p-4 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors group", editingVideoId === video.video_id && "bg-yellow-50/50 dark:bg-yellow-900/20")}>
-                                <div className="w-40 h-24 shrink-0 relative rounded-lg overflow-hidden bg-black shadow-sm">
+                                <div className="w-40 h-24 shrink-0 relative rounded-lg overflow-hidden bg-black shadow-sm group-hover:shadow-md transition-shadow">
                                     <img src={video.thumbnail_url} alt="thumb" className={cn("w-full h-full object-cover transition-opacity", (video as any).is_active === false ? "opacity-50 grayscale" : "")} />
                                     <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                                         <PlayCircle className="w-8 h-8 text-white opacity-80" />
@@ -241,10 +316,13 @@ export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
                                 <div className="flex-1 min-w-0 py-1">
                                     <h4 className="font-bold text-sm text-slate-900 dark:text-white truncate">{video.title}</h4>
                                     <p className="text-xs text-slate-500 mb-2">{video.channel_title}</p>
-                                    <p className="text-[10px] font-mono text-slate-400 bg-slate-100 dark:bg-white/10 px-1.5 py-0.5 rounded w-fit">{video.video_id}</p>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[10px] font-mono text-slate-400 bg-slate-100 dark:bg-white/10 px-1.5 py-0.5 rounded w-fit">{video.video_id}</span>
+                                        {(video as any).is_active === false && <span className="text-[10px] font-bold text-red-500 uppercase bg-red-500/10 px-1.5 py-0.5 rounded">Hidden</span>}
+                                    </div>
                                 </div>
 
-                                <div className="flex flex-col gap-2 items-end py-1">
+                                <div className="flex flex-col gap-2 items-end py-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                                     <button 
                                         onClick={() => toggleVideoActive(video.video_id, (video as any).is_active)}
                                         className={cn(
