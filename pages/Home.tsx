@@ -1,24 +1,26 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, Music2, Zap, Disc, SearchX } from 'lucide-react';
+import { ArrowRight, Music2, Zap, Disc, SearchX, Database, Loader2 } from 'lucide-react';
 import { Spotlight } from '../components/ui/Spotlight';
 import { DOT_GRID_SVG, cn } from '../lib/utils';
 import SongCard from '../components/ui/SongCard';
 import { Song, Album } from '../types';
 import { supabase } from '../lib/supabase';
 import { VideoGallery } from '../components/VideoGallery';
+import { seedDatabase } from '../lib/seeder';
 
 const Home: React.FC = () => {
   const [songs, setSongs] = useState<Song[]>([]);
   const [filteredSongs, setFilteredSongs] = useState<Song[]>([]);
   const [albums, setAlbums] = useState<Album[]>([]);
   const [isLoadingSongs, setIsLoadingSongs] = useState(true);
+  const [isSeeding, setIsSeeding] = useState(false);
   const [difficultyFilter, setDifficultyFilter] = useState<string>('All');
   const [pageContent, setPageContent] = useState<any>(null);
 
-  useEffect(() => {
-    const fetchData = async () => {
+  const fetchData = async () => {
+      setIsLoadingSongs(true);
       try {
         // 1. Content
         const { data: cmsData } = await supabase.from('page_content').select('content').eq('id', 'home').single();
@@ -46,7 +48,9 @@ const Home: React.FC = () => {
       } finally {
         setIsLoadingSongs(false);
       }
-    };
+  };
+
+  useEffect(() => {
     fetchData();
   }, []);
 
@@ -57,6 +61,13 @@ const Home: React.FC = () => {
           setFilteredSongs(songs.filter(s => s.difficulty === difficultyFilter));
       }
   }, [difficultyFilter, songs]);
+
+  const handleSeed = async () => {
+      setIsSeeding(true);
+      await seedDatabase();
+      await fetchData(); // Reload data
+      setIsSeeding(false);
+  };
 
   const heroTitle = pageContent?.hero_title || "Master your chords in Hyperspeed.";
   const heroSubtitle = pageContent?.hero_subtitle || "The most advanced guitar platform for the modern musician. AI-generated chords, immersive tablature, and distraction-free practice modes.";
@@ -143,7 +154,16 @@ const Home: React.FC = () => {
                 <div className="col-span-3 flex flex-col items-center justify-center py-20 text-slate-500 bg-slate-100/50 dark:bg-white/5 rounded-3xl border border-dashed border-slate-300 dark:border-white/10">
                     <SearchX className="w-12 h-12 mb-4 opacity-50" />
                     <p className="font-medium">No songs found in the database.</p>
-                    <p className="text-sm opacity-70">Be the first to add a song using the AI Generator.</p>
+                    <p className="text-sm opacity-70 mb-6">Your library is empty. Initialize it with demo content.</p>
+                    
+                    <button 
+                        onClick={handleSeed} 
+                        disabled={isSeeding}
+                        className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/90 text-white rounded-xl font-bold transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
+                    >
+                        {isSeeding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
+                        {isSeeding ? "Seeding Database..." : "Initialize Demo Data"}
+                    </button>
                 </div>
             )}
         </div>
