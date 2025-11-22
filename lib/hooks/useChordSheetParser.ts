@@ -1,27 +1,26 @@
 
 import { useState, useEffect, useMemo } from 'react';
-// @ts-ignore
 import ChordSheetJS from 'chordsheetjs';
 import { ChordLine } from '../../types';
 
 /**
- * Converts our internal JSON ChordLine[] format into a raw text format 
- * that ChordSheetJS can parse (Chord-over-Lyric style).
+ * Converts internal ChordLine[] format to ChordPro text.
+ * This ensures legacy/AI-generated data works with the ChordProParser.
  */
 const convertJsonToRawText = (chordData: ChordLine[] | null): string => {
   if (!chordData || !Array.isArray(chordData)) return '';
 
   return chordData.map(line => {
-    // If it's a section header, ensure it stands out. 
+    // If it's a section header (e.g. [Chorus]), convert to ChordPro comment
     if (line.line && line.line.trim().startsWith('[') && line.line.trim().endsWith(']')) {
         return `{comment: ${line.line.replace(/[\[\]]/g, '')}}`;
     }
     
-    // If we have chords, we place them above lyrics.
+    // If we have chords, prepend them in brackets (Approximate ChordPro)
     if (line.chords && line.chords.length > 0) {
-       const chordString = line.chords.join('   ');
-       // Ensure spacing between chords to avoid merging
-       return `${chordString}\n${line.line}`;
+       const chordString = line.chords.map(c => `[${c}]`).join('');
+       // E.g. [C][Am]Lyrics here
+       return `${chordString}${line.line}`;
     }
     
     // Just lyrics or empty lines
@@ -48,11 +47,12 @@ export const useChordSheetParser = ({ songData, transposeSteps = 0 }: UseChordSh
         metadata: {}
     });
 
-    // 1. Prepare the Source String
+    // 1. Prepare the Source String (Ensure ChordPro format)
     const rawSource = useMemo(() => {
         if (typeof songData === 'string') return songData;
-        // Helper check to ensure we don't process string[] as ChordLine[]
-        if (Array.isArray(songData) && typeof songData[0] === 'string') return '';
+        // If it's a string array (legacy simple chords), we can't really parse it as a song sheet easily
+        if (Array.isArray(songData) && typeof songData[0] === 'string') return ''; 
+        // If it's ChordLine[], convert it
         return convertJsonToRawText(songData as ChordLine[]);
     }, [songData]);
 
@@ -60,18 +60,8 @@ export const useChordSheetParser = ({ songData, transposeSteps = 0 }: UseChordSh
         if (!rawSource) return;
 
         try {
-            // Instantiate parser and formatter from the default export object
-            // This handles cases where the CDN module only exposes a default export
-            let parser;
-            
-            // Detect ChordPro format (brackets around chords)
-            if (rawSource.includes('[') && rawSource.includes(']')) {
-                parser = new ChordSheetJS.ChordProParser();
-            } else {
-                // Fix: ChordsOverLyricsParser is deprecated/missing in types, using ChordsOverWordsParser
-                parser = new ChordSheetJS.ChordsOverWordsParser();
-            }
-
+            // Use the ChordSheetJS namespace to access classes
+            const parser = new ChordSheetJS.ChordProParser();
             const formatter = new ChordSheetJS.HtmlTableFormatter();
 
             // 2. Parse
@@ -85,7 +75,7 @@ export const useChordSheetParser = ({ songData, transposeSteps = 0 }: UseChordSh
             // 4. Format to HTML
             const html = formatter.format(song);
 
-            // 5. Extract Unique Chords for the diagram section
+            // 5. Extract UniqueChords
             const uniqueChords = new Set<string>();
             if (song.paragraphs) {
                 song.paragraphs.forEach((p: any) => {
@@ -112,9 +102,9 @@ export const useChordSheetParser = ({ songData, transposeSteps = 0 }: UseChordSh
 
         } catch (error) {
             console.error("ChordSheetJS Parsing Failed:", error);
-            // Graceful Fallback: Show raw text if library fails
+            // Fallback display if parsing fails
             setParsedData({
-                html: `<pre class="whitespace-pre-wrap font-mono text-sm text-slate-600 dark:text-slate-300 p-4 bg-slate-100 dark:bg-slate-900 rounded-lg overflow-x-auto">${rawSource}</pre>`,
+                html: `<div class="p-4 text-red-500 border border-red-200 rounded">Error parsing song data. <pre class="mt-2 text-xs text-slate-500">${error}</pre></div>`,
                 uniqueChords: [],
                 metadata: {}
             });

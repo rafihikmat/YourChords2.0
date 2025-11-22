@@ -18,7 +18,7 @@
     "clsx": "^2.1.1",
     "@supabase/supabase-js": "^2.84.0",
     "@google/genai": "latest",
-    "chordsheetjs": "9.0.0"
+    "chordsheetjs": "^12.3.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
