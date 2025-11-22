@@ -5,27 +5,36 @@ import { ChordLine } from '../../types';
 
 /**
  * Converts internal ChordLine[] format to ChordPro text.
- * This ensures legacy/AI-generated data works with the ChordProParser.
+ * UPDATED: Smart Header Detection.
+ * Mencegah baris lirik yang diawali & diakhiri chord (misal: [C]Halo[G]) dianggap sebagai Header.
  */
 const convertJsonToRawText = (chordData: ChordLine[] | null): string => {
-  if (!chordData || !Array.isArray(chordData)) return '';
+    if (!chordData || !Array.isArray(chordData)) return '';
 
-  return chordData.map(line => {
-    // If it's a section header (e.g. [Chorus]), convert to ChordPro comment
-    if (line.line && line.line.trim().startsWith('[') && line.line.trim().endsWith(']')) {
-        return `{comment: ${line.line.replace(/[\[\]]/g, '')}}`;
-    }
-    
-    // If we have chords, prepend them in brackets (Approximate ChordPro)
-    if (line.chords && line.chords.length > 0) {
-       const chordString = line.chords.map(c => `[${c}]`).join('');
-       // E.g. [C][Am]Lyrics here
-       return `${chordString}${line.line}`;
-    }
-    
-    // Just lyrics or empty lines
-    return line.line || '';
-  }).join('\n');
+    return chordData.map(line => {
+        const trimmedLine = line.line ? line.line.trim() : '';
+
+        // --- LOGIKA BARU (SMART HEADER) ---
+        // Regex: /^\[[^\]]+\]$/
+        // Artinya: String harus dimulai '[' dan diakhiri ']', TAPI di tengahnya tidak boleh ada kurung siku lain.
+        // [Chorus] -> Header (TRUE)
+        // [C]Lirik[G] -> Bukan Header (FALSE) - Aman!
+        const isStrictHeader = /^\[[^\]]+\]$/.test(trimmedLine);
+
+        if (isStrictHeader) {
+            return `{comment: ${trimmedLine.replace(/[\[\]]/g, '')}}`;
+        }
+
+        // Handle Manual Chords from UI Buttons (Quick Insert)
+        if (line.chords && line.chords.length > 0) {
+            const chordString = line.chords.map(c => `[${c}]`).join('');
+            // E.g. [C][Am]Lyrics here
+            return `${chordString}${line.line}`;
+        }
+
+        // Just lyrics or empty lines
+        return line.line || '';
+    }).join('\n');
 };
 
 interface UseChordSheetParserProps {
@@ -51,7 +60,7 @@ export const useChordSheetParser = ({ songData, transposeSteps = 0 }: UseChordSh
     const rawSource = useMemo(() => {
         if (typeof songData === 'string') return songData;
         // If it's a string array (legacy simple chords), we can't really parse it as a song sheet easily
-        if (Array.isArray(songData) && typeof songData[0] === 'string') return ''; 
+        if (Array.isArray(songData) && typeof songData[0] === 'string') return '';
         // If it's ChordLine[], convert it
         return convertJsonToRawText(songData as ChordLine[]);
     }, [songData]);
