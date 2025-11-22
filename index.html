@@ -78,44 +78,82 @@
         color: #0f172a;
       }
 
-      /* --- CHORD SHEET JS STYLES (Cyber-Zen) --- */
-      .chord-sheet-container {
-        font-family: 'JetBrains Mono', monospace;
-        line-height: 1.6;
-      }
+      /* --- CHORD SHEET JS STYLES (Strict Table Layout) --- */
+      /* Forces proper table display behavior for ChordSheetJS HtmlTableFormatter output */
       
-      .chord-sheet-container .paragraph {
-        margin-bottom: 2rem;
+      .chord-sheet-container .chord-sheet,
+      .chord-sheet-container .chord-sheet-table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        table-layout: auto !important;
+        display: table !important; /* Force table display to override block */
+        margin-bottom: 1.5rem;
       }
 
-      .chord-sheet-container .row {
-        display: flex;
-        flex-wrap: wrap;
-        margin-bottom: 0.5rem;
-        align-items: flex-end; /* Align lyrics to bottom */
+      /* Force rows */
+      .chord-sheet-container tr {
+        display: table-row !important; 
+        background: transparent !important;
+        border: none !important;
       }
 
-      .chord-sheet-container .column {
-        display: flex;
-        flex-direction: column;
-        margin-right: 0.5rem; /* Spacing between chord/lyric pairs */
+      /* Force cells */
+      .chord-sheet-container td, 
+      .chord-sheet-container .chord, 
+      .chord-sheet-container .lyrics {
+        display: table-cell !important; 
+        vertical-align: bottom !important;
+        padding-right: 0.5em !important; /* Minimum spacing */
+        padding-bottom: 0.4em !important;
+        white-space: pre !important; /* CRITICAL: Preserves spacing from formatter */
+        border: none !important;
       }
 
+      /* Specific styling for the chords above lyrics */
       .chord-sheet-container .chord {
-        color: #3B82F6; /* Primary Blue */
-        font-weight: 700;
-        font-size: 0.9em;
-        margin-bottom: 0.1rem;
+        color: #eab308; /* Yellow-500 */
+        font-weight: bold;
+        font-family: 'JetBrains Mono', 'Courier New', monospace !important;
+        font-size: 0.95em;
+        line-height: 1.2;
         cursor: pointer;
         transition: all 0.2s;
+        padding-bottom: 0 !important; /* Sit tight on lyrics */
       }
-
+      
       .chord-sheet-container .chord:hover {
-        color: #8B5CF6; /* Secondary Violet */
-        transform: translateY(-2px);
+        color: #8B5CF6; /* Violet */
         text-shadow: 0 0 8px rgba(139, 92, 246, 0.4);
       }
 
+      /* Styling for the lyrics */
+      .chord-sheet-container .lyrics {
+        font-family: 'JetBrains Mono', 'Courier New', monospace !important;
+        color: inherit;
+        font-size: 1em;
+      }
+
+      /* Section Headers (e.g. [Chorus]) */
+      .chord-sheet-container .comment {
+        display: block;
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+        font-family: 'Inter', sans-serif !important;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #94a3b8; /* Slate 400 */
+        font-size: 0.85em;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+        padding-bottom: 4px;
+        width: 100%;
+      }
+      
+      .chord-sheet-container .paragraph {
+        margin-bottom: 1rem;
+      }
+
+      /* Theme-specific text colors */
       html.dark .chord-sheet-container .lyrics {
         color: #e2e8f0; /* Slate 200 */
       }
@@ -123,32 +161,12 @@
       html:not(.dark) .chord-sheet-container .lyrics {
         color: #334155; /* Slate 700 */
       }
-      
-      /* Comment/Header Styles */
-      .chord-sheet-container .comment {
-        display: block;
-        margin-top: 1rem;
-        margin-bottom: 0.5rem;
-        font-weight: bold;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: #94a3b8; /* Slate 400 */
-        font-size: 0.85em;
-        border-bottom: 1px solid rgba(148, 163, 184, 0.2);
-        width: 100%;
-      }
 
       @media print {
         .no-print { display: none !important; }
         .print-only { display: block !important; }
         body { background: white !important; color: black !important; }
         html { background: white !important; color: black !important; }
-        
-        /* Ensure text wraps and looks good on paper */
-        pre, code { 
-            white-space: pre-wrap; 
-            word-wrap: break-word; 
-        }
         
         .chord-sheet-container .chord {
             color: #000 !important;
@@ -170,7 +188,7 @@
     "clsx": "https://aistudiocdn.com/clsx@^2.1.1",
     "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@^2.84.0",
     "@google/genai": "https://esm.run/@google/genai",
-    "chordsheetjs": "https://cdn.jsdelivr.net/npm/chordsheetjs@9.0.0/+esm"
+    "chordsheetjs": "https://aistudiocdn.com/chordsheetjs@^12.3.1"
   }
 }
 </script>
