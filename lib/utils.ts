@@ -12,29 +12,6 @@ export const DOT_GRID_SVG = `
 </svg>
 `;
 
-export function fuzzySearch<T>(items: T[], query: string, keys: (keyof T)[]): T[] {
-  if (!query) return items;
-  const lowerQuery = query.toLowerCase();
-  
-  return items.filter(item => {
-    return keys.some(key => {
-      const value = String(item[key]).toLowerCase();
-      if (value === lowerQuery) return true;
-      if (value.includes(lowerQuery)) return true;
-      
-      let queryIdx = 0;
-      let valueIdx = 0;
-      while (queryIdx < lowerQuery.length && valueIdx < value.length) {
-        if (lowerQuery[queryIdx] === value[valueIdx]) queryIdx++;
-        valueIdx++;
-      }
-      return queryIdx === lowerQuery.length;
-    });
-  });
-}
-
-// --- Merged Logic: Shared Constants & Helpers ---
-
 export const DIFFICULTY_COLORS: Record<string, string> = {
   Easy: "text-green-600 dark:text-green-400 bg-green-500/10 border-green-500/20",
   Medium: "text-yellow-600 dark:text-yellow-400 bg-yellow-500/10 border-yellow-500/20",
@@ -42,13 +19,16 @@ export const DIFFICULTY_COLORS: Record<string, string> = {
   Expert: "text-red-600 dark:text-red-400 bg-red-500/10 border-red-500/20",
 };
 
+export function fuzzySearch<T>(items: T[], query: string, keys: (keyof T)[]): T[] {
+  if (!query) return items;
+  const lowerQuery = query.toLowerCase();
+  return items.filter(item => keys.some(key => String(item[key]).toLowerCase().includes(lowerQuery)));
+}
+
 export const blobToBase64 = (blob: Blob): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onloadend = () => {
-      if (typeof reader.result === 'string') resolve(reader.result.split(',')[1]);
-      else reject(new Error('Failed to convert blob to base64'));
-    };
+    reader.onloadend = () => typeof reader.result === 'string' ? resolve(reader.result.split(',')[1]) : reject(new Error('Blob conversion failed'));
     reader.readAsDataURL(blob);
   });
 };
@@ -58,4 +38,13 @@ export const formatTime = (sec: number) => {
   const minutes = Math.floor(sec / 60);
   const seconds = Math.floor(sec % 60);
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+};
+
+export const calculateStrength = (pwd: string) => {
+    let score = 0;
+    if (pwd.length > 7) score++;
+    if (/[A-Z]/.test(pwd)) score++;
+    if (/\d/.test(pwd)) score++;
+    if (/[^A-Za-z0-9]/.test(pwd)) score++;
+    return score;
 };

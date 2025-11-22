@@ -17,7 +17,8 @@
     "tailwind-merge": "^3.4.0",
     "clsx": "^2.1.1",
     "@supabase/supabase-js": "^2.84.0",
-    "@google/genai": "latest"
+    "@google/genai": "latest",
+    "chordsheetjs": "9.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

@@ -78,6 +78,66 @@
         color: #0f172a;
       }
 
+      /* --- CHORD SHEET JS STYLES (Cyber-Zen) --- */
+      .chord-sheet-container {
+        font-family: 'JetBrains Mono', monospace;
+        line-height: 1.6;
+      }
+      
+      .chord-sheet-container .paragraph {
+        margin-bottom: 2rem;
+      }
+
+      .chord-sheet-container .row {
+        display: flex;
+        flex-wrap: wrap;
+        margin-bottom: 0.5rem;
+        align-items: flex-end; /* Align lyrics to bottom */
+      }
+
+      .chord-sheet-container .column {
+        display: flex;
+        flex-direction: column;
+        margin-right: 0.5rem; /* Spacing between chord/lyric pairs */
+      }
+
+      .chord-sheet-container .chord {
+        color: #3B82F6; /* Primary Blue */
+        font-weight: 700;
+        font-size: 0.9em;
+        margin-bottom: 0.1rem;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .chord-sheet-container .chord:hover {
+        color: #8B5CF6; /* Secondary Violet */
+        transform: translateY(-2px);
+        text-shadow: 0 0 8px rgba(139, 92, 246, 0.4);
+      }
+
+      html.dark .chord-sheet-container .lyrics {
+        color: #e2e8f0; /* Slate 200 */
+      }
+
+      html:not(.dark) .chord-sheet-container .lyrics {
+        color: #334155; /* Slate 700 */
+      }
+      
+      /* Comment/Header Styles */
+      .chord-sheet-container .comment {
+        display: block;
+        margin-top: 1rem;
+        margin-bottom: 0.5rem;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #94a3b8; /* Slate 400 */
+        font-size: 0.85em;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+        width: 100%;
+      }
+
       @media print {
         .no-print { display: none !important; }
         .print-only { display: block !important; }
@@ -88,6 +148,11 @@
         pre, code { 
             white-space: pre-wrap; 
             word-wrap: break-word; 
+        }
+        
+        .chord-sheet-container .chord {
+            color: #000 !important;
+            font-weight: 800 !important;
         }
       }
     </style>
@@ -104,7 +169,8 @@
     "tailwind-merge": "https://aistudiocdn.com/tailwind-merge@^3.4.0",
     "clsx": "https://aistudiocdn.com/clsx@^2.1.1",
     "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@^2.84.0",
-    "@google/genai": "https://esm.run/@google/genai"
+    "@google/genai": "https://esm.run/@google/genai",
+    "chordsheetjs": "https://esm.sh/chordsheetjs@9.0.0"
   }
 }
 </script>

@@ -10,7 +10,9 @@ export interface Song {
   id: string;
   title: string;
   artist: string;
-  chords: ChordLine[] | null;
+  // Chords can be the structured ChordLine[] (Legacy/AI) or simple string[] (Seeded/Manual)
+  chords: ChordLine[] | string[] | null;
+  // Tablature can now contain { content: string } for ChordPro data
   tablature: TablatureData | null;
   difficulty: 'Easy' | 'Medium' | 'Hard' | 'Expert';
   spotify_track_id: string | null;
@@ -33,7 +35,8 @@ export interface ChordLine {
   chords: string[]; 
 }
 
-export type TablatureData = Record<string, any>;
+// Allows flexibility for { content: "[C]ChordPro..." }
+export type TablatureData = Record<string, any> & { content?: string };
 
 export interface SongRating {
   song_id: string;

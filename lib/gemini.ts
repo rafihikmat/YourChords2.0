@@ -1,7 +1,16 @@
 
 import { GoogleGenAI } from "@google/genai";
 
-// Use the provided API key as a fallback if the environment variable is missing
-const apiKey = process.env.API_KEY || 'AIzaSyAupO7EhV9sfU_n5fI0xb6vTA0sAZ2zZD4';
+const getApiKey = () => {
+  // Safe extraction for Vite/Browser/Node environments
+  // @ts-ignore
+  if (typeof process !== 'undefined' && process.env?.API_KEY) return process.env.API_KEY;
+  // @ts-ignore
+  if (import.meta?.env?.API_KEY) return import.meta.env.API_KEY;
+  // @ts-ignore
+  if (import.meta?.env?.VITE_API_KEY) return import.meta.env.VITE_API_KEY;
+  
+  return 'AIzaSyAupO7EhV9sfU_n5fI0xb6vTA0sAZ2zZD4'; // Fallback/Demo
+};
 
-export const ai = new GoogleGenAI({ apiKey });
+export const ai = new GoogleGenAI({ apiKey: getApiKey() });
