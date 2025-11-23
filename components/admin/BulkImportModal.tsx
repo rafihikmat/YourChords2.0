@@ -1,7 +1,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, X, FileText, CheckCircle2, AlertTriangle, Loader2, Disc3, Music, FileType, Eye, ChevronRight, ChevronDown } from 'lucide-react';
+import { Upload, X, FileText, CheckCircle2, AlertTriangle, Loader2, Disc3, Music, FileType, Eye, ChevronRight, ChevronDown, Layout } from 'lucide-react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { supabase } from '../../lib/supabase';
 import { parseChordsFromText } from '../../lib/musicUtils';
@@ -16,13 +16,6 @@ interface BulkImportModalProps {
   onClose: () => void;
 }
 
-interface AlbumRow {
-  id: string;
-  title: string;
-  artist: string;
-  cover_url?: string;
-}
-
 interface ProcessedFile {
   id: string;
   fileName: string;
@@ -31,41 +24,29 @@ interface ProcessedFile {
   detectedArtist?: string;
   albumAction?: 'created' | 'linked' | 'none';
   errorMsg?: string;
-  previewText?: string; // For debugging/verifying
+  previewText?: string; 
 }
 
 // --- CONSTANTS & REGEX ---
-// Filter out tab metadata and junk lines
-const META_FILTER_REGEX = /^(difficulty|tuning|capo|tabbed by|strumming|bpm|page|author|key|time sig|date|chords used)/i;
-const TAB_LINE_REGEX = /^[-0-9|hpx\/\\]{5,}$/; 
-// STRICT Chord Regex: Matches standard chord notation
-const CHORD_STRICT_REGEX = /\b[A-G][#b]?(?:m|min|maj|dim|aug|sus|add|7|9|11|13|5|6|o|\+|M)*(?:\/[A-G][#b]?)?(?:\([^\)]+\))?\b/g;
+const META_FILTER_REGEX = /^(difficulty|tuning|capo|tabbed by|strumming|bpm|page|author|key|time sig|date|chords used|artist|title)/i;
+// Strict Chord Regex for individual tokens
+const CHORD_TOKEN_STRICT = /^[A-G][#b]?(?:m|min|maj|dim|aug|sus|add|7|9|11|13|5|6|o|\+|M)*(?:\/[A-G][#b]?)?(?:\([^\)]+\))?$/;
 
-// --- HELPER: DETECT CHORD LINE ---
-const isChordLine = (line: string): boolean => {
-    const trimmed = line.trim();
-    if (!trimmed) return false;
-    
-    // 1. Fail immediately if common lyric words exist (lowercased check)
-    if (/\b(the|and|you|that|was|for|are|with|his|they|this|sent|heart|love|when|what|your|from|have|text|through|sending|moonlight|giving|honor|lose|fire|miles)\b/i.test(trimmed)) return false;
+// --- TYPES FOR SPATIAL ENGINE ---
+interface TextItem {
+    str: string;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+}
 
-    // 2. Token Density Check
-    const tokens = trimmed.split(/\s+/);
-    let chordCount = 0;
-    
-    tokens.forEach(t => {
-        // Strip parens/brackets for clean check
-        const cleanT = t.replace(/[\(\)\[\]]/g, '');
-        // Must match chord regex strictly
-        if (/^[A-G][#b]?(?:m|min|maj|dim|aug|sus|add|7|9|11|13|5|6|o|\+|M)*(?:\/[A-G][#b]?)?$/.test(cleanT)) {
-            chordCount++;
-        }
-    });
-
-    // Threshold: If > 50% of tokens are chords, it's a chord line
-    // This handles lines like "A  D  E" (100%) vs "I love you" (0%)
-    return (chordCount / tokens.length) > 0.5;
-};
+interface PDFRow {
+    y: number; // Vertical centroid
+    items: TextItem[];
+    type: 'chord' | 'lyric' | 'header' | 'meta' | 'empty';
+    text: string;
+}
 
 export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClose }) => {
   const [isDragActive, setIsDragActive] = useState(false);
@@ -110,236 +91,258 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
       }
   };
 
-  // --- SPATIAL TEXT EXTRACTION ENGINE (IMPROVED) ---
-  const extractTextWithLayout = async (file: File): Promise<string> => {
+  // --- SPATIAL ENGINE LOGIC ---
+
+  const classifyRow = (items: TextItem[]): PDFRow['type'] => {
+      const fullText = items.map(i => i.str).join('').trim();
+      if (!fullText) return 'empty';
+
+      // 1. Metadata / Page Numbers
+      if (META_FILTER_REGEX.test(fullText) || /^\d+\s*(\/|of)\s*\d+$/.test(fullText)) {
+          return 'meta';
+      }
+
+      // 2. Headers (e.g. [Chorus], Intro:)
+      if (/^\[.+\]$/.test(fullText) || /^(Chorus|Verse|Bridge|Intro|Outro|Instrumental).*:/i.test(fullText)) {
+          return 'header';
+      }
+
+      // 3. Chord Analysis
+      // We tokenize by looking at individual items or splitting the string
+      const tokens = fullText.split(/\s+/).filter(t => t.length > 0);
+      if (tokens.length === 0) return 'empty';
+
+      let chordCount = 0;
+      let lyricWordCount = 0;
+
+      tokens.forEach(t => {
+          // Clean punctuation
+          const clean = t.replace(/[\(\)\[\]]/g, '');
+          if (CHORD_TOKEN_STRICT.test(clean)) {
+              chordCount++;
+          } else {
+              // Basic check for lyric-like words
+              if (clean.length > 1 || (clean === 'I' || clean === 'a')) {
+                  lyricWordCount++;
+              }
+          }
+      });
+
+      // Heuristics
+      const isMajorityChords = chordCount > lyricWordCount;
+      const hasLyricsKeywords = /\b(the|and|you|that|was|for|are|with|heart|love|when|what|your)\b/i.test(fullText);
+
+      if (isMajorityChords && !hasLyricsKeywords) return 'chord';
+      return 'lyric';
+  };
+
+  const extractRawPdfItems = async (file: File): Promise<TextItem[]> => {
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-      let fullOutput = '';
-      const maxPages = Math.min(pdf.numPages, 10); // Increased page limit
+      const allItems: TextItem[] = [];
       
+      // Limit pages to prevent browser crash on huge books
+      const maxPages = Math.min(pdf.numPages, 5); 
+
       for (let i = 1; i <= maxPages; i++) {
           const page = await pdf.getPage(i);
           const textContent = await page.getTextContent();
           const viewport = page.getViewport({ scale: 1.0 });
 
-          const items = textContent.items.map((item: any) => ({
-              str: item.str,
-              x: item.transform[4],
-              y: viewport.height - item.transform[5], 
-              width: item.width,
-              height: item.height || 10
-          })).filter(item => item.str.trim().length > 0); // Keep non-empty items
-
-          items.sort((a, b) => {
-              if (Math.abs(a.y - b.y) < 4) return a.x - b.x; 
-              return a.y - b.y;
-          });
-
-          // 3. Dynamic Row Clustering
-          const rows: { y: number, items: typeof items }[] = [];
-          // Increased tolerance to catch superscripts (e.g., '7' in 'A7')
-          const Y_TOLERANCE = 6; 
-
-          items.forEach(item => {
-              const row = rows.find(r => Math.abs(r.y - item.y) <= Y_TOLERANCE);
-              if (row) {
-                  row.items.push(item);
-              } else {
-                  rows.push({ y: item.y, items: [item] });
+          textContent.items.forEach((item: any) => {
+              // Transform: [scaleX, skewY, skewX, scaleY, x, y]
+              // PDF coords: (0,0) is usually bottom-left. We invert Y to make it top-down.
+              const tx = item.transform;
+              const x = tx[4];
+              const y = viewport.height - tx[5]; 
+              const w = item.width;
+              const h = item.height || 10;
+              
+              if (item.str.trim().length > 0) {
+                  allItems.push({ str: item.str, x, y, w, h });
               }
           });
-
-          // 4. Construct Strings using DYNAMIC SPACING
-          const pageLines = rows.map(row => {
-              row.items.sort((a, b) => a.x - b.x);
-
-              // CALCULATE AVERAGE CHAR WIDTH FOR THIS ROW
-              // This creates a relative grid for this specific line's font size
-              const totalWidth = row.items.reduce((sum, it) => sum + (it.width || 0), 0);
-              const totalChars = row.items.reduce((sum, it) => sum + it.str.length, 0);
-              // Fallback to 4px if calc fails (e.g. empty glyphs)
-              const avgCharWidth = (totalChars > 0 && totalWidth > 0) ? (totalWidth / totalChars) : 4; 
-
-              let lineText = "";
-              let currentX = 0; 
-
-              // If row starts indented, add initial padding
-              if (row.items.length > 0) {
-                  const startGap = row.items[0].x;
-                  if (startGap > 20) { // Only indent if significant
-                      const indentSpaces = Math.round(startGap / avgCharWidth);
-                      lineText += " ".repeat(Math.min(indentSpaces, 20)); 
-                  }
-                  currentX = row.items[0].x; // Start tracking from first item
-              }
-
-              row.items.forEach(item => {
-                  const gap = item.x - currentX;
-                  
-                  if (gap > 2) {
-                      // Use the row's specific average char width to calculate spaces
-                      const spaces = Math.round(gap / avgCharWidth);
-                      // Cap spaces to prevent massive gaps
-                      lineText += " ".repeat(Math.max(0, Math.min(spaces, 60)));
-                  }
-                  
-                  lineText += item.str;
-                  currentX = item.x + (item.width || (item.str.length * avgCharWidth));
-              });
-              return lineText;
-          });
-
-          fullOutput += pageLines.join('\n') + '\n';
       }
-      return fullOutput;
+      return allItems;
   };
 
-  const cleanAndMergeChords = (rawText: string): string => {
-      let lines = rawText.split('\n');
-      const processedLines: string[] = [];
+  const processPdfToChordPro = async (file: File): Promise<{ text: string, title: string, artist: string }> => {
+      const items = await extractRawPdfItems(file);
+      
+      // 1. Cluster items into visual rows
+      // Sort by Y (vertical) then X (horizontal)
+      items.sort((a, b) => (Math.abs(a.y - b.y) < 5) ? (a.x - b.x) : (a.y - b.y));
 
-      // Filter Metadata lines
-      lines = lines.filter(line => {
-          const clean = line.trim();
-          if (!clean) return false;
-          if (META_FILTER_REGEX.test(clean)) return false;
-          if (TAB_LINE_REGEX.test(clean.replace(/\s/g, ''))) return false; 
-          if (/^\d+\s*\/\s*\d+$/.test(clean)) return false; 
-          return true;
+      const rows: PDFRow[] = [];
+      let currentRow: TextItem[] = [];
+      let currentY = items[0]?.y || 0;
+
+      items.forEach(item => {
+          // If vertical distance > tolerance, start new row
+          if (Math.abs(item.y - currentY) > 8) { 
+              if (currentRow.length > 0) {
+                  // Sort items horizontally in the row
+                  currentRow.sort((a, b) => a.x - b.x);
+                  rows.push({
+                      y: currentY,
+                      items: currentRow,
+                      type: classifyRow(currentRow),
+                      text: currentRow.map(i => i.str).join('') // Raw text for display/fallback
+                  });
+              }
+              currentRow = [item];
+              currentY = item.y;
+          } else {
+              currentRow.push(item);
+          }
       });
+      // Push last row
+      if (currentRow.length > 0) {
+          currentRow.sort((a, b) => a.x - b.x);
+          rows.push({ y: currentY, items: currentRow, type: classifyRow(currentRow), text: currentRow.map(i => i.str).join('') });
+      }
 
-      for (let i = 0; i < lines.length; i++) {
-          const currentLine = lines[i];
-          const nextLine = i + 1 < lines.length ? lines[i + 1] : null;
+      // 2. Metadata Extraction (First few rows)
+      let title = file.name.replace('.pdf', '');
+      let artist = 'Unknown Artist';
+      
+      // Try to find title/artist in first 5 lines
+      for (let i = 0; i < Math.min(rows.length, 5); i++) {
+          const txt = rows[i].text;
+          if (txt.toLowerCase().includes(' by ')) {
+              const parts = txt.split(/ by /i);
+              if (parts.length === 2) {
+                  title = parts[0].trim();
+                  artist = parts[1].trim();
+                  break;
+              }
+          }
+      }
 
-          // Check for Headers (e.g., [Chorus], Intro:)
-          const trimmed = currentLine.trim();
-          if (/^\[.+\]$/.test(trimmed) || /^(Chorus|Verse|Bridge|Intro|Outro|Instrumental).*:/i.test(trimmed)) {
-              const headerName = trimmed.replace(/[:\[\]]/g, '').trim();
-              processedLines.push(`{comment: ${headerName}}`);
+      // 3. Spatial Merge (The Core Logic)
+      const outputLines: string[] = [];
+      
+      for (let i = 0; i < rows.length; i++) {
+          const row = rows[i];
+          const nextRow = i + 1 < rows.length ? rows[i + 1] : null;
+
+          if (row.type === 'meta' || row.type === 'empty') continue;
+
+          if (row.type === 'header') {
+              // Clean header
+              const cleaned = row.text.replace(/[:\[\]]/g, '').trim();
+              outputLines.push(`\n{comment: ${cleaned}}`);
               continue;
           }
 
-          // If CHORD LINE detected
-          if (isChordLine(currentLine)) {
-              // Determine if we should merge with next line
-              let shouldMerge = false;
-
-              if (nextLine) {
-                  const nextTrimmed = nextLine.trim();
-                  const nextIsHeader = /^\[.+\]$/.test(nextTrimmed);
-                  const nextIsChord = isChordLine(nextLine);
-                  const nextIsEmpty = nextTrimmed.length === 0;
-
-                  // MERGE ONLY IF:
-                  // 1. Next line is NOT a chord line
-                  // 2. Next line is NOT a header
-                  // 3. Next line is NOT empty
-                  if (!nextIsChord && !nextIsHeader && !nextIsEmpty) {
-                      shouldMerge = true;
-                  }
-              }
-
-              if (shouldMerge && nextLine) {
-                  // === SMART MERGE ===
-                  let resultLine = "";
-                  let bufferLine = nextLine; // The lyric line
+          if (row.type === 'chord') {
+              // Check if we can merge with next row
+              if (nextRow && nextRow.type === 'lyric') {
+                  // === SPATIAL MERGE START ===
                   
-                  const chordMatches = [...currentLine.matchAll(CHORD_STRICT_REGEX)];
-                  let currentIdx = 0;
+                  // 1. Construct a detailed map of the lyric line with char positions
+                  // We need to interpolate X positions for every character in the lyric line
+                  const lyricMap: { char: string, x: number }[] = [];
+                  
+                  // Helper to create linear interpolation for lyric items
+                  nextRow.items.forEach((item, idx) => {
+                      // If there's a gap from previous item, insert spaces
+                      const prevItemEnd = idx > 0 ? (nextRow.items[idx-1].x + nextRow.items[idx-1].w) : item.x;
+                      const gap = item.x - prevItemEnd;
+                      
+                      if (gap > 5) { // 5px threshold for space
+                          const spaceCount = Math.max(1, Math.floor(gap / 6)); // Assume ~6px per char
+                          for(let s=0; s<spaceCount; s++) {
+                              lyricMap.push({ char: ' ', x: prevItemEnd + (s*6) });
+                          }
+                      }
 
-                  if (chordMatches.length === 0) {
-                      // Safety: detected as chord line but regex failed? preserve lyrics
-                      processedLines.push(nextLine);
-                  } else {
-                      chordMatches.forEach(match => {
-                          const chordStr = match[0];
-                          const visualIndex = match.index!;
+                      const chars = item.str.split('');
+                      const charWidth = item.w / chars.length;
+                      
+                      chars.forEach((char, charIdx) => {
+                          lyricMap.push({ 
+                              char, 
+                              x: item.x + (charIdx * charWidth) 
+                          });
+                      });
+                  });
+
+                  // 2. Insert chords into the lyric string based on X overlap
+                  // We create an array of insertions to apply later
+                  const insertions: { index: number, text: string }[] = [];
+
+                  row.items.forEach(chordItem => {
+                      // Split if multiple chords in one item (rare but possible)
+                      const chords = chordItem.str.split(/\s+/).filter(c => c.length > 0);
+                      // Distribute them uniformly across item width if multiple
+                      const subWidth = chordItem.w / chords.length;
+                      
+                      chords.forEach((chord, cIdx) => {
+                          if (!CHORD_TOKEN_STRICT.test(chord.replace(/[\(\)]/g,''))) return;
                           
-                          // Append text from lyric line UP TO this chord's position
-                          if (visualIndex > currentIdx) {
-                              if (currentIdx < bufferLine.length) {
-                                  // If visualIndex is beyond lyric length, just append remaining and space
-                                  const endSlice = Math.min(visualIndex, bufferLine.length);
-                                  resultLine += bufferLine.slice(currentIdx, endSlice);
-                                  
-                                  // If chord is way to the right of lyrics, add padding spaces
-                                  if (visualIndex > bufferLine.length) {
-                                       resultLine += " ".repeat(visualIndex - bufferLine.length);
-                                  }
-                              } else {
-                                  // Lyrics already finished, just adding spacing for trailing chords
-                                  resultLine += " ".repeat(visualIndex - currentIdx);
+                          const chordCenter = chordItem.x + (cIdx * subWidth);
+                          
+                          // Find closest char in lyric map
+                          let closestIdx = lyricMap.length; // Default to end
+                          let minDist = 9999;
+
+                          for (let m = 0; m < lyricMap.length; m++) {
+                              const dist = Math.abs(lyricMap[m].x - chordCenter);
+                              if (dist < minDist) {
+                                  minDist = dist;
+                                  closestIdx = m;
                               }
-                          } else if (visualIndex < currentIdx) {
-                              // Overlap edge case (rare with sorted items), usually fine to ignore backstep
                           }
                           
-                          resultLine += `[${chordStr}]`;
-                          currentIdx = Math.max(currentIdx, visualIndex); // Advance cursor but don't double count
-                          // Ideally currentIdx becomes visualIndex, but since we inserted [Chord], string length changed.
-                          // We are consuming `bufferLine` using `visualIndex` as the pointer to original layout.
-                          currentIdx = visualIndex; 
+                          // Adjust for line bounds
+                          if (closestIdx > lyricMap.length) closestIdx = lyricMap.length;
+                          
+                          insertions.push({ index: closestIdx, text: `[${chord}]` });
                       });
+                  });
 
-                      // Append any remaining lyrics after the last chord
-                      if (currentIdx < bufferLine.length) {
-                          resultLine += bufferLine.slice(currentIdx);
+                  // 3. Build final string
+                  // Sort insertions by index descending to avoid shifting
+                  insertions.sort((a, b) => b.index - a.index);
+                  
+                  // Reconstruct lyric string
+                  let finalLine = lyricMap.map(m => m.char).join('');
+                  
+                  insertions.forEach(ins => {
+                      // Handle edge case: insertion beyond length
+                      if (ins.index >= finalLine.length) {
+                          finalLine += ins.text;
+                      } else {
+                          finalLine = finalLine.slice(0, ins.index) + ins.text + finalLine.slice(ins.index);
                       }
-                      processedLines.push(resultLine);
-                  }
-                  i++; // Skip next line (lyrics) since we merged it
+                  });
+
+                  outputLines.push(finalLine);
+                  i++; // Skip next row since we merged it
               } 
               else {
-                  // === ORPHAN CHORD LINE (Intro, Solo, or end of song) ===
-                  // Wrap all chords in brackets so parser sees them as chords, not lyrics
-                  const wrapped = currentLine.replace(CHORD_STRICT_REGEX, '[$&]');
-                  processedLines.push(wrapped);
+                  // Orphan chord line (e.g. Intro) - just wrap in brackets
+                  const wrapped = row.items.map(i => {
+                      const chords = i.str.split(/\s+/).filter(c => c);
+                      return chords.map(c => {
+                          if (CHORD_TOKEN_STRICT.test(c.replace(/[\(\)]/g,''))) return `[${c}]`;
+                          return c;
+                      }).join(' ');
+                  }).join(' ');
+                  outputLines.push(wrapped);
               }
-          } else {
-              // Pure Lyric Line (orphaned lyrics)
-              processedLines.push(currentLine);
+          }
+          else if (row.type === 'lyric') {
+              outputLines.push(row.text);
           }
       }
 
-      return processedLines.join('\n')
-          .replace(/\[([A-G][#b]?)\/\]/g, '[$1]') // Fix trailing slash
-          .replace(/\s{2,}/g, ' '); // Clean excess whitespace
-  };
-
-  const parseMetadata = (text: string, fileName: string) => {
-      const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-      let title = fileName.replace(/\.pdf$/i, '').replace(/_/g, ' ');
-      let artist = 'Unknown Artist';
-      
-      // Heuristic: "Song by Artist" or "Song - Artist"
-      // Check first 3 lines for specific patterns
-      for (let i = 0; i < Math.min(lines.length, 5); i++) {
-          const l = lines[i];
-          if (l.toLowerCase().includes(' by ')) {
-              const parts = l.split(/ by /i);
-              if (parts.length === 2) {
-                  // Usually "Title by Artist"
-                  if(parts[0].length < 40 && parts[1].length < 40) {
-                      title = parts[0].trim();
-                      artist = parts[1].trim();
-                      break;
-                  }
-              }
-          }
-      }
-      
-      // Fallback: Hyphen in filename
-      if (artist === 'Unknown Artist' && title.includes('-')) {
-          const parts = title.split('-');
-          if (parts.length >= 2) {
-              // Often "Artist - Title" in filenames
-              artist = parts[0].trim();
-              title = parts.slice(1).join('-').trim();
-          }
-      }
-      
-      return { title, artist };
+      return {
+          text: outputLines.join('\n'),
+          title,
+          artist
+      };
   };
 
   const ensureAlbum = async (artistName: string): Promise<{ id: string, action: 'created' | 'linked' | 'none' }> => {
@@ -350,8 +353,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
         .from('albums').select('id').ilike('artist', normalized).limit(1);
 
       if (existingData && existingData.length > 0) {
-          const existingAlbum = existingData[0] as unknown as AlbumRow;
-          return { id: existingAlbum.id, action: 'linked' };
+          return { id: existingData[0].id, action: 'linked' };
       }
 
       const { data: newAlbumData, error } = await supabase
@@ -385,15 +387,13 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
 
           try {
               updateStatus({ status: 'parsing' });
-              const rawTextWithLayout = await extractTextWithLayout(file);
-              const { title, artist } = parseMetadata(rawTextWithLayout, file.name);
-              updateStatus({ detectedTitle: title, detectedArtist: artist });
-
-              const finalChordPro = cleanAndMergeChords(rawTextWithLayout);
-              const parsedChords = parseChordsFromText(finalChordPro);
               
-              // Store raw text for preview
-              updateStatus({ previewText: finalChordPro });
+              // Run the new Spatial Engine
+              const { text: chordPro, title, artist } = await processPdfToChordPro(file);
+              
+              updateStatus({ detectedTitle: title, detectedArtist: artist, previewText: chordPro });
+
+              const parsedChords = parseChordsFromText(chordPro);
 
               updateStatus({ status: 'clustering' });
               const { id: albumId, action } = await ensureAlbum(artist);
@@ -438,9 +438,9 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
                 <div className="p-6 border-b border-slate-200 dark:border-white/10 flex justify-between items-center bg-slate-50 dark:bg-white/5">
                     <div>
                         <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                            <FileType className="w-5 h-5 text-primary" /> Smart PDF Importer
+                            <Layout className="w-5 h-5 text-primary" /> Spatial PDF Importer v2.0
                         </h2>
-                        <p className="text-xs text-slate-500 mt-1">Features "Spatial Alignment" for improved chord/lyric merging.</p>
+                        <p className="text-xs text-slate-500 mt-1">High-Fidelity conversion using exact coordinate mapping.</p>
                     </div>
                     <button onClick={onClose} disabled={isProcessing} className="p-2 hover:bg-slate-200 dark:hover:bg-white/10 rounded-full transition-colors">
                         <X className="w-5 h-5 text-slate-500" />
@@ -465,7 +465,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
                         <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
                             {isDragActive ? "Drop PDF files now" : "Click to upload or drag PDFs here"}
                         </p>
-                        <p className="text-xs text-slate-500 mt-2">Supports: Bulk Standard Chord Sheets (Text-based)</p>
+                        <p className="text-xs text-slate-500 mt-2">Supports: Standard text-based PDF Chord Sheets</p>
                     </label>
                 </div>
 
@@ -533,8 +533,8 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
 
                                 {expandedPreviewId === file.id && (
                                     <div className="p-4 border-t border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-black/20 animate-in slide-in-from-top-2">
-                                        <p className="text-xs font-bold text-slate-500 mb-2 uppercase">Parsed ChordPro Preview:</p>
-                                        <pre className="text-[10px] font-mono text-slate-600 dark:text-slate-300 whitespace-pre-wrap bg-white dark:bg-slate-950 p-3 rounded border border-slate-200 dark:border-white/5 max-h-40 overflow-y-auto">
+                                        <p className="text-xs font-bold text-slate-500 mb-2 uppercase">ChordPro Preview:</p>
+                                        <pre className="text-[10px] font-mono text-slate-600 dark:text-slate-300 whitespace-pre-wrap bg-white dark:bg-slate-950 p-3 rounded border border-slate-200 dark:border-white/5 max-h-40 overflow-y-auto leading-relaxed">
                                             {file.previewText}
                                         </pre>
                                     </div>
