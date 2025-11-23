@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { GoogleGenAI } from "https://esm.sh/@google/genai@0.1.1";
 
@@ -14,7 +15,7 @@ serve(async (req) => {
   }
 
   try {
-    const { title, artist, lyrics } = await req.json();
+    const { title, artist, lyrics, images, mode } = await req.json();
     const apiKey = Deno.env.get('API_KEY') ?? '';
 
     if (!apiKey) {
@@ -22,55 +23,88 @@ serve(async (req) => {
     }
 
     const ai = new GoogleGenAI({ apiKey });
-    
-    // Extracted "Music Theory Expert" persona from legacy format-chords-ai
-    const prompt = `
-      You are a music theory expert and professional transcriber.
-      
-      Your Task: Analyze the song "${title}" by "${artist}" and the provided lyrics.
-      
-      Rules for Chord Placement:
-      1. Place chords at the START of phrases or words where the harmonic change occurs.
-      2. Follow standard progression patterns (I-V-vi-IV, ii-V-I, etc.) matching the song's emotion.
-      3. Use common guitar chords: C, G, Am, F, Em, Dm, D, A, E, Bm.
-      4. Include extensions (maj7, m7, sus4) ONLY if essential to the song's character.
-      5. Match the chord progression to the emotional tone of the lyrics.
-      
-      Lyrics:
-      ${lyrics}
+    const model = 'gemini-2.5-flash';
 
-      Output Requirement:
-      Return ONLY a valid JSON object with this exact structure (no markdown):
-      {
-        "title": "${title}",
-        "artist": "${artist}",
-        "difficulty": "Easy|Medium|Hard|Expert",
-        "chords": [
-          { "line": "[Header or Lyric Line]", "chords": ["Chord1", "Chord2"] }
-        ]
-      }
-      
-      Note: 
-      - If a line is a header (like [Chorus]), 'chords' should be empty.
-      - If a line has lyrics, 'chords' should be an array of chords played in that line, in order.
-      - Use 'chords': [] if no chords are played on that line.
-    `;
+    let prompt = "";
+    let contentParts = [];
+
+    if (mode === 'vision_extraction' && images && images.length > 0) {
+        // --- VISION MODE (PDF to CHORDPRO) ---
+        prompt = `
+          You are an expert Music Transcriber. 
+          
+          TASK:
+          Look at the provided images of a chord sheet (PDF pages).
+          Transcribe them EXACTLY as they appear into a JSON structure.
+          
+          CRITICAL RULES FOR ACCURACY:
+          1. **Structure**: Return a valid JSON object.
+          2. **Alignment**: If a chord (e.g., A7) is visually located above a specific word in the image, you MUST place it immediately before that syllable in the output using brackets [A7].
+          3. **Fidelity**: Do not invent chords. Do not change the lyrics. Copy exactly what is on the page.
+          4. **Headers**: Identify sections (Chorus, Verse, Intro) and put them in the "line" text, but ensure chords are empty for those lines.
+          5. **Metadata**: Extract the Title and Artist from the top of the first page if visible.
+          6. **Cleaning**: Ignore "Page 1/3", "Copyright", or website URLs at the bottom. Focus on the song content.
+
+          OUTPUT JSON FORMAT:
+          {
+            "title": "Extracted Title",
+            "artist": "Extracted Artist",
+            "difficulty": "Medium",
+            "chords": [
+              { "line": "[Bm]Full lyric line with [A]merged chords...", "chords": ["Bm", "A"] },
+              { "line": "[Chorus]", "chords": [] }
+            ]
+          }
+        `;
+
+        // Add images to payload
+        images.forEach((base64: string) => {
+            contentParts.push({ inlineData: { mimeType: 'image/jpeg', data: base64 } });
+        });
+        contentParts.push({ text: prompt });
+
+    } else {
+        // --- TEXT GENERATION MODE (Lyrics to Chords) ---
+        prompt = `
+          You are a music theory expert.
+          Analyze the song "${title}" by "${artist}".
+          
+          Rules:
+          1. Place chords at the START of phrases or words where harmonic change occurs.
+          2. Match the emotion.
+          3. Output JSON.
+
+          Lyrics:
+          ${lyrics}
+
+          Output Format:
+          {
+            "title": "${title}",
+            "artist": "${artist}",
+            "difficulty": "Medium",
+            "chords": [
+              { "line": "Lyric line...", "chords": ["C", "G"] }
+            ]
+          }
+        `;
+        contentParts.push({ text: prompt });
+    }
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
+      model: model,
+      contents: { parts: contentParts },
     });
 
     const text = response.text || "{}";
+    // Clean markdown code blocks if present
     const cleanJson = text.replace(/```json|```/g, '').trim();
-    let chordData;
     
+    let chordData;
     try {
         chordData = JSON.parse(cleanJson);
     } catch (e) {
-        // Fallback or error handling for malformed JSON
-        console.error("AI returned malformed JSON", cleanJson);
-        throw new Error("Failed to parse AI response");
+        console.error("AI JSON Parse Error", cleanJson);
+        throw new Error("AI returned invalid format. Please try again.");
     }
 
     return new Response(JSON.stringify(chordData), {
