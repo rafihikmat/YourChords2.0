@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, X, FileText, CheckCircle2, AlertTriangle, Loader2, Disc3, Music, Eye, ChevronDown, Ban, Cpu, Sparkles, FolderInput } from 'lucide-react';
@@ -5,8 +6,8 @@ import * as pdfjsLib from 'pdfjs-dist';
 import { supabase } from '../../lib/supabase';
 import { cn } from '../../lib/utils';
 
-// FIX: Align worker version with the runtime API version (5.4.394) to prevent mismatch errors
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@5.4.394/build/pdf.worker.min.js`;
+// FIX: Align worker version with the runtime API version (4.0.379) to prevent mismatch errors
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@4.0.379/build/pdf.worker.min.mjs`;
 
 interface BulkImportModalProps {
   isOpen: boolean;

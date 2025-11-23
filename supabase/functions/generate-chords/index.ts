@@ -1,5 +1,6 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.1.3";
+import { GoogleGenAI } from "https://esm.sh/@google/genai@0.1.1";
 
 declare const Deno: any;
 
@@ -14,7 +15,6 @@ serve(async (req) => {
   }
 
   try {
-    // Input can be standard (lyrics), vision (images), or text extraction (raw pdf text)
     const { title, artist, lyrics, images, text, mode } = await req.json();
     const apiKey = Deno.env.get('API_KEY') ?? '';
 
@@ -22,16 +22,13 @@ serve(async (req) => {
       throw new Error('API_KEY is not set in Supabase Secrets');
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    // Use gemini-2.5-flash for modern capabilities and compliance
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
-    let prompt = "";
-    let contentParts: any[] = [];
+    const ai = new GoogleGenAI({ apiKey });
+    
+    let parts: any[] = [];
 
     // --- MODE 1: TEXT EXTRACTION (Raw PDF Text -> Structured ChordPro) ---
     if (mode === 'text_extraction' && text) {
-        prompt = `
+        const prompt = `
           You are an expert music transcriber and data cleaner.
           
           I will give you RAW TEXT extracted from a music PDF. 
@@ -72,11 +69,11 @@ serve(async (req) => {
           RAW TEXT INPUT:
           ${text.substring(0, 30000)} 
         `; 
-        contentParts.push({ text: prompt });
+        parts.push({ text: prompt });
     } 
     // --- MODE 2: VISION (Images -> ChordPro) ---
     else if (mode === 'vision_extraction' && images && Array.isArray(images) && images.length > 0) {
-        prompt = `
+        const prompt = `
           You are an expert Music Transcriber. Look at the provided images of a guitar chord sheet.
           Transcribe them EXACTLY as they appear into a JSON structure.
           
@@ -98,18 +95,18 @@ serve(async (req) => {
         `;
 
         images.forEach((base64: string) => {
-            contentParts.push({ 
+            parts.push({ 
                 inlineData: { 
                     mimeType: 'image/jpeg', 
                     data: base64 
                 } 
             });
         });
-        contentParts.push({ text: prompt });
+        parts.push({ text: prompt });
     } 
     // --- MODE 3: STANDARD GENERATION (Lyrics -> AI Composed Chords) ---
     else {
-        prompt = `
+        const prompt = `
           You are a music theory expert.
           Analyze the song "${title}" by "${artist}".
           1. Place chords at the START of phrases or words where harmonic change occurs.
@@ -129,12 +126,15 @@ serve(async (req) => {
             ]
           }
         `;
-        contentParts.push({ text: prompt });
+        parts.push({ text: prompt });
     }
 
-    const result = await model.generateContent(contentParts);
-    const response = await result.response;
-    const textResponse = response.text() || "{}";
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: { parts }
+    });
+
+    const textResponse = response.text || "{}";
     
     const cleanJson = textResponse.replace(/^```json\s*/, '').replace(/\s*```$/, '').trim();
     
