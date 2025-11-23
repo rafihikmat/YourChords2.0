@@ -11,15 +11,18 @@ const convertJsonToRawText = (chordData: ChordLine[] | null): string => {
   if (!chordData || !Array.isArray(chordData)) return '';
 
   return chordData.map(line => {
-    // If it's a section header (e.g. [Chorus]), convert to ChordPro comment
-    if (line.line && line.line.trim().startsWith('[') && line.line.trim().endsWith(']')) {
-        return `{comment: ${line.line.replace(/[\[\]]/g, '')}}`;
+    // SMART HEADER DETECTION:
+    // Only treat as header if it contains a single bracketed item and NOTHING else.
+    // e.g. "[Chorus]" -> Header
+    // e.g. "[F7]Tak[A7]..." -> NOT Header (Lyrics with chords)
+    const trimmed = line.line?.trim() || '';
+    if (trimmed && /^\[[^\[\]]+\]$/.test(trimmed)) {
+        return `{comment: ${trimmed.replace(/[\[\]]/g, '')}}`;
     }
     
-    // If we have chords, prepend them in brackets (Approximate ChordPro)
+    // If we have chords in the legacy array, prepend them
     if (line.chords && line.chords.length > 0) {
        const chordString = line.chords.map(c => `[${c}]`).join('');
-       // E.g. [C][Am]Lyrics here
        return `${chordString}${line.line}`;
     }
     
@@ -75,7 +78,7 @@ export const useChordSheetParser = ({ songData, transposeSteps = 0 }: UseChordSh
             // 4. Format to HTML
             const html = formatter.format(song);
 
-            // 5. Extract UniqueChords
+            // 5. Extract UniqueChords (with Strict Filtering)
             const uniqueChords = new Set<string>();
             if (song.paragraphs) {
                 song.paragraphs.forEach((p: any) => {
@@ -84,7 +87,11 @@ export const useChordSheetParser = ({ songData, transposeSteps = 0 }: UseChordSh
                             if (l.items) {
                                 l.items.forEach((item: any) => {
                                     if (item.chords) {
-                                        uniqueChords.add(item.chords.trim());
+                                        const c = item.chords.trim();
+                                        // CRITICAL: Ensure chord is not empty string to prevent Ghost Diagrams
+                                        if (c && c.length > 0) {
+                                            uniqueChords.add(c);
+                                        }
                                     }
                                 });
                             }

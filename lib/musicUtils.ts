@@ -37,7 +37,15 @@ export const parseChordsFromText = (text: string) => {
   return text.split('\n').map(line => {
     const trimmed = line.trimEnd();
     if (!trimmed) return { line: "", chords: [] };
-    if (trimmed.startsWith('[') && trimmed.endsWith(']')) return { line: trimmed, chords: [] };
+    
+    // SMART HEADER DETECTION:
+    // Only treat as header if it contains a single bracketed item and NOTHING else.
+    // e.g. "[Chorus]" -> Header
+    // e.g. "[F7]Tak[A7]..." -> NOT Header (Lyrics with chords)
+    if (/^\[[^\[\]]+\]$/.test(trimmed)) {
+        return { line: trimmed, chords: [] };
+    }
+
     return { line: trimmed, chords: trimmed.match(chordRegex) || [] };
   });
 };

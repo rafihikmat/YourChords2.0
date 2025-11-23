@@ -82,20 +82,24 @@ const ManualEntry: React.FC = () => {
         }
     };
 
-    const insertAtCursor = (text: string) => {
+    const insertAtCursor = (chord: string) => {
         if (textareaRef.current) {
             const start = textareaRef.current.selectionStart;
             const end = textareaRef.current.selectionEnd;
             const currentText = formData.rawText;
-            const newText = currentText.substring(0, start) + text + currentText.substring(end);
+            
+            // Automatically wrap in brackets for ChordPro format
+            const textToInsert = `[${chord}]`;
+            
+            const newText = currentText.substring(0, start) + textToInsert + currentText.substring(end);
             setFormData({ ...formData, rawText: newText });
             
             // Restore focus and cursor
             setTimeout(() => {
                 if (textareaRef.current) {
                     textareaRef.current.focus();
-                    textareaRef.current.selectionStart = start + text.length;
-                    textareaRef.current.selectionEnd = start + text.length;
+                    textareaRef.current.selectionStart = start + textToInsert.length;
+                    textareaRef.current.selectionEnd = start + textToInsert.length;
                 }
             }, 0);
         }
@@ -183,32 +187,38 @@ const ManualEntry: React.FC = () => {
                             {/* Quick Insert Panel */}
                             <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-white/10 shadow-sm dark:shadow-inner">
                                 <div className="flex items-center justify-between mb-4">
-                                     <h3 className="text-slate-900 dark:text-white font-bold text-sm flex items-center gap-2"><Grid className="w-4 h-4 text-primary" /> Quick Insert Chords</h3>
-                                     <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
-                                         {Object.keys(CHORD_FAMILIES).slice(0, 6).map(fam => (
-                                             <button 
-                                                type="button"
-                                                key={fam}
-                                                onClick={() => setChordCategory(fam)}
-                                                className={cn(
-                                                    "px-2 py-1 rounded text-[10px] font-bold uppercase transition-colors",
-                                                    chordCategory === fam 
-                                                        ? "bg-white dark:bg-slate-700 text-primary dark:text-white shadow-sm ring-1 ring-black/5 dark:ring-white/10" 
-                                                        : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-white/5"
-                                                )}
-                                            >
-                                                {fam}
-                                            </button>
-                                         ))}
+                                     <h3 className="text-slate-900 dark:text-white font-bold text-sm flex items-center gap-2 shrink-0"><Grid className="w-4 h-4 text-primary" /> Quick Insert Chords</h3>
+                                     
+                                     {/* Scrollable Tabs */}
+                                     <div className="overflow-x-auto pb-1 ml-4 w-full">
+                                         <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg w-max min-w-full">
+                                             {Object.keys(CHORD_FAMILIES).map(fam => (
+                                                 <button 
+                                                    type="button"
+                                                    key={fam}
+                                                    onClick={() => setChordCategory(fam)}
+                                                    className={cn(
+                                                        "px-3 py-1.5 rounded text-[10px] font-bold uppercase transition-all whitespace-nowrap",
+                                                        chordCategory === fam 
+                                                            ? "bg-white dark:bg-slate-700 text-primary dark:text-white shadow-sm ring-1 ring-black/5 dark:ring-white/10" 
+                                                            : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-white/5"
+                                                    )}
+                                                 >
+                                                     {fam}
+                                                 </button>
+                                             ))}
+                                         </div>
                                      </div>
                                 </div>
-                                <div className="grid grid-cols-7 gap-2">
+                                
+                                {/* Chord Buttons Grid */}
+                                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2 max-h-48 overflow-y-auto custom-scrollbar p-1">
                                      {CHORD_FAMILIES[chordCategory]?.map(chord => (
                                          <button
                                             type="button"
                                             key={chord}
-                                            onClick={() => insertAtCursor(chord + ' ')}
-                                            className="bg-slate-50 dark:bg-slate-800 hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-white text-slate-700 dark:text-slate-200 text-xs font-bold py-2 rounded-lg border border-slate-200 dark:border-white/5 transition-all active:scale-95 shadow-sm"
+                                            onClick={() => insertAtCursor(chord)}
+                                            className="bg-slate-50 dark:bg-slate-800 hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-white text-slate-700 dark:text-slate-200 text-xs font-bold py-2.5 rounded-lg border border-slate-200 dark:border-white/5 transition-all active:scale-95 shadow-sm"
                                         >
                                             {chord}
                                         </button>
@@ -222,7 +232,7 @@ const ManualEntry: React.FC = () => {
                                 value={formData.rawText} 
                                 onChange={e => setFormData({...formData, rawText: e.target.value})} 
                                 className="w-full p-6 rounded-b-xl border border-t-0 bg-white dark:bg-slate-950 border-slate-200 dark:border-white/10 font-mono text-sm text-slate-900 dark:text-white min-h-[500px] focus:ring-0 outline-none leading-relaxed" 
-                                placeholder="Type lyrics and click chord buttons to insert, or use format: [C]Lyrics here [G]more lyrics..."
+                                placeholder="Type lyrics here. Click chord buttons above to insert [Chord] at cursor position."
                             />
                         </>
                     ) : (
