@@ -57,6 +57,99 @@ export const getChordFingering = (name: string): number[] | null => {
   return ChordAdapter.getExternalChord(name);
 };
 
+// --- CHORD PRO UTILITIES ---
+
+const CHORD_LINE_REGEX = /^(\s*[A-G][#b]?(?:m|min|maj|dim|aug|sus|add|M)*[0-9]*(?:\/[A-G][#b]?)?(\s+|$))+$/;
+const CHORD_TOKEN_REGEX = /\b[A-G][#b]?(?:m|maj|min|dim|aug|sus|add|[0-9]|b|#|\/)*\b/g;
+
+function isChordLine(line: string): boolean {
+  const trimmed = line.trim();
+  if (trimmed.length === 0) return false;
+  
+  // Strategy 1: Strict Regex Match
+  if (CHORD_LINE_REGEX.test(trimmed)) return true;
+
+  // Strategy 2: Ratio of chords to length
+  const potentialChords = trimmed.match(CHORD_TOKEN_REGEX) || [];
+  if (potentialChords.length === 0) return false;
+
+  const chordLength = potentialChords.join('').length;
+  const nonSpaceLength = trimmed.replace(/\s/g, '').length;
+  
+  // Heuristic: If chords make up significant portion (60%) and it looks like music notation
+  return (chordLength / nonSpaceLength) > 0.6;
+}
+
+/**
+ * Converts raw text (Tab format) to ChordPro format.
+ * Merges chord lines into lyric lines.
+ */
+export const convertToChordPro = (rawText: string): string => {
+  if (!rawText) return "";
+  
+  // Normalize line endings
+  const lines = rawText.replace(/\r\n/g, '\n').split('\n');
+  const result: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const currentLine = lines[i]; 
+    const nextLine = lines[i + 1];
+
+    // Check if current line is chords and next line is lyrics (Standard text tab format)
+    if (isChordLine(currentLine) && nextLine && !isChordLine(nextLine) && nextLine.trim().length > 0) {
+      // Merge Strategy
+      let mergedLine = nextLine;
+      const matches = [...currentLine.matchAll(CHORD_TOKEN_REGEX)];
+      let finalLine = "";
+      let lyricCursor = 0;
+      
+      for (const match of matches) {
+          const chord = match[0];
+          const chordIndex = match.index!;
+          
+          // Append text before this chord
+          if (chordIndex > lyricCursor) {
+              const textSegment = mergedLine.slice(lyricCursor, chordIndex);
+              finalLine += textSegment;
+              lyricCursor = chordIndex;
+          }
+          
+          // If the lyric line ended before this chord, append spaces
+          if (lyricCursor < chordIndex && lyricCursor >= mergedLine.length) {
+              finalLine += " "; 
+              lyricCursor++;
+          }
+
+          finalLine += `[${chord}]`;
+      }
+      
+      // Append remaining lyrics
+      if (lyricCursor < mergedLine.length) {
+          finalLine += mergedLine.slice(lyricCursor);
+      }
+      
+      result.push(finalLine);
+      i++; // Skip next line as we merged it
+    } 
+    else if (isChordLine(currentLine)) {
+        // Orphaned chord line (maybe intro or instrumental) -> Wrap all chords
+        result.push(currentLine.replace(CHORD_TOKEN_REGEX, '[$&]'));
+    } 
+    else {
+        // Lyric line or header
+        const trimmed = currentLine.trim();
+        // Detect headers like [Chorus], Chorus:, VERSE 1
+        if (/^\[.+\]$/.test(trimmed) || /^(Chorus|Verse|Bridge|Intro|Outro).*:/i.test(trimmed)) {
+             const headerName = trimmed.replace(/[:\[\]]/g, '').trim();
+             result.push(`{comment: ${headerName}}`);
+        } else {
+             result.push(currentLine);
+        }
+    }
+  }
+  return result.join('\n');
+};
+
 // Expanded Chord Families for Manual Entry Editor
 export const CHORD_FAMILIES: Record<string, string[]> = {
   'Major': ['C', 'D', 'E', 'F', 'G', 'A', 'B', 'C#', 'Eb', 'F#', 'Ab', 'Bb'],

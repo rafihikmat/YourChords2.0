@@ -38,7 +38,8 @@ export function useSmartSearch<T>(data: T[], searchTerm: string, keys: string[])
     }
 
     // Return the 'item' property from Fuse results
-    return fuse.search(searchTerm).map(result => result.item);
+    // Explicitly cast result item to T to avoid 'unknown' type inference issues in strict environments
+    return fuse.search(searchTerm).map((result: any) => result.item as T);
   }, [fuse, searchTerm, data]);
 
   return results;

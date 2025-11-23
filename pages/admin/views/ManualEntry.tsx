@@ -1,13 +1,14 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Music, Zap, Save, Grid, Eye, Edit3, Globe, Download, Loader2, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Music, Zap, Save, Grid, Eye, Edit3, Globe, Download, Loader2, AlertTriangle, CheckCircle, FolderInput } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { Song } from '../../../types';
 import { cn } from '../../../lib/utils';
 import { CHORD_FAMILIES, parseChordsFromText } from '../../../lib/musicUtils';
 import SongLyricsDisplay from '../../../components/SongLyricsDisplay';
 import { useChordSheetParser } from '../../../lib/hooks/useChordSheetParser';
+import { BulkImportModal } from '../../../components/admin/BulkImportModal';
 
 const ManualEntry: React.FC = () => {
     const location = useLocation();
@@ -18,6 +19,9 @@ const ManualEntry: React.FC = () => {
     const [importUrl, setImportUrl] = useState('');
     const [isImporting, setIsImporting] = useState(false);
     const [importStatus, setImportStatus] = useState<{type: 'success' | 'error', msg: string} | null>(null);
+    
+    // Bulk Import State
+    const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
 
     const [formData, setFormData] = useState({
         id: '', 
@@ -201,9 +205,18 @@ const ManualEntry: React.FC = () => {
 
             {/* IMPORT SECTION */}
             <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-6 rounded-xl border border-slate-200 dark:border-white/10 shadow-lg">
-                <div className="flex items-center gap-2 mb-4 text-primary font-bold text-sm uppercase tracking-wider">
-                    <Globe className="w-4 h-4" /> Import External Data
+                <div className="flex justify-between items-center mb-4">
+                    <div className="flex items-center gap-2 text-primary font-bold text-sm uppercase tracking-wider">
+                        <Globe className="w-4 h-4" /> Import External Data
+                    </div>
+                    <button 
+                        onClick={() => setIsBulkModalOpen(true)}
+                        className="text-xs bg-slate-100 dark:bg-white/10 hover:bg-primary hover:text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-2 font-bold border border-slate-200 dark:border-white/10"
+                    >
+                        <FolderInput className="w-3 h-3" /> Bulk PDF Upload
+                    </button>
                 </div>
+                
                 <div className="flex flex-col md:flex-row gap-4">
                     <div className="flex-1 relative group">
                          <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/50 to-purple-600/50 rounded-lg blur opacity-0 group-hover:opacity-75 transition duration-200"></div>
@@ -349,6 +362,8 @@ const ManualEntry: React.FC = () => {
                     </button>
                 </div>
             </form>
+
+            <BulkImportModal isOpen={isBulkModalOpen} onClose={() => setIsBulkModalOpen(false)} />
         </div>
     );
 };
