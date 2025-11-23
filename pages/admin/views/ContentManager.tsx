@@ -171,7 +171,7 @@ const ContentManager: React.FC = () => {
                                             value={editContent.founded_text || ''} 
                                             onChange={(e) => updateField('founded_text', e.target.value)}
                                             className="w-full p-3 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 outline-none font-mono text-xs"
-                                            placeholder="Founded in 2024 by RJ..."
+                                            placeholder="Founded in 2024 by RJ. Powered by RJ."
                                         />
                                     </div>
                                 </>
@@ -189,6 +189,15 @@ const ContentManager: React.FC = () => {
                                             onChange={(e) => updateField('brand_description', e.target.value)}
                                             rows={3}
                                             className="w-full p-3 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 outline-none resize-none"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold uppercase text-slate-500">Attribution (Made by)</label>
+                                        <input 
+                                            value={editContent.made_by_text || ''} 
+                                            onChange={(e) => updateField('made_by_text', e.target.value)}
+                                            className="w-full p-3 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 outline-none"
+                                            placeholder="Neural Architects"
                                         />
                                     </div>
                                     <div className="space-y-2">

@@ -20,6 +20,7 @@ interface FooterData {
   columns: FooterColumn[];
   socials: Record<string, string>;
   copyright_text: string;
+  made_by_text?: string;
 }
 
 const DEFAULT_FOOTER: FooterData = {
@@ -52,7 +53,8 @@ const DEFAULT_FOOTER: FooterData = {
     instagram: "https://instagram.com",
     email: "mailto:support@yourchords.com"
   },
-  copyright_text: "YourChords AI. All rights reserved."
+  copyright_text: "YourChords AI. All rights reserved.",
+  made_by_text: "Neural Architects"
 };
 
 const Footer: React.FC = () => {
@@ -182,7 +184,7 @@ const Footer: React.FC = () => {
           <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-500">
             <span>Made with</span>
             <Heart className="w-4 h-4 text-red-500 fill-red-500 animate-pulse" />
-            <span>by Neural Architects</span>
+            <span>by {data.made_by_text || "Neural Architects"}</span>
           </div>
         </div>
       </div>

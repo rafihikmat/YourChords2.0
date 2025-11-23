@@ -160,6 +160,7 @@ INSERT INTO public.page_content (id, content) VALUES
       "instagram": "https://instagram.com",
       "email": "mailto:support@yourchords.com"
     },
+    "made_by_text": "Neural Architects",
     "copyright_text": "YourChords AI. All rights reserved."
   }'::jsonb
 ),
