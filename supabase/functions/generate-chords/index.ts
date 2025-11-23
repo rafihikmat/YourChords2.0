@@ -35,17 +35,29 @@ serve(async (req) => {
         prompt = `
           You are an expert music transcriber and data cleaner.
           
-          I will give you RAW TEXT extracted from a music PDF file. 
-          The text layout might be messy (e.g., line breaks might be weird, or chords might be on a line above lyrics).
+          I will give you RAW TEXT extracted from a music PDF. 
+          The text preserves VISUAL SPACING (horizontal gaps).
           
           YOUR TASKS:
-          1. **Metadata**: Identify the Title and Artist from the text. If unclear, use "Unknown".
-          2. **Structure**: Convert the song content into valid JSON.
-          3. **Merge Logic (CRITICAL)**: 
-             - If you see a line of chords (e.g. "G  C  D") followed immediately by a line of lyrics (e.g. "Hello world today"), 
-             - You MUST merge them into ChordPro format: "[G]Hello [C]world [D]today".
-             - Place the chord [X] exactly where it appears visually relative to the lyric word.
-          4. **Cleanup**: Remove page numbers, copyright footers, or "Difficulty: Medium" type metadata lines from the 'chords' array.
+          1. **Metadata**: Identify Title and Artist. If unclear, use "Unknown".
+          2. **Strict Alignment**: 
+             - Detect lines that contain chords (e.g. "G     C     D").
+             - Detect lines that are lyrics (e.g. "Hello world today").
+             - If a chord line is visually positioned above a lyric line, MERGE them into ChordPro format.
+             - Use the whitespace/padding to align the chord exactly [Ch] before the corresponding syllable/word.
+             - Example Input:
+               Am      F
+               Hello   World
+             - Example Output:
+               [Am]Hello   [F]World
+          3. **Chord Normalization (CRITICAL)**:
+             - Convert 'A+' -> 'Aaug'
+             - Convert 'M' suffix (e.g. CM7, CM) -> 'maj7' or 'maj' (e.g. Cmaj7)
+             - Convert 'min' -> 'm'
+             - Standardize separators: use slash for bass notes (D/F#).
+          4. **Cleanup**: 
+             - REMOVE lines containing: "Tuning:", "Key:", "Capo:", "Strumming:", "Page X of Y", copyright info.
+             - Ignore tab numbers (e.g. |-3-2-1-|). Focus on Chords + Lyrics.
           
           OUTPUT JSON FORMAT:
           {
@@ -53,7 +65,7 @@ serve(async (req) => {
             "artist": "Artist Name",
             "difficulty": "Medium",
             "chords": [
-              { "line": "[Am]This is the [F]merged line...", "chords": ["Am", "F"] },
+              { "line": "[Am]Full lyric line with [F]chords embedded...", "chords": ["Am", "F"] },
               { "line": "[Chorus]", "chords": [] }
             ]
           }

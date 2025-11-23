@@ -1,15 +1,15 @@
 
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, X, FileText, CheckCircle2, AlertTriangle, Loader2, Disc3, Music, Eye, ChevronDown, Layout, Ban, Cpu, Sparkles } from 'lucide-react';
+import { Upload, X, FileText, CheckCircle2, AlertTriangle, Loader2, Disc3, Music, Eye, ChevronDown, Ban, Cpu, Sparkles, FolderInput } from 'lucide-react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { supabase } from '../../lib/supabase';
 import { cn } from '../../lib/utils';
 
 // Dynamically resolve worker version
 const pdfjsVersion = pdfjsLib.version || '4.0.379';
-// Use CDNJS for reliable worker loading
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsVersion}/pdf.worker.min.mjs`;
+// Use .min.js for better browser compatibility and to avoid MIME type issues with .mjs
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsVersion}/pdf.worker.min.js`;
 
 interface BulkImportModalProps {
   isOpen: boolean;
@@ -70,7 +70,8 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
       }
   };
 
-  // --- TEXT ENGINE: EXTRACT TEXT WITH LAYOUT PRESERVATION ---
+  // --- TEXT ENGINE: SPATIAL RECONSTRUCTION ---
+  // Converts PDF Layout Coordinates into Fixed-Width text with spacing preserved.
   const extractTextFromPDF = async (file: File): Promise<string> => {
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -83,14 +84,18 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
 
           if (items.length === 0) continue;
 
-          // Group items by Y coordinate (lines)
-          // Tolerance of 5 units handles slight misalignments in PDF generation
+          // 1. Group items by Y coordinate (Rows)
+          // Tolerance of 4 units handles slight misalignments (e.g. subscript/superscript or messy PDFs)
           const lines: { y: number, items: any[] }[] = [];
           
           items.forEach(item => {
-              const y = item.transform[5]; // Y coordinate
-              // Find existing line within tolerance
-              const existingLine = lines.find(l => Math.abs(l.y - y) < 5);
+              // Skip empty or effectively invisible items
+              if (!item.str.trim() && item.width < 1) return;
+
+              const y = item.transform[5]; 
+              // Find if we have a line roughly at this Y level
+              const existingLine = lines.find(l => Math.abs(l.y - y) < 4);
+              
               if (existingLine) {
                   existingLine.items.push(item);
               } else {
@@ -98,20 +103,47 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
               }
           });
 
-          // Sort lines Top-to-Bottom (PDF Y is usually 0 at bottom, so descending)
+          // 2. Sort Lines Top-to-Bottom (PDF coordinate Y=0 is bottom)
           lines.sort((a, b) => b.y - a.y);
 
-          // Construct text page
-          let pageText = "";
+          // 3. Reconstruct each line with horizontal spacing
           lines.forEach(line => {
-              // Sort items Left-to-Right within line
+              // Sort items Left-to-Right by X coordinate
               line.items.sort((a, b) => a.transform[4] - b.transform[4]);
-              // Join with spaces (simple logic, can be improved with X-distance calc)
-              const lineStr = line.items.map(item => item.str).join(' ');
-              pageText += lineStr + "\n";
+
+              let lineText = "";
+              let lastXEnd = 0; // Tracks the end X pixel of the previous item
+
+              // Heuristic: Determine space width based on font size of the first item in line
+              // transform[0] is usually font scaling factor ~ font size
+              const fontSize = line.items[0]?.transform[0] || 10; 
+              const spaceWidth = fontSize * 0.4; // Average width of a space character (conservative)
+
+              line.items.forEach((item, idx) => {
+                  const x = item.transform[4];
+                  
+                  // Calculate Gap
+                  if (idx > 0) {
+                      const gap = x - lastXEnd;
+                      // If gap is significant (more than half a space), insert space characters
+                      if (gap > spaceWidth * 0.5) {
+                          const numSpaces = Math.round(gap / spaceWidth);
+                          lineText += " ".repeat(Math.max(1, numSpaces));
+                      }
+                  } else if (idx === 0) {
+                      // Optional: Handle Leading Indentation
+                      // const indent = Math.round(x / spaceWidth);
+                      // if (indent > 0) lineText += " ".repeat(indent);
+                  }
+
+                  lineText += item.str;
+                  lastXEnd = x + item.width;
+              });
+
+              fullRawText += lineText + "\n";
           });
 
-          fullRawText += pageText + "\n\n";
+          fullRawText += "\n"; // Page break spacing
       }
       return fullRawText;
   };
@@ -159,11 +191,11 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
           try {
               updateStatus({ status: 'rendering' });
               
-              // 1. Extract Raw Text directly (No Vision API needed, much lighter)
+              // 1. Extract Raw Text with Spatial Engine
               const extractedText = await extractTextFromPDF(file);
               
               if (!extractedText || extractedText.length < 50) {
-                  throw new Error("PDF appears to be empty or scanned image. Text mode requires selectable text.");
+                  throw new Error("PDF extraction failed or file is empty. Ensure PDF contains selectable text, not just images.");
               }
 
               updateStatus({ status: 'analyzing' });
@@ -172,7 +204,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
               const { data: aiData, error: aiError } = await supabase.functions.invoke('generate-chords', {
                   body: {
                       text: extractedText,
-                      mode: 'text_extraction' // New lightweight mode
+                      mode: 'text_extraction' // Uses specific prompt for reconstruction
                   }
               });
 
@@ -239,9 +271,9 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
                 <div className="p-6 border-b border-slate-200 dark:border-white/10 flex justify-between items-center bg-slate-50 dark:bg-white/5">
                     <div>
                         <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                            <FileText className="w-5 h-5 text-primary" /> Text-Based PDF Import
+                            <FolderInput className="w-5 h-5 text-primary" /> Spatial PDF Import
                         </h2>
-                        <p className="text-xs text-slate-500 mt-1">Fast extraction for text-based PDFs (Ultimate Guitar, etc).</p>
+                        <p className="text-xs text-slate-500 mt-1">Preserves visual layout for accurate chord alignment.</p>
                     </div>
                     <button onClick={onClose} disabled={isProcessing} className="p-2 hover:bg-slate-200 dark:hover:bg-white/10 rounded-full transition-colors">
                         <X className="w-5 h-5 text-slate-500" />
@@ -264,7 +296,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
                         <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/50 z-10 flex items-center justify-center backdrop-blur-sm">
                             <div className="flex flex-col items-center">
                                 <Loader2 className="w-8 h-8 animate-spin text-primary mb-2" />
-                                <span className="text-xs font-bold text-primary animate-pulse">ANALYZING TEXT STREAMS</span>
+                                <span className="text-xs font-bold text-primary animate-pulse">ANALYZING SPATIAL DATA</span>
                             </div>
                         </div>
                     )}
@@ -274,7 +306,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
                         <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
                             {isDragActive ? "Drop PDF files now" : "Click to upload or drag PDFs here"}
                         </p>
-                        <p className="text-xs text-slate-500 mt-2">Instant conversion using Neural Text Analysis</p>
+                        <p className="text-xs text-slate-500 mt-2">Reconstructs layout using pixel-gap analysis</p>
                     </label>
                 </div>
 
