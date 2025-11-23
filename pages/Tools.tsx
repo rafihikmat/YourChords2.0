@@ -68,21 +68,22 @@ const ToolsPage: React.FC = () => {
       try {
           // System Instruction: Music Professor Persona
           const prompt = `
-            You are an elite Music Professor and Multi-instrumentalist Expert.
-            Your Role: Act as a comprehensive mentor for music students and musicians.
+            You are "Prof. Harmony", an elite Music Professor and Multi-instrumentalist Expert.
             
-            Your Areas of Expertise:
-            1. Music Theory & Analysis (Harmony, Counterpoint, Modes, Jazz Theory)
-            2. History & Musicology (Baroque to Modern, Genres, Cultural Context)
-            3. Composition & Arrangement (Songwriting structures, Orchestration)
-            4. Music Production & Technology (Mixing, Mastering, DAW workflows, Sound Design)
-            5. Music Pedagogy (Effective practice techniques, learning strategies)
+            Your Mission: Act as a comprehensive academic mentor for music students and musicians.
+            
+            Your 5 Pillars of Expertise:
+            1. Music Theory & Analysis (Harmony, Counterpoint, Modes, Jazz Theory, Voice Leading)
+            2. History & Musicology (Baroque to Modern, Ethnomusicology, Genre Evolution)
+            3. Composition & Arrangement (Songwriting structures, Orchestration, Motif development)
+            4. Music Production & Technology (Mixing, Mastering, DAW workflows, Sound Design, Acoustics)
+            5. Music Pedagogy (Effective practice techniques, learning strategies, sight-reading)
 
-            Tone: Professional, academic yet accessible, encouraging, and highly detailed.
+            Tone: Professional, academic yet accessible, encouraging, and highly detailed. Use analogies where helpful.
             
             User Question: "${assistantQuery}"
             
-            Provide a clear, structured, and helpful answer. If the question implies a need for a practical example (like a chord progression or scale pattern), provide it.
+            Provide a clear, structured answer. If the question implies a need for a practical example (like a chord progression, scale pattern, or EQ setting), provide it clearly.
           `;
 
           const response = await ai.models.generateContent({
@@ -107,14 +108,14 @@ const ToolsPage: React.FC = () => {
       { note: 'G3', freq: 196.00 }, { note: 'B3', freq: 246.94 }, { note: 'E4', freq: 329.63 },
   ];
 
-  // Updated: AI Generator is now available to everyone (removed isAdmin check on show)
+  // Updated: AI Generator is available to everyone. Upload is restricted to Admin/User logic in component.
   const tabs = [
       { id: 'tuner', label: 'Guitar Tuner', icon: Activity, show: true },
       { id: 'metronome', label: 'Metronome', icon: Mic2, show: true },
       { id: 'library', label: 'Chord Visualizer', icon: Book, show: true },
-      { id: 'assistant', label: 'Professor AI', icon: GraduationCap, show: true }, // Renamed to Professor AI
-      { id: 'upload', label: 'Upload', icon: Upload, show: true },
-      { id: 'ai', label: 'Song Generator', icon: Sparkles, show: true }, // Available to all users now
+      { id: 'assistant', label: 'Professor AI', icon: GraduationCap, show: true },
+      { id: 'ai', label: 'AI Generator', icon: Sparkles, show: true },
+      { id: 'upload', label: 'Upload File', icon: Upload, show: true }, // Logic handled inside component
   ];
 
   return (
@@ -140,8 +141,16 @@ const ToolsPage: React.FC = () => {
         </div>
 
         {/* View Content */}
-        {activeTab === 'ai' && <AIChordForm />} {/* Access for all users */}
-        {activeTab === 'upload' && <SongUploader />}
+        {activeTab === 'ai' && <AIChordForm />}
+        {activeTab === 'upload' && (
+            isAdmin ? <SongUploader /> : (
+                <div className="text-center py-20 bg-white/50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-white/10">
+                    <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                    <h3 className="text-xl font-bold dark:text-white">Admin Access Required</h3>
+                    <p className="text-slate-500 mt-2">Only administrators can upload persistent files to the database.</p>
+                </div>
+            )
+        )}
         
         {activeTab === 'tuner' && (
              <div className="w-full max-w-xl mx-auto bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 p-8 shadow-xl text-center">
@@ -195,16 +204,18 @@ const ToolsPage: React.FC = () => {
              <div className="w-full max-w-3xl mx-auto bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 overflow-hidden shadow-xl">
                 <div className="bg-primary/10 p-8 text-center">
                     <h2 className="text-2xl font-bold dark:text-white flex items-center justify-center gap-2">
-                        <GraduationCap className="w-6 h-6 text-primary" /> Music Professor AI
+                        <GraduationCap className="w-6 h-6 text-primary" /> Professor Harmony AI
                     </h2>
                     <p className="text-slate-500 text-sm mt-2">
-                        Ask about Theory, History, Composition, Production, or Pedagogy.
+                        Expert guidance on Theory, History, Composition, Production, and Pedagogy.
                     </p>
                 </div>
                 <div className="p-6">
                      <div className="mb-6 min-h-[100px] bg-slate-50 dark:bg-slate-950 rounded-xl p-6 border border-slate-200 dark:border-white/10">
                          {assistantResponse ? (
-                             <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{assistantResponse}</p>
+                             <div className="text-sm leading-relaxed text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
+                                 {assistantResponse}
+                             </div>
                          ) : (
                              <div className="text-center text-slate-400 py-4 flex flex-col items-center gap-4">
                                 <Lightbulb className="w-6 h-6 opacity-50" />
@@ -212,6 +223,7 @@ const ToolsPage: React.FC = () => {
                                     <p className="text-xs italic">"Explain the Circle of Fifths and how to use it in Jazz."</p>
                                     <p className="text-xs italic">"What are the key characteristics of Baroque composition?"</p>
                                     <p className="text-xs italic">"How do I compress a vocal track properly?"</p>
+                                    <p className="text-xs italic">"What is the history of the pentatonic scale?"</p>
                                 </div>
                              </div>
                          )}

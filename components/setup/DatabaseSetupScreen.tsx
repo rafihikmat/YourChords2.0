@@ -7,7 +7,6 @@ export const DatabaseSetupScreen: React.FC = () => {
 -- Run this in Supabase SQL Editor to clean up policies and fix linter warnings.
 
 -- 1. FIX FUNCTIONS (Security Search Path)
--- Fixes "mutable-search-path" warning by explicitly setting search_path.
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -35,8 +34,6 @@ end;
 $$;
 
 -- 2. CLEANUP & OPTIMIZE RLS POLICIES
--- We drop existing policies to remove duplicates and then recreate them
--- using (select auth.uid()) for better performance (InitPlan).
 
 -- === PROFILES ===
 DROP POLICY IF EXISTS "Public profiles are viewable by everyone." ON public.profiles;
@@ -102,25 +99,69 @@ CREATE POLICY "content_admin_all" ON public.page_content FOR ALL USING (
   exists (select 1 from public.profiles where id = (select auth.uid()) and role in ('admin', 'super_admin'))
 );
 
--- === SONG FAVORITES ===
-DROP POLICY IF EXISTS "Users can view own favorites" ON public.song_favorites;
-DROP POLICY IF EXISTS "Users can add favorites" ON public.song_favorites;
-DROP POLICY IF EXISTS "Users can remove favorites" ON public.song_favorites;
+-- === SONG FAVORITES & RATINGS ===
 DROP POLICY IF EXISTS "favorites_user_isolation" ON public.song_favorites;
-
--- Consolidated into one optimized policy for ALL operations
 CREATE POLICY "favorites_user_isolation" ON public.song_favorites FOR ALL USING ((select auth.uid()) = user_id);
 
--- === SONG RATINGS ===
-DROP POLICY IF EXISTS "Ratings are viewable by everyone" ON public.song_ratings;
-DROP POLICY IF EXISTS "Users can manage own ratings" ON public.song_ratings;
 DROP POLICY IF EXISTS "ratings_select_public" ON public.song_ratings;
 DROP POLICY IF EXISTS "ratings_user_manage" ON public.song_ratings;
-
 CREATE POLICY "ratings_select_public" ON public.song_ratings FOR SELECT USING (true);
 CREATE POLICY "ratings_user_manage" ON public.song_ratings FOR ALL USING ((select auth.uid()) = user_id);
 
--- 3. ENSURE EXTENSIONS
+-- 3. INSERT DUMMY CONTENT (About & Footer)
+INSERT INTO public.page_content (id, content) VALUES
+(
+  'about',
+  '{
+    "title": "Revolutionizing Music Education",
+    "subtitle": "We merge advanced AI with musical passion to create the ultimate learning platform.",
+    "mission_title": "Our Mission",
+    "mission_text": "To democratize music theory and accessibility. We believe every song should be playable, every chord understood, and every musician empowered with the best tools available.",
+    "features": [
+      { "title": "Neural Analysis", "desc": "Proprietary AI algorithms dissect audio to provide 99% accurate chords." },
+      { "title": "Global Library", "desc": "A user-driven database connecting musicians from every corner of the world." },
+      { "title": "Real-time Tools", "desc": "Latency-free tuners and metronomes built directly into the browser." }
+    ]
+  }'::jsonb
+),
+(
+  'footer',
+  '{
+    "brand_description": "The next-generation platform for musicians. Powered by Neural Networks to bring you accurate chords, immersive tablature, and real-time tools.",
+    "columns": [
+      {
+        "title": "Explore",
+        "links": [
+          { "label": "Chord Library", "path": "/" },
+          { "label": "AI Generator", "path": "/tools" },
+          { "label": "Tuner & Metronome", "path": "/tools" },
+          { "label": "Trending Songs", "path": "/#library-section" },
+          { "label": "Tutorials", "path": "/#tutorials" }
+        ]
+      },
+      {
+        "title": "Company",
+        "links": [
+          { "label": "About Us", "path": "/about" },
+          { "label": "Privacy Policy", "path": "#" },
+          { "label": "Terms of Service", "path": "#" },
+          { "label": "Contact Support", "path": "#" },
+          { "label": "API Status", "path": "#" }
+        ]
+      }
+    ],
+    "socials": {
+      "twitter": "https://twitter.com",
+      "github": "https://github.com",
+      "instagram": "https://instagram.com",
+      "email": "mailto:support@yourchords.com"
+    },
+    "copyright_text": "YourChords AI. All rights reserved."
+  }'::jsonb
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- 4. ENSURE EXTENSIONS
 create extension if not exists "uuid-ossp";
 `;
 
@@ -139,6 +180,7 @@ create extension if not exists "uuid-ossp";
         
         <p className="text-slate-600 dark:text-slate-400 mb-6">
           Your database policies need to be updated to fix security warnings (search_path) and improve RLS performance (InitPlan).
+          This script also inserts dummy content for the About Page and Footer.
           Please run the following SQL migration.
         </p>
 

@@ -1,10 +1,92 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Music, Github, Twitter, Instagram, Mail, Heart, Zap, ArrowRight } from 'lucide-react';
+import { Music, Github, Twitter, Instagram, Mail, Heart, Zap, ArrowRight, Facebook, Linkedin } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { supabase } from '../lib/supabase';
+
+interface FooterLink {
+  label: string;
+  path: string;
+}
+
+interface FooterColumn {
+  title: string;
+  links: FooterLink[];
+}
+
+interface FooterData {
+  brand_description: string;
+  columns: FooterColumn[];
+  socials: Record<string, string>;
+  copyright_text: string;
+}
+
+const DEFAULT_FOOTER: FooterData = {
+  brand_description: "The next-generation platform for musicians. Powered by Neural Networks to bring you accurate chords, immersive tablature, and real-time tools.",
+  columns: [
+    {
+      title: "Explore",
+      links: [
+        { label: 'Chord Library', path: '/' },
+        { label: 'AI Generator', path: '/tools' },
+        { label: 'Tuner & Metronome', path: '/tools' },
+        { label: 'Trending Songs', path: '/#library-section' },
+        { label: 'Tutorials', path: '/#tutorials' }
+      ]
+    },
+    {
+      title: "Company",
+      links: [
+        { label: 'About Us', path: '/about' },
+        { label: 'Privacy Policy', path: '#' },
+        { label: 'Terms of Service', path: '#' },
+        { label: 'Contact Support', path: '#' },
+        { label: 'API Status', path: '#' }
+      ]
+    }
+  ],
+  socials: {
+    twitter: "https://twitter.com",
+    github: "https://github.com",
+    instagram: "https://instagram.com",
+    email: "mailto:support@yourchords.com"
+  },
+  copyright_text: "YourChords AI. All rights reserved."
+};
 
 const Footer: React.FC = () => {
+  const [data, setData] = useState<FooterData>(DEFAULT_FOOTER);
+
+  useEffect(() => {
+    const fetchFooter = async () => {
+      try {
+        const { data: dbData } = await supabase.from('page_content').select('content').eq('id', 'footer').single();
+        if (dbData?.content) {
+            // Merge defaults ensures structure exists even if DB partial
+            setData({ ...DEFAULT_FOOTER, ...dbData.content });
+        }
+      } catch (e) {
+        // Fallback silently to default
+      }
+    };
+    fetchFooter();
+  }, []);
+
+  const getIcon = (key: string) => {
+      switch(key.toLowerCase()) {
+          case 'twitter': return Twitter;
+          case 'github': return Github;
+          case 'instagram': return Instagram;
+          case 'facebook': return Facebook;
+          case 'linkedin': return Linkedin;
+          case 'email': return Mail;
+          default: return GlobeIcon;
+      }
+  };
+
+  const GlobeIcon = ({className}: {className?: string}) => <Zap className={className} />;
+
   return (
     <footer className="relative bg-white dark:bg-slate-950 border-t border-slate-200 dark:border-white/10 overflow-hidden pt-16 pb-8 transition-colors duration-300">
       {/* Decorative Background Elements */}
@@ -25,76 +107,48 @@ const Footer: React.FC = () => {
               </span>
             </div>
             <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">
-              The next-generation platform for musicians. Powered by Neural Networks to bring you accurate chords, immersive tablature, and real-time tools.
+              {data.brand_description}
             </p>
             <div className="flex items-center gap-4">
-              {[
-                { icon: Twitter, href: 'https://twitter.com' },
-                { icon: Github, href: 'https://github.com' },
-                { icon: Instagram, href: 'https://instagram.com' },
-                { icon: Mail, href: 'mailto:support@yourchords.com' }
-              ].map((social, idx) => (
-                <a 
-                  key={idx} 
-                  href={social.href}
-                  target="_blank"
-                  rel="noreferrer" 
-                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-white/5 hover:bg-primary/10 hover:text-primary dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 dark:hover:text-white transition-all hover:-translate-y-1"
-                >
-                  <social.icon className="w-4 h-4" />
-                </a>
-              ))}
+              {Object.entries(data.socials).map(([key, href], idx) => {
+                const Icon = getIcon(key);
+                return (
+                  <a 
+                    key={idx} 
+                    href={href}
+                    target="_blank"
+                    rel="noreferrer" 
+                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-white/5 hover:bg-primary/10 hover:text-primary dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 dark:hover:text-white transition-all hover:-translate-y-1"
+                  >
+                    <Icon className="w-4 h-4" />
+                  </a>
+                );
+              })}
             </div>
           </div>
 
-          {/* Quick Links */}
-          <div>
-            <h3 className="font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
-              <Zap className="w-4 h-4 text-yellow-500 dark:text-yellow-400" /> Explore
-            </h3>
-            <ul className="space-y-3">
-              {[
-                { label: 'Chord Library', path: '/' },
-                { label: 'AI Generator', path: '/tools' },
-                { label: 'Tuner & Metronome', path: '/tools' },
-                { label: 'Trending Songs', path: '/#library-section' },
-                { label: 'Tutorials', path: '/#tutorials' }
-              ].map((link) => (
-                <li key={link.label}>
-                  <Link 
-                    to={link.path} 
-                    className="text-slate-600 dark:text-slate-400 hover:text-primary dark:hover:text-primary text-sm transition-colors flex items-center gap-2 group"
-                  >
-                    <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600 group-hover:bg-primary transition-colors" />
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Company */}
-          <div>
-            <h3 className="font-bold text-slate-900 dark:text-white mb-6">Company</h3>
-            <ul className="space-y-3">
-              {[
-                { label: 'About Us', path: '/about' },
-                { label: 'Privacy Policy', path: '#' },
-                { label: 'Terms of Service', path: '#' },
-                { label: 'Contact Support', path: '#' },
-                { label: 'API Status', path: '#' }
-              ].map((link) => (
-                <li key={link.label}>
-                  <Link 
-                    to={link.path} 
-                    className="text-slate-600 dark:text-slate-400 hover:text-primary dark:hover:text-white text-sm transition-colors"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {/* Dynamic Columns */}
+          {data.columns.map((col, idx) => (
+             <div key={idx}>
+                <h3 className="font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
+                    {idx === 0 && <Zap className="w-4 h-4 text-yellow-500 dark:text-yellow-400" />} 
+                    {col.title}
+                </h3>
+                <ul className="space-y-3">
+                    {col.links.map((link, lIdx) => (
+                        <li key={lIdx}>
+                            <Link 
+                                to={link.path} 
+                                className="text-slate-600 dark:text-slate-400 hover:text-primary dark:hover:text-primary text-sm transition-colors flex items-center gap-2 group"
+                            >
+                                <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600 group-hover:bg-primary transition-colors" />
+                                {link.label}
+                            </Link>
+                        </li>
+                    ))}
+                </ul>
+             </div>
+          ))}
 
           {/* Newsletter */}
           <div>
@@ -123,7 +177,7 @@ const Footer: React.FC = () => {
         {/* Bottom Bar */}
         <div className="border-t border-slate-200 dark:border-white/5 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-slate-500 dark:text-slate-500 text-sm">
-            &copy; {new Date().getFullYear()} YourChords AI. All rights reserved.
+            &copy; {new Date().getFullYear()} {data.copyright_text}
           </p>
           <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-500">
             <span>Made with</span>

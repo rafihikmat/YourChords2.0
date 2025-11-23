@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { LayoutTemplate, FileText, Save } from 'lucide-react';
+import { LayoutTemplate, FileText, Save, Info } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { cn } from '../../../lib/utils';
 
@@ -29,6 +29,7 @@ const ContentManager: React.FC = () => {
     const handlePageSelect = (pageId: string) => {
         setSelectedPage(pageId);
         const p = pages.find(x => x.id === pageId);
+        // Default empty object if page doesn't exist in DB yet but is selectable
         setEditContent(p ? p.content : {});
     };
 
@@ -78,7 +79,7 @@ const ContentManager: React.FC = () => {
                 <div className="w-full md:w-64 bg-slate-50 dark:bg-slate-950/50 border-r border-slate-200 dark:border-white/10 p-4">
                     <h3 className="text-xs font-bold uppercase text-slate-500 mb-4">Select Page</h3>
                     <div className="space-y-2">
-                        {['home', 'about'].map(page => (
+                        {['home', 'about', 'footer'].map(page => (
                             <button 
                                 key={page}
                                 onClick={() => handlePageSelect(page)}
@@ -139,20 +140,63 @@ const ContentManager: React.FC = () => {
                                         />
                                     </div>
                                      <div className="space-y-2">
-                                        <label className="text-xs font-bold uppercase text-slate-500">Description</label>
+                                        <label className="text-xs font-bold uppercase text-slate-500">Subtitle / Tagline</label>
                                         <textarea 
-                                            value={editContent.description || ''} 
-                                            onChange={(e) => updateField('description', e.target.value)}
-                                            rows={6}
+                                            value={editContent.subtitle || ''} 
+                                            onChange={(e) => updateField('subtitle', e.target.value)}
+                                            rows={3}
+                                            className="w-full p-3 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 outline-none resize-none"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold uppercase text-slate-500">Mission Title</label>
+                                        <input 
+                                            value={editContent.mission_title || ''} 
+                                            onChange={(e) => updateField('mission_title', e.target.value)}
+                                            className="w-full p-3 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 outline-none"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold uppercase text-slate-500">Mission Text</label>
+                                        <textarea 
+                                            value={editContent.mission_text || ''} 
+                                            onChange={(e) => updateField('mission_text', e.target.value)}
+                                            rows={4}
                                             className="w-full p-3 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 outline-none resize-none"
                                         />
                                     </div>
                                 </>
                             )}
+                            {selectedPage === 'footer' && (
+                                <>
+                                    <div className="bg-yellow-50 dark:bg-yellow-900/10 p-4 rounded-lg border border-yellow-200 dark:border-yellow-700/30 mb-4 flex gap-3 text-xs text-yellow-700 dark:text-yellow-400">
+                                        <Info className="w-4 h-4 shrink-0 mt-0.5" />
+                                        <p>For complex footer links and column structures, please use the <strong>JSON Editor</strong> mode.</p>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold uppercase text-slate-500">Brand Description</label>
+                                        <textarea 
+                                            value={editContent.brand_description || ''} 
+                                            onChange={(e) => updateField('brand_description', e.target.value)}
+                                            rows={3}
+                                            className="w-full p-3 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 outline-none resize-none"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold uppercase text-slate-500">Copyright Text</label>
+                                        <input 
+                                            value={editContent.copyright_text || ''} 
+                                            onChange={(e) => updateField('copyright_text', e.target.value)}
+                                            className="w-full p-3 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 outline-none"
+                                        />
+                                    </div>
+                                </>
+                            )}
+                            
                              {/* Fallback for other props */}
                              <div className="pt-4 border-t border-slate-200 dark:border-white/10">
-                                 <p className="text-xs text-slate-500 mb-2">Other Properties (JSON)</p>
-                                 <pre className="text-xs bg-slate-100 dark:bg-slate-950 p-4 rounded-lg text-slate-600 dark:text-slate-400 overflow-auto">
+                                 <p className="text-xs text-slate-500 mb-2">Full Configuration Preview</p>
+                                 <pre className="text-xs bg-slate-100 dark:bg-slate-950 p-4 rounded-lg text-slate-600 dark:text-slate-400 overflow-auto h-40 custom-scrollbar">
                                      {JSON.stringify(editContent, null, 2)}
                                  </pre>
                              </div>

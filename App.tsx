@@ -12,6 +12,7 @@ import SongDetail from './pages/SongDetail';
 import FavoritesPage from './pages/Favorites';
 import ToolsPage from './pages/Tools';
 import ProfilePage from './pages/Profile';
+import About from './pages/About';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { DatabaseSetupScreen } from './components/setup/DatabaseSetupScreen';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
@@ -37,6 +38,7 @@ const AppContent: React.FC = () => {
             <Route path="/update-password" element={<UpdatePassword />} />
             <Route path="/song/:id" element={<SongDetail />} />
             <Route path="/tools" element={<ToolsPage />} />
+            <Route path="/about" element={<About />} />
             
             {/* Protected Routes */}
             <Route path="/favorites" element={
@@ -57,8 +59,6 @@ const AppContent: React.FC = () => {
                 <AdminDashboard />
             </ProtectedRoute>
             } />
-            
-            <Route path="/about" element={<div className="pt-24 text-center text-slate-900 dark:text-white">About Page (Coming Soon)</div>} />
         </Routes>
       </main>
       {showFooter && <Footer />}

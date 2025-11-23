@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Music, PenTool, AlertCircle, Save, Link as LinkIcon, BarChart, Cpu, X, Play } from 'lucide-react';
+import { Sparkles, Music, PenTool, AlertCircle, Save, Link as LinkIcon, BarChart, Cpu, X, Play, Eye } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { AIChordFormData } from '../types';
 import AudioRecorder from './AudioRecorder';
@@ -38,6 +38,7 @@ const AIChordForm: React.FC = () => {
   const [generatedResult, setGeneratedResult] = useState<any>(null);
 
   // Parse the generated result in real-time for the preview view
+  // When parsing JSON from the AI, we need to handle it carefully in the hook
   const { html } = useChordSheetParser({ 
     songData: generatedResult ? generatedResult.chords : null 
   });
@@ -170,7 +171,7 @@ const AIChordForm: React.FC = () => {
 
                   {/* Warning Banner */}
                   <div className="bg-blue-50 dark:bg-blue-900/10 border-b border-blue-100 dark:border-blue-900/20 px-6 py-2 text-xs text-blue-600 dark:text-blue-400 flex items-center gap-2">
-                      <AlertCircle className="w-3 h-3" />
+                      <Eye className="w-3 h-3" />
                       <span><strong>Preview Mode:</strong> This song is available for your session only and has not been saved to the public library.</span>
                   </div>
 
