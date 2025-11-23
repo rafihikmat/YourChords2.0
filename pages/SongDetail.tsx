@@ -36,28 +36,50 @@ export default function SongDetail() {
   const { isPlaying: isMetronomeOn, setIsPlaying: setIsMetronomeOn, bpm, setBpm } = useMetronome(120);
 
   // --- Parser Hook ---
+  // Safely extract source data
   const sourceData = (song?.tablature as any)?.content || song?.chords || null;
+  
   const { html, uniqueChords } = useChordSheetParser({
     songData: sourceData,
     transposeSteps: transposeSteps - capoFret
   });
 
-  // --- GHOST DIAGRAM FIX: Strict Filtering & Deduping ---
+  // --- GHOST DIAGRAM FIX & CRASH PREVENTION ---
   const displayChords = useMemo(() => {
-      // 1. Determine source list (Parser unique list OR DB Legacy list)
-      const rawList = uniqueChords.length > 0 
-          ? uniqueChords 
-          : (Array.isArray(song?.chords) ? song.chords as unknown as string[] : []);
+      let rawList: string[] = [];
 
-      // 2. Clean, Dedup, and Validate
-      // We strictly filter out any chord that does NOT have a valid fingering in our DB.
-      // This prevents "empty black boxes" (Ghost Diagrams) from rendering.
+      // 1. Priority: Use unique chords extracted by the parser (most accurate for ChordPro/AI content)
+      if (uniqueChords && uniqueChords.length > 0) {
+          rawList = uniqueChords;
+      } 
+      // 2. Fallback: Use DB 'chords' column if parser found nothing
+      else if (Array.isArray(song?.chords)) {
+          // CHECK DATA TYPE: ensure we are looking at an array of strings
+          const chords = song.chords;
+          
+          if (chords.length > 0) {
+              const firstItem = chords[0];
+              
+              if (typeof firstItem === 'string') {
+                  // Legacy Format: ["C", "Am", "F"]
+                  rawList = chords as unknown as string[];
+              } else if (typeof firstItem === 'object' && firstItem !== null && 'chords' in firstItem) {
+                  // AI/New Format: [{ line: "...", chords: ["C", "Am"] }]
+                  // Flatten all chords from all lines
+                  // @ts-ignore - Validating structure at runtime
+                  rawList = (chords as any[]).flatMap(line => Array.isArray(line.chords) ? line.chords : []);
+              }
+          }
+      }
+
+      // 3. Clean, Dedup, and Validate
       const validSet = new Set<string>();
       
       rawList.forEach(c => {
-          if (!c) return;
+          if (!c || typeof c !== 'string') return;
           const clean = c.trim();
-          if (clean.length > 0 && getChordFingering(clean) !== null) {
+          // Verify against music utils to ensure it's a renderable chord (prevents lyrics appearing as chords)
+          if (clean.length > 0 && clean.length < 10 && getChordFingering(clean) !== null) {
               validSet.add(clean);
           }
       });

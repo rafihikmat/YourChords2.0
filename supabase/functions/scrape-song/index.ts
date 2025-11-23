@@ -7,21 +7,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Improved Regex to handle:
-// - Standard: C, Dm, G7
-// - Complex: C#m7b5, Fmaj9, Bbsus4, G/B
-// - Symbols: 7#9, +5, -9
+// Regex to identify chord lines
 const CHORD_REGEX = /\b[A-G][#b]?(?:m|maj|min|dim|aug|sus|add|[0-9]|b|#|\/)*\b/g;
 
 function isChordLine(line: string): boolean {
   const trimmed = line.trim();
   if (trimmed.length === 0) return false;
-  
-  // Remove chords from line to see what's left
   const nonChordContent = line.replace(CHORD_REGEX, '').replace(/\s+/g, '');
-  
-  // If what's left is very short compared to line length, or empty, it's a chord line
-  // Allow some noise (like "x4" or symbols)
   return nonChordContent.length < (line.length * 0.4) || nonChordContent.length < 3;
 }
 
@@ -33,61 +25,36 @@ function convertToChordPro(rawText: string): string {
     const currentLine = lines[i]; 
     const nextLine = lines[i + 1];
 
-    // Case 1: Current line is Chords, Next line is Lyrics (Merge them)
     if (isChordLine(currentLine) && nextLine && !isChordLine(nextLine) && nextLine.trim().length > 0) {
       let mergedLine = nextLine;
-      
-      // Find all chords and their positions
       const matches = [...currentLine.matchAll(CHORD_REGEX)];
-      
       let finalLine = "";
       let lyricCursor = 0;
       
       for (const match of matches) {
           const chord = match[0];
           const chordIndex = match.index!;
-          
-          // Append lyrics up to this chord
           if (chordIndex > lyricCursor) {
               finalLine += mergedLine.slice(lyricCursor, Math.min(chordIndex, mergedLine.length));
-              // If lyrics ran out, pad with spaces
-              if (chordIndex > mergedLine.length) {
-                  finalLine += " ".repeat(chordIndex - mergedLine.length);
-              }
+              if (chordIndex > mergedLine.length) finalLine += " ".repeat(chordIndex - mergedLine.length);
               lyricCursor = Math.min(chordIndex, mergedLine.length);
           }
-          
           finalLine += `[${chord}]`;
       }
-      
-      // Append remaining lyrics
-      if (lyricCursor < mergedLine.length) {
-          finalLine += mergedLine.slice(lyricCursor);
-      }
-      
+      if (lyricCursor < mergedLine.length) finalLine += mergedLine.slice(lyricCursor);
       result.push(finalLine);
-      i++; // Skip the lyrics line since we merged it
+      i++;
     } 
-    // Case 2: Chord line with no lyrics below (Intro, Solo, etc.)
     else if (isChordLine(currentLine)) {
-        // Just wrap chords in brackets
-        const wrapped = currentLine.replace(CHORD_REGEX, '[$&]');
-        result.push(wrapped);
+        result.push(currentLine.replace(CHORD_REGEX, '[$&]'));
     } 
-    // Case 3: Lyric line or Header
     else {
         const trimmed = currentLine.trim();
-        // Detect headers like [Chorus], [Verse] and preserve them
-        if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-             result.push(trimmed); 
-        } else if (trimmed.endsWith(':')) {
-             result.push(`[${trimmed.replace(':', '')}]`); 
-        } else {
-             result.push(currentLine);
-        }
+        if (trimmed.startsWith('[') && trimmed.endsWith(']')) result.push(trimmed); 
+        else if (trimmed.endsWith(':')) result.push(`[${trimmed.replace(':', '')}]`); 
+        else result.push(currentLine);
     }
   }
-  
   return result.join('\n');
 }
 
@@ -102,13 +69,24 @@ serve(async (req) => {
     let artist = "Unknown Artist";
     let rawContent = "";
 
-    // --- STRATEGY: CHORDTELA ---
+    // --- SAFETY & COMPLIANCE ---
+    // User-Agent added to mimic browser and allow functionality for PERSONAL/DEV use.
+    // Heavy scraping may result in IP bans from target sites.
+    const fetchOptions = {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': 'https://www.google.com/'
+      }
+    };
+
     if (url.includes('chordtela.com')) {
-        const res = await fetch(url);
+        const res = await fetch(url, fetchOptions);
+        if (!res.ok) throw new Error(`ChordTela returned status ${res.status}`);
         const html = await res.text();
         const $ = cheerio.load(html);
 
-        // Metadata
         const fullTitle = $('title').text().replace('Kunci Gitar ', '').replace(' Chord Dasar © ChordTela.com', '');
         const parts = fullTitle.split(' - ');
         if (parts.length >= 2) {
@@ -118,19 +96,16 @@ serve(async (req) => {
             title = fullTitle;
         }
 
-        // Content
         let contentNode = $('.entry-content pre');
         if (contentNode.length === 0) contentNode = $('div.post-body');
-        
         rawContent = contentNode.text();
     } 
-    // --- STRATEGY: ULTIMATE GUITAR ---
     else if (url.includes('ultimate-guitar.com')) {
-        const res = await fetch(url);
+        const res = await fetch(url, fetchOptions);
+        if (!res.ok) throw new Error(`Ultimate Guitar returned status ${res.status}`);
         const html = await res.text();
         const $ = cheerio.load(html);
         
-        // UG stores data in a massive JSON object inside a script tag
         const scripts = $('script').toArray();
         let storeData = null;
         
@@ -141,32 +116,31 @@ serve(async (req) => {
                     const jsonStr = text.replace('window.UGAPP.store.page = ', '').replace(/;$/, '');
                     storeData = JSON.parse(jsonStr);
                     break;
-                } catch (e) {
-                    console.error("Failed to parse UG JSON", e);
-                }
+                } catch (e) {}
             }
         }
 
         if (storeData) {
             const tabData = storeData.data.tab_view.wiki_tab;
             const metaData = storeData.data.tab;
-            
             title = metaData.song_name;
             artist = metaData.artist_name;
-            rawContent = tabData.content;
-            
-            // Clean up UG proprietary tags
-            rawContent = rawContent.replace(/\[\/?ch\]/g, '');
-            rawContent = rawContent.replace(/\[\/?tab\]/g, '');
+            rawContent = tabData.content.replace(/\[\/?ch\]/g, '').replace(/\[\/?tab\]/g, '');
         } else {
-            throw new Error("Could not extract data from Ultimate-Guitar");
+            const jsTabContent = $('.js-tab-content').text();
+            if (jsTabContent) {
+                const pageTitle = $('title').text();
+                title = pageTitle.split(' Chords')[0] || "Unknown";
+                rawContent = jsTabContent;
+            } else {
+                 throw new Error("Could not extract data. Target structure may have changed.");
+            }
         }
     }
     else {
         throw new Error("Unsupported domain. Only ChordTela and Ultimate-Guitar are supported.");
     }
 
-    // Run the Smart Algorithm
     const chordProContent = convertToChordPro(rawContent);
 
     return new Response(JSON.stringify({ 
