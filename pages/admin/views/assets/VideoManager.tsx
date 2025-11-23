@@ -260,9 +260,9 @@ export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
                             )}
                         </div>
 
-                        {/* Video Preview (If ID exists) */}
+                        {/* Video Preview (If ID exists) - ISOLATED FOR PERFORMANCE */}
                         {videoForm.video_id && (
-                            <div className="rounded-lg overflow-hidden border border-slate-200 dark:border-white/10 bg-black aspect-video relative group">
+                            <div className="rounded-lg overflow-hidden border border-slate-200 dark:border-white/10 bg-black aspect-video relative group contain-content">
                                 <YouTubePlayer videoId={videoForm.video_id} />
                                 <div className="absolute top-2 right-2 px-2 py-1 bg-red-600 text-white text-[10px] font-bold rounded uppercase shadow-md pointer-events-none">
                                     Preview
