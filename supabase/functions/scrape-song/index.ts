@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import * as cheerio from "https://esm.sh/cheerio@1.0.0-rc.12";
 
@@ -6,9 +7,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Regex to identify a chord line (heuristic: mostly chords and spaces)
-// Matches standard chords: C, C#m, Bb7, F#m7b5, G/B, etc.
-const CHORD_REGEX = /\b[A-G][#b]?(?:m|maj|min|dim|aug|sus|add|5|6|7|9|11|13)*(?:\/[A-G][#b]?)?\b/g;
+// Improved Regex to handle:
+// - Standard: C, Dm, G7
+// - Complex: C#m7b5, Fmaj9, Bbsus4, G/B
+// - Symbols: 7#9, +5, -9
+const CHORD_REGEX = /\b[A-G][#b]?(?:m|maj|min|dim|aug|sus|add|[0-9]|b|#|\/)*\b/g;
 
 function isChordLine(line: string): boolean {
   const trimmed = line.trim();

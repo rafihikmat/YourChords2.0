@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Music, Zap, Save, Grid, Eye, Edit3, Globe, Download, Loader2, AlertTriangle, CheckCircle } from 'lucide-react';
@@ -83,8 +84,15 @@ const ManualEntry: React.FC = () => {
                 body: { url: importUrl }
             });
 
-            if (error) throw error;
-            if (data.error) throw new Error(data.error);
+            if (error) {
+                console.error("Edge Function Error:", error);
+                if (error.message?.includes("404") || error.message?.includes("not found") || error.context?.status === 404) {
+                    throw new Error("Scraper Service not deployed. Please run 'supabase functions deploy scrape-song'.");
+                }
+                throw error;
+            }
+            
+            if (data?.error) throw new Error(data.error);
 
             setFormData(prev => ({
                 ...prev,
@@ -96,7 +104,7 @@ const ManualEntry: React.FC = () => {
             setImportStatus({ type: 'success', msg: 'Import successful! Converted to ChordPro.' });
             setImportUrl('');
         } catch (err: any) {
-            setImportStatus({ type: 'error', msg: 'Import failed: ' + err.message });
+            setImportStatus({ type: 'error', msg: err.message || 'Import failed.' });
         } finally {
             setIsImporting(false);
         }
