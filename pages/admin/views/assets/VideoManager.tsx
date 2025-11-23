@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Save, ToggleRight, ToggleLeft, PlayCircle, Video, RefreshCw, ExternalLink, Image as ImageIcon, Edit2, X, Youtube } from 'lucide-react';
+import { Plus, Trash2, Save, ToggleRight, ToggleLeft, PlayCircle, Video, RefreshCw, ExternalLink, Image as ImageIcon, Edit2, X, Youtube, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../../../../lib/supabase';
 import { VideoTutorial } from '../../../../types';
 import { cn, fuzzySearch } from '../../../../lib/utils';
@@ -17,6 +17,7 @@ export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
     const [editingVideoId, setEditingVideoId] = useState<string | null>(null);
     const [metadataLoading, setMetadataLoading] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [status, setStatus] = useState<{ type: 'success' | 'error' | 'info', message: string } | null>(null);
 
     useEffect(() => {
         fetchVideos();
@@ -59,12 +60,17 @@ export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
         const targetId = videoForm.video_id || extractVideoId(inputUrl);
         
         if (!targetId) {
-            alert("Please enter a valid YouTube URL or ID first.");
+            setStatus({ type: 'error', message: 'Invalid YouTube URL or ID.' });
             return;
         }
 
         setMetadataLoading(true);
+        setStatus({ type: 'info', message: 'Fetching metadata from neural network...' });
         
+        let success = false;
+        let errorMessage = "";
+        
+        // Strategy 1: Supabase Edge Function (Primary - uses API Key for full details)
         try {
             const { data, error } = await supabase.functions.invoke('get-video-details', {
                 body: { videoId: targetId }
@@ -80,37 +86,65 @@ export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
                 channel_title: data.channel_title,
                 thumbnail_url: data.thumbnail_url
             }));
-            
-            // Update the raw input to show the ID if it was a URL
-            if (!editingVideoId) setInputUrl(targetId);
-
+            success = true;
         } catch (err: any) {
-            console.error('Metadata fetch failed:', err);
-            // Fallback: Construct standard thumbnail if API fails
-            const fallbackThumb = `https://img.youtube.com/vi/${targetId}/maxresdefault.jpg`;
-            setVideoForm(prev => ({
+            console.warn('Edge Function failed, trying fallback:', err);
+            errorMessage = err.message;
+        }
+
+        // Strategy 2: NoEmbed (Fallback - Client side, no API key needed)
+        if (!success) {
+            try {
+                const response = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${targetId}`);
+                const data = await response.json();
+                
+                if (data.error) throw new Error(data.error);
+
+                setVideoForm(prev => ({
+                    ...prev,
+                    video_id: targetId,
+                    title: data.title,
+                    channel_title: data.author_name,
+                    thumbnail_url: data.thumbnail_url || `https://img.youtube.com/vi/${targetId}/maxresdefault.jpg`
+                }));
+                success = true;
+            } catch (err) {
+                console.warn('Fallback failed:', err);
+            }
+        }
+
+        // Final Result Handling
+        if (!success) {
+             const fallbackThumb = `https://img.youtube.com/vi/${targetId}/maxresdefault.jpg`;
+             setVideoForm(prev => ({
                 ...prev,
                 video_id: targetId,
                 thumbnail_url: prev.thumbnail_url || fallbackThumb
             }));
-            alert(`Auto-fill warning: ${err.message}. \n\nWe've set the ID and a default thumbnail, but you may need to enter the Title manually.`);
-        } finally {
-            setMetadataLoading(false);
+            setStatus({ 
+                type: 'error', 
+                message: `Auto-fill failed (${errorMessage || 'Service unavailable'}). ID set, please fill Title manually.` 
+            });
+        } else {
+            if (!editingVideoId) setInputUrl(targetId);
+            setStatus({ type: 'success', message: 'Metadata retrieved successfully.' });
+            // Clear success message after 3 seconds
+            setTimeout(() => setStatus(null), 3000);
         }
+
+        setMetadataLoading(false);
     };
 
     const handleSaveVideo = async (e: React.FormEvent) => {
         e.preventDefault();
         
-        // Final check for ID
         if (!videoForm.video_id) {
-            alert("Video ID is required");
+            setStatus({ type: 'error', message: 'Video ID is required.' });
             return;
         }
 
         let error;
         if (editingVideoId) {
-            // Update existing
             const { error: updateError } = await supabase
                 .from('video_tutorials')
                 .update({
@@ -121,7 +155,6 @@ export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
                 .eq('video_id', editingVideoId);
             error = updateError;
         } else {
-            // Create new
             const { error: insertError } = await supabase.from('video_tutorials').insert([videoForm]);
             error = insertError;
         }
@@ -129,8 +162,10 @@ export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
         if (!error) {
             resetVideoForm();
             fetchVideos();
+            setStatus({ type: 'success', message: editingVideoId ? 'Video updated.' : 'Video added to library.' });
+            setTimeout(() => setStatus(null), 3000);
         } else {
-            alert('Error saving video: ' + error.message);
+            setStatus({ type: 'error', message: error.message });
         }
     };
 
@@ -143,6 +178,7 @@ export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
             channel_title: video.channel_title,
             thumbnail_url: video.thumbnail_url
         });
+        setStatus(null);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
@@ -163,6 +199,7 @@ export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
         setInputUrl('');
         setVideoForm({ video_id: '', title: '', channel_title: '', thumbnail_url: '' });
         setEditingVideoId(null);
+        setStatus(null);
     };
 
     const filteredVideos = fuzzySearch<VideoTutorial>(videos, searchTerm, ['title', 'channel_title', 'video_id']);
@@ -205,16 +242,14 @@ export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
                                         disabled={!!editingVideoId} 
                                     />
                                 </div>
-                                {!editingVideoId && (
-                                    <button 
-                                        type="button" 
-                                        onClick={fetchYoutubeMetadata} 
-                                        disabled={metadataLoading || !inputUrl} 
-                                        className="px-3 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-white/10 text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-700 min-w-[80px] flex items-center justify-center transition-colors text-slate-700 dark:text-slate-300 disabled:opacity-50"
-                                    >
-                                        {metadataLoading ? <RefreshCw className="w-3 h-3 animate-spin" /> : "Auto-Fill"}
-                                    </button>
-                                )}
+                                <button 
+                                    type="button" 
+                                    onClick={fetchYoutubeMetadata} 
+                                    disabled={metadataLoading || (!inputUrl && !editingVideoId)} 
+                                    className="px-3 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-white/10 text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-700 min-w-[80px] flex items-center justify-center transition-colors text-slate-700 dark:text-slate-300 disabled:opacity-50"
+                                >
+                                    {metadataLoading ? <RefreshCw className="w-3 h-3 animate-spin" /> : (editingVideoId ? "Refresh" : "Auto-Fill")}
+                                </button>
                             </div>
                             {editingVideoId ? (
                                 <p className="text-[10px] text-slate-400 mt-1 italic">ID cannot be changed. Create new to change.</p>
@@ -277,6 +312,21 @@ export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
                                 />
                             </div>
                         </div>
+
+                        {/* Status Message */}
+                        {status && (
+                            <div className={cn(
+                                "p-3 rounded-lg text-xs flex items-center gap-2",
+                                status.type === 'error' ? "bg-red-500/10 text-red-500 border border-red-500/20" :
+                                status.type === 'success' ? "bg-green-500/10 text-green-500 border border-green-500/20" :
+                                "bg-blue-500/10 text-blue-500 border border-blue-500/20"
+                            )}>
+                                {status.type === 'error' && <AlertCircle className="w-4 h-4 shrink-0" />}
+                                {status.type === 'success' && <CheckCircle2 className="w-4 h-4 shrink-0" />}
+                                {status.type === 'info' && <RefreshCw className="w-4 h-4 shrink-0 animate-spin" />}
+                                {status.message}
+                            </div>
+                        )}
 
                         <button 
                             type="submit" 
