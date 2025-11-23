@@ -25,14 +25,14 @@ serve(async (req) => {
 
     const ai = new GoogleGenAI({ apiKey });
     // Default text model
-    const model = 'gemini-2.5-flash';
+    const model = 'gemini-1.5-flash';
 
     let prompt = "";
     let contentParts: any[] = [];
 
     // --- MODE 1: TEXT EXTRACTION (Raw PDF Text -> Structured ChordPro) ---
     if (mode === 'text_extraction' && text) {
-        prompt = `
+      prompt = `
           You are an expert music transcriber and data cleaner.
           
           I will give you RAW TEXT extracted from a music PDF. 
@@ -72,13 +72,13 @@ serve(async (req) => {
 
           RAW TEXT INPUT:
           ${text.substring(0, 30000)} 
-        `; 
-        // Limit text length to prevent context window overflow, though 2.5 flash handles ~1M tokens.
-        contentParts.push({ text: prompt });
-    } 
+        `;
+      // Limit text length to prevent context window overflow, though 2.5 flash handles ~1M tokens.
+      contentParts.push({ text: prompt });
+    }
     // --- MODE 2: VISION (Images -> ChordPro) ---
     else if (mode === 'vision_extraction' && images && Array.isArray(images) && images.length > 0) {
-        prompt = `
+      prompt = `
           You are an expert Music Transcriber. Look at the provided images of a guitar chord sheet.
           Transcribe them EXACTLY as they appear into a JSON structure.
           
@@ -99,19 +99,19 @@ serve(async (req) => {
           }
         `;
 
-        images.forEach((base64: string) => {
-            contentParts.push({ 
-                inlineData: { 
-                    mimeType: 'image/jpeg', 
-                    data: base64 
-                } 
-            });
+      images.forEach((base64: string) => {
+        contentParts.push({
+          inlineData: {
+            mimeType: 'image/jpeg',
+            data: base64
+          }
         });
-        contentParts.push({ text: prompt });
-    } 
+      });
+      contentParts.push({ text: prompt });
+    }
     // --- MODE 3: STANDARD GENERATION (Lyrics -> AI Composed Chords) ---
     else {
-        prompt = `
+      prompt = `
           You are a music theory expert.
           Analyze the song "${title}" by "${artist}".
           1. Place chords at the START of phrases or words where harmonic change occurs.
@@ -131,7 +131,7 @@ serve(async (req) => {
             ]
           }
         `;
-        contentParts.push({ text: prompt });
+      contentParts.push({ text: prompt });
     }
 
     const response = await ai.models.generateContent({
@@ -141,13 +141,13 @@ serve(async (req) => {
 
     const textResponse = response.text || "{}";
     const cleanJson = textResponse.replace(/^```json\s*/, '').replace(/\s*```$/, '').trim();
-    
+
     let chordData;
     try {
-        chordData = JSON.parse(cleanJson);
+      chordData = JSON.parse(cleanJson);
     } catch (e) {
-        console.error("AI JSON Parse Error", cleanJson);
-        throw new Error("AI returned invalid format. Please try again.");
+      console.error("AI JSON Parse Error", cleanJson);
+      throw new Error("AI returned invalid format. Please try again.");
     }
 
     return new Response(JSON.stringify(chordData), {
