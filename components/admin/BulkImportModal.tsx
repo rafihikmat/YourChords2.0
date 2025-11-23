@@ -7,8 +7,11 @@ import { supabase } from '../../lib/supabase';
 import { parseChordsFromText } from '../../lib/musicUtils';
 import { cn } from '../../lib/utils';
 
-// Set worker source for PDF.js
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://aistudiocdn.com/pdfjs-dist@4.0.379/build/pdf.worker.min.mjs';
+// FIX: Dynamically resolve worker version to match installed API version
+// This fixes the "API version does not match Worker version" error in VS Code (npm run dev)
+// We use pdfjsLib.version to ensure the CDN URL always aligns with the loaded library.
+const pdfjsVersion = pdfjsLib.version || '4.0.379';
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsVersion}/build/pdf.worker.min.mjs`;
 
 interface BulkImportModalProps {
   isOpen: boolean;
