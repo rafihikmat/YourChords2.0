@@ -26,20 +26,21 @@ serve(async (req) => {
     const model = 'gemini-2.5-flash';
 
     let prompt = "";
-    let contentParts = [];
+    let contentParts: any[] = [];
 
-    if (mode === 'vision_extraction' && images && images.length > 0) {
+    if (mode === 'vision_extraction' && images && Array.isArray(images) && images.length > 0) {
         // --- VISION MODE (PDF to CHORDPRO) ---
         prompt = `
           You are an expert Music Transcriber. 
           
           TASK:
-          Look at the provided images of a chord sheet (PDF pages).
+          Look at the provided images of a guitar chord sheet (PDF pages).
           Transcribe them EXACTLY as they appear into a JSON structure.
           
           CRITICAL RULES FOR ACCURACY:
           1. **Structure**: Return a valid JSON object.
-          2. **Alignment**: If a chord (e.g., A7) is visually located above a specific word in the image, you MUST place it immediately before that syllable in the output using brackets [A7].
+          2. **Alignment**: If a chord (e.g., A7) is visually located above a specific word in the image, you MUST place it immediately before that syllable in the output using brackets [A7]. 
+             Example: If "A7" is above "Hello", output "[A7]Hello".
           3. **Fidelity**: Do not invent chords. Do not change the lyrics. Copy exactly what is on the page.
           4. **Headers**: Identify sections (Chorus, Verse, Intro) and put them in the "line" text, but ensure chords are empty for those lines.
           5. **Metadata**: Extract the Title and Artist from the top of the first page if visible.
@@ -57,9 +58,14 @@ serve(async (req) => {
           }
         `;
 
-        // Add images to payload
+        // Add images to payload using proper SDK structure
         images.forEach((base64: string) => {
-            contentParts.push({ inlineData: { mimeType: 'image/jpeg', data: base64 } });
+            contentParts.push({ 
+                inlineData: { 
+                    mimeType: 'image/jpeg', 
+                    data: base64 
+                } 
+            });
         });
         contentParts.push({ text: prompt });
 
@@ -96,8 +102,8 @@ serve(async (req) => {
     });
 
     const text = response.text || "{}";
-    // Clean markdown code blocks if present
-    const cleanJson = text.replace(/```json|```/g, '').trim();
+    // Clean markdown code blocks if present (```json ... ```)
+    const cleanJson = text.replace(/^```json\s*/, '').replace(/\s*```$/, '').trim();
     
     let chordData;
     try {
@@ -112,6 +118,7 @@ serve(async (req) => {
     });
 
   } catch (error) {
+    console.error("Edge Function Error:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

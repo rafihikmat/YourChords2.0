@@ -4,12 +4,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, X, FileText, CheckCircle2, AlertTriangle, Loader2, Disc3, Music, Eye, ChevronDown, Layout, Ban, Cpu, Sparkles } from 'lucide-react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { supabase } from '../../lib/supabase';
-import { parseChordsFromText } from '../../lib/musicUtils';
-import { cn, blobToBase64 } from '../../lib/utils';
+import { cn } from '../../lib/utils';
 
 // Dynamically resolve worker version
 const pdfjsVersion = pdfjsLib.version || '4.0.379';
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsVersion}/build/pdf.worker.min.mjs`;
+// Use CDNJS for reliable worker loading
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsVersion}/pdf.worker.min.mjs`;
 
 interface BulkImportModalProps {
   isOpen: boolean;
@@ -76,12 +76,15 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       const images: string[] = [];
       
-      // Limit to first 3 pages to prevent payload overload, usually enough for any song
-      const maxPages = Math.min(pdf.numPages, 3); 
+      // PAYLOAD OPTIMIZATION:
+      // Limit to first 2 pages (usually contains all necessary chord info)
+      // Reduce scale to 1.2 and Quality to 0.5 to prevent Supabase Edge Function payload limit errors (6MB)
+      const maxPages = Math.min(pdf.numPages, 2); 
 
       for (let i = 1; i <= maxPages; i++) {
           const page = await pdf.getPage(i);
-          const viewport = page.getViewport({ scale: 1.5 }); // 1.5x scale for better text clarity
+          // 1.2 scale is sufficient for Gemini 2.5 Flash to read chords
+          const viewport = page.getViewport({ scale: 1.2 }); 
           
           const canvas = document.createElement('canvas');
           const context = canvas.getContext('2d');
@@ -90,8 +93,8 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
 
           if (context) {
               await page.render({ canvasContext: context, viewport }).promise;
-              // Convert to base64 (remove prefix for API)
-              const base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+              // High compression (0.5) to keep JSON body small
+              const base64 = canvas.toDataURL('image/jpeg', 0.5).split(',')[1];
               images.push(base64);
           }
       }
@@ -154,7 +157,11 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
                   }
               });
 
-              if (aiError) throw new Error(aiError.message || "AI Processing Failed");
+              if (aiError) {
+                  console.error("Supabase Function Error:", aiError);
+                  throw new Error(aiError.message || "Network/Payload Error. Try fewer files.");
+              }
+              
               if (aiData.error) throw new Error(aiData.error);
 
               const { title, artist, chords } = aiData;
@@ -188,7 +195,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
 
           } catch (err: any) {
               console.error(err);
-              updateStatus({ status: 'error', errorMsg: err.message });
+              updateStatus({ status: 'error', errorMsg: err.message || "Processing Failed" });
           }
       }
       setIsProcessing(false);
