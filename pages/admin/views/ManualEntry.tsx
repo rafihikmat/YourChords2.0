@@ -1,27 +1,24 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Music, Zap, Save, Grid, Eye, Edit3, Globe, Download, Loader2, AlertTriangle, CheckCircle, FolderInput } from 'lucide-react';
+import { Music, Save, Grid, Eye, Edit3, Globe, Loader2, AlertTriangle, CheckCircle, FileText } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { Song } from '../../../types';
 import { cn } from '../../../lib/utils';
 import { CHORD_FAMILIES, parseChordsFromText } from '../../../lib/musicUtils';
 import SongLyricsDisplay from '../../../components/SongLyricsDisplay';
 import { useChordSheetParser } from '../../../lib/hooks/useChordSheetParser';
-import { BulkImportModal } from '../../../components/admin/BulkImportModal';
+import mammoth from 'mammoth';
 
 const ManualEntry: React.FC = () => {
     const location = useLocation();
     const state = location.state as { songToEdit?: Song } | null;
     const [mode, setMode] = useState<'edit' | 'preview'>('edit');
     
-    // Import State
-    const [importUrl, setImportUrl] = useState('');
-    const [isImporting, setIsImporting] = useState(false);
+    // Local File Import State
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [isProcessingFile, setIsProcessingFile] = useState(false);
     const [importStatus, setImportStatus] = useState<{type: 'success' | 'error', msg: string} | null>(null);
-    
-    // Bulk Import State
-    const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
 
     const [formData, setFormData] = useState({
         id: '', 
@@ -76,48 +73,167 @@ const ManualEntry: React.FC = () => {
         }
     }, [state]);
 
-    const handleImport = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!importUrl) return;
+    // --- SMART ZIPPER ALGORITHM ---
+
+    const isChordLine = (line: string): boolean => {
+        const trimmed = line.trim();
+        if (!trimmed) return false;
         
-        setIsImporting(true);
+        // Regex matching valid chord tokens
+        // Matches: A, Am, A#m7, G/B, Csus4, etc.
+        const chordTokenRegex = /\b[A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|2|4|5|6|7|9|11|13)*\d*(?:\/[A-G][#b]?)?\b/g;
+        
+        const matches = trimmed.match(chordTokenRegex) || [];
+        if (matches.length === 0) return false;
+
+        const chordCharsCount = matches.join('').length;
+        const totalNonSpaceChars = trimmed.replace(/\s/g, '').length;
+        
+        // Heuristic: If > 50% of non-space characters are chords, it's a chord line
+        return (chordCharsCount / totalNonSpaceChars) > 0.5;
+    };
+
+    const convertRawToChordPro = (fullText: string) => {
+        const lines = fullText.split(/\r?\n/);
+        const resultLines: string[] = [];
+        
+        // Auto-Title Detection (First non-empty line)
+        let detectedTitle = "";
+        let detectedArtist = "";
+        
+        // Find first few non-empty lines
+        const nonEmptyLines = lines.filter(l => l.trim().length > 0);
+        if (nonEmptyLines.length > 0) detectedTitle = nonEmptyLines[0].trim();
+        if (nonEmptyLines.length > 1) {
+            const secondLine = nonEmptyLines[1].trim();
+            // Heuristic for artist line (often starts with "By" or is short)
+            if (secondLine.toLowerCase().startsWith('by') || secondLine.length < 40) {
+                detectedArtist = secondLine.replace(/^by\s+/i, '');
+            }
+        }
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i]; // Keep original line for indexing
+            const trimmed = line.trim();
+
+            // 1. Clean Metadata
+            if (/^(Tuning|Capo|Key|Difficulty|Strumming|Author|Tempo):/i.test(trimmed)) continue;
+            if (!trimmed) {
+                resultLines.push(""); 
+                continue;
+            }
+
+            // 2. Detect Chord Line
+            if (isChordLine(line)) {
+                const nextLine = lines[i + 1];
+                
+                // Case A: Merge with Lyrics (Zipper)
+                if (nextLine && !isChordLine(nextLine) && nextLine.trim().length > 0) {
+                    // Find all chords and their indices in the source line
+                    const chordTokenRegex = /[A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|2|4|5|6|7|9|11|13)*\d*(?:\/[A-G][#b]?)?/g;
+                    const chords = [];
+                    let match;
+                    while ((match = chordTokenRegex.exec(line)) !== null) {
+                        chords.push({ text: match[0], index: match.index });
+                    }
+
+                    // We build the new line by inserting chords into the lyric line at specific indices
+                    // Processing from Right to Left avoids index shifting issues!
+                    let mergedLine = nextLine;
+                    
+                    // Sort chords descending by index
+                    chords.sort((a, b) => b.index - a.index);
+
+                    for (const chord of chords) {
+                        const idx = chord.index;
+                        const chordTag = `[${chord.text}]`;
+
+                        if (idx >= mergedLine.length) {
+                            // Pad with spaces if chord is beyond current lyric length
+                            mergedLine = mergedLine.padEnd(idx, ' ') + chordTag;
+                        } else {
+                            // Insert at index
+                            mergedLine = mergedLine.slice(0, idx) + chordTag + mergedLine.slice(idx);
+                        }
+                    }
+                    
+                    resultLines.push(mergedLine);
+                    i++; // Skip next line (lyrics) as it's merged
+                } 
+                // Case B: Orphaned Chords (Intro/Instrumental) -> Wrap in brackets
+                else {
+                    const chordTokenRegex = /\b([A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|2|4|5|6|7|9|11|13)*\d*(?:\/[A-G][#b]?)?)\b/g;
+                    // Only wrap if not already wrapped
+                    const wrapped = line.replace(chordTokenRegex, (match) => {
+                        return `[${match}]`; 
+                    });
+                    // Clean up double brackets just in case [[C]] -> [C]
+                    resultLines.push(wrapped.replace(/\[\[/g, '[').replace(/\]\]/g, ']'));
+                }
+            } else {
+                // Regular Lyric Line or Header
+                if (/^(Chorus|Verse|Bridge|Intro|Outro|Reff).*:/i.test(trimmed) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+                    // It's likely a header
+                    resultLines.push(trimmed);
+                } else {
+                    resultLines.push(line);
+                }
+            }
+        }
+
+        return {
+            processedText: resultLines.join('\n'),
+            title: detectedTitle,
+            artist: detectedArtist
+        };
+    };
+
+    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsProcessingFile(true);
         setImportStatus(null);
 
         try {
-            const { data, error } = await supabase.functions.invoke('scrape-song', {
-                body: { url: importUrl }
-            });
+            let rawText = "";
 
-            if (error) {
-                console.error("Edge Function Invocation Error:", error);
-                // Handle specific invocation errors
-                if (error.code === 'FUNCTIONS_HTTP_STATUS_404') {
-                    throw new Error("Scraper Function not deployed. Please run 'supabase functions deploy scrape-song'.");
+            if (file.name.endsWith('.docx')) {
+                const arrayBuffer = await file.arrayBuffer();
+                // Mammoth extracts raw text from Word
+                const result = await mammoth.extractRawText({ arrayBuffer });
+                rawText = result.value;
+                if (result.messages.length > 0) {
+                    console.warn("Mammoth warnings:", result.messages);
                 }
-                throw error;
+            } else {
+                // .txt file
+                rawText = await file.text();
             }
-            
-            // Check if function returned logical error
-            if (data?.error) {
-                throw new Error(data.error);
-            }
+
+            if (!rawText || rawText.length < 10) throw new Error("File is empty or too short.");
+
+            const { processedText, title, artist } = convertRawToChordPro(rawText);
 
             setFormData(prev => ({
                 ...prev,
-                title: data.title || prev.title,
-                artist: data.artist || prev.artist,
-                rawText: data.rawText || prev.rawText
+                rawText: processedText,
+                title: title || prev.title,
+                artist: artist || prev.artist
             }));
 
-            setImportStatus({ type: 'success', msg: `Successfully imported "${data.title}"` });
-            setImportUrl('');
-        } catch (err: any) {
-            console.error("Import Logic Error:", err);
-            setImportStatus({ type: 'error', msg: err.message || 'Import failed due to network error.' });
+            setImportStatus({ type: 'success', msg: `Processed "${file.name}" successfully.` });
+
+        } catch (error: any) {
+            console.error("File Processing Error:", error);
+            setImportStatus({ type: 'error', msg: "Failed to process file. " + error.message });
         } finally {
-            setIsImporting(false);
+            setIsProcessingFile(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
         }
     };
+
+    // --- END LOGIC ---
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -158,13 +274,11 @@ const ManualEntry: React.FC = () => {
             const end = textareaRef.current.selectionEnd;
             const currentText = formData.rawText;
             
-            // Automatically wrap in brackets for ChordPro format e.g. [Cm7]
             const textToInsert = `[${chord}]`;
             
             const newText = currentText.substring(0, start) + textToInsert + currentText.substring(end);
             setFormData({ ...formData, rawText: newText });
             
-            // Restore focus and cursor
             setTimeout(() => {
                 if (textareaRef.current) {
                     textareaRef.current.focus();
@@ -203,39 +317,46 @@ const ManualEntry: React.FC = () => {
                 </div>
             </div>
 
-            {/* IMPORT SECTION */}
+            {/* FILE IMPORT SECTION */}
             <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-6 rounded-xl border border-slate-200 dark:border-white/10 shadow-lg">
-                <div className="flex justify-between items-center mb-4">
-                    <div className="flex items-center gap-2 text-primary font-bold text-sm uppercase tracking-wider">
-                        <Globe className="w-4 h-4" /> Import External Data
-                    </div>
-                    <button 
-                        onClick={() => setIsBulkModalOpen(true)}
-                        className="text-xs bg-slate-100 dark:bg-white/10 hover:bg-primary hover:text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-2 font-bold border border-slate-200 dark:border-white/10"
-                    >
-                        <FolderInput className="w-3 h-3" /> Bulk PDF Upload
-                    </button>
+                <div className="flex items-center gap-2 text-primary font-bold text-sm uppercase tracking-wider mb-4">
+                    <Globe className="w-4 h-4" /> Import External Data
                 </div>
                 
-                <div className="flex flex-col md:flex-row gap-4">
-                    <div className="flex-1 relative group">
-                         <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/50 to-purple-600/50 rounded-lg blur opacity-0 group-hover:opacity-75 transition duration-200"></div>
-                         <input 
-                            value={importUrl}
-                            onChange={(e) => setImportUrl(e.target.value)}
-                            placeholder="Paste URL from ChordTela or Ultimate-Guitar..."
-                            className="relative w-full pl-4 pr-4 py-3 rounded-lg border bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:ring-0 outline-none text-sm"
-                         />
+                <div className="flex items-center gap-4">
+                    <div className="relative flex-1">
+                        <input 
+                            type="file" 
+                            ref={fileInputRef}
+                            accept=".txt,.docx"
+                            onChange={handleFileSelect}
+                            className="hidden"
+                            id="chord-file-import"
+                        />
+                        <label 
+                            htmlFor="chord-file-import" 
+                            className={cn(
+                                "flex items-center justify-between w-full p-3 rounded-lg border border-dashed border-slate-300 dark:border-white/20 bg-slate-50 dark:bg-slate-950 cursor-pointer hover:bg-slate-100 dark:hover:bg-white/5 transition-colors",
+                                isProcessingFile && "opacity-50 cursor-not-allowed"
+                            )}
+                        >
+                            <span className="text-sm text-slate-500 dark:text-slate-400">
+                                {isProcessingFile ? "Processing..." : "Click to select Chord Sheet (.docx / .txt)"}
+                            </span>
+                            <FileText className="w-5 h-5 text-slate-400" />
+                        </label>
                     </div>
+                    
                     <button 
-                        onClick={handleImport}
-                        disabled={isImporting || !importUrl}
-                        className="px-6 py-3 bg-gradient-to-r from-slate-800 to-slate-900 dark:from-white dark:to-slate-200 text-white dark:text-slate-900 rounded-lg font-bold text-sm flex items-center gap-2 transition-all hover:shadow-[0_0_20px_-5px_rgba(255,255,255,0.3)] disabled:opacity-50 whitespace-nowrap active:scale-95"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isProcessingFile}
+                        className="px-6 py-3 bg-gradient-to-r from-slate-800 to-slate-900 dark:from-white dark:to-slate-200 text-white dark:text-slate-900 rounded-lg font-bold text-sm flex items-center gap-2 transition-all hover:shadow-lg disabled:opacity-50 whitespace-nowrap active:scale-95"
                     >
-                        {isImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                        Smart Import
+                        {isProcessingFile ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+                        Process File
                     </button>
                 </div>
+
                 {importStatus && (
                     <div className={cn(
                         "mt-4 p-3 rounded-lg text-xs font-medium flex items-center gap-2 animate-in slide-in-from-top-2",
@@ -281,18 +402,12 @@ const ManualEntry: React.FC = () => {
                 </div>
 
                 <div className="lg:col-span-3 space-y-4">
-                    
                     {mode === 'edit' ? (
                         <>
                              {/* Toolbar */}
                              <div className="flex items-center justify-between bg-slate-100 dark:bg-slate-800 p-2 rounded-t-xl border-b border-slate-200 dark:border-white/10">
                                 <div className="flex items-center gap-2 text-xs font-bold text-slate-500 px-2">
                                     <Music className="w-4 h-4" /> Chords & Lyrics Editor
-                                </div>
-                                <div className="flex items-center gap-2">
-                                     <button type="button" className="flex items-center gap-1 text-xs font-bold px-3 py-1.5 bg-white dark:bg-slate-700 rounded hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors shadow-sm border border-slate-200 dark:border-transparent text-slate-700 dark:text-white">
-                                         <Zap className="w-3 h-3 text-yellow-500" /> Format with AI
-                                     </button>
                                 </div>
                              </div>
                             
@@ -343,8 +458,8 @@ const ManualEntry: React.FC = () => {
                                 required 
                                 value={formData.rawText} 
                                 onChange={e => setFormData({...formData, rawText: e.target.value})} 
-                                className="w-full p-6 rounded-b-xl border border-t-0 bg-white dark:bg-slate-950 border-slate-200 dark:border-white/10 font-mono text-sm text-slate-900 dark:text-white min-h-[500px] focus:ring-0 outline-none leading-relaxed" 
-                                placeholder="Type lyrics here. Click chord buttons above to insert [Chord] at cursor position."
+                                className="w-full p-6 rounded-b-xl border border-t-0 bg-white dark:bg-slate-900 border-slate-200 dark:border-white/10 font-mono text-sm text-slate-900 dark:text-white min-h-[500px] focus:ring-0 outline-none leading-relaxed" 
+                                placeholder="Type lyrics here. Use [Bracket] notation for chords. e.g. [C]Hello [G]World"
                             />
                         </>
                     ) : (
@@ -362,8 +477,6 @@ const ManualEntry: React.FC = () => {
                     </button>
                 </div>
             </form>
-
-            <BulkImportModal isOpen={isBulkModalOpen} onClose={() => setIsBulkModalOpen(false)} />
         </div>
     );
 };
