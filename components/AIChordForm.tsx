@@ -1,11 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Sparkles, Music, PenTool, AlertCircle, Save, Link as LinkIcon, BarChart, Cpu } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Sparkles, Music, PenTool, AlertCircle, Save, Link as LinkIcon, BarChart, Cpu, X, Play } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { AIChordFormData } from '../types';
 import AudioRecorder from './AudioRecorder';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { useChordSheetParser } from '../lib/hooks/useChordSheetParser';
+import SongLyricsDisplay from './SongLyricsDisplay';
 
 interface ExtendedFormData extends AIChordFormData {
     spotifyUrl?: string;
@@ -15,6 +18,8 @@ interface ExtendedFormData extends AIChordFormData {
 
 const AIChordForm: React.FC = () => {
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
+  
   const [formData, setFormData] = useState<ExtendedFormData>({
     title: '',
     artist: '',
@@ -23,10 +28,19 @@ const AIChordForm: React.FC = () => {
     youtubeUrl: '',
     difficulty: 'Medium'
   });
+  
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [statusMessage, setStatusMessage] = useState('');
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+
+  // State for User-Only Preview (Non-saving mode)
+  const [generatedResult, setGeneratedResult] = useState<any>(null);
+
+  // Parse the generated result in real-time for the preview view
+  const { html } = useChordSheetParser({ 
+    songData: generatedResult ? generatedResult.chords : null 
+  });
 
   useEffect(() => {
     const savedDraft = localStorage.getItem('chordFormDraft');
@@ -53,6 +67,7 @@ const AIChordForm: React.FC = () => {
     setIsLoading(true);
     setStatus('idle');
     setStatusMessage('');
+    setGeneratedResult(null);
 
     try {
       const { data: chordData, error: fnError } = await supabase.functions.invoke('generate-chords', {
@@ -66,30 +81,43 @@ const AIChordForm: React.FC = () => {
       if (fnError) throw new Error(fnError.message || "Neural Uplink Failed");
       if (!chordData || !chordData.chords) throw new Error("AI returned invalid structure.");
 
-      const spotifyId = formData.spotifyUrl ? (formData.spotifyUrl.split('track/')[1]?.split('?')[0] || null) : null;
-      const youtubeId = formData.youtubeUrl ? (formData.youtubeUrl.split('v=')[1]?.split('&')[0] || null) : null;
+      // --- BRANCHING LOGIC ---
+      if (isAdmin) {
+          // ADMIN: Save to Database
+          const spotifyId = formData.spotifyUrl ? (formData.spotifyUrl.split('track/')[1]?.split('?')[0] || null) : null;
+          const youtubeId = formData.youtubeUrl ? (formData.youtubeUrl.split('v=')[1]?.split('&')[0] || null) : null;
 
-      const { data: insertedSong, error: dbError } = await supabase.from('songs').insert([{
-          title: chordData.title || formData.title,
-          artist: chordData.artist || formData.artist,
-          difficulty: chordData.difficulty || formData.difficulty, 
-          chords: chordData.chords,
-          spotify_track_id: spotifyId,
-          youtube_video_id: youtubeId,
-          view_count: 0
-      }]).select().single();
+          const { data: insertedSong, error: dbError } = await supabase.from('songs').insert([{
+              title: chordData.title || formData.title,
+              artist: chordData.artist || formData.artist,
+              difficulty: chordData.difficulty || formData.difficulty, 
+              chords: chordData.chords,
+              spotify_track_id: spotifyId,
+              youtube_video_id: youtubeId,
+              view_count: 0
+          }]).select().single();
 
-      if (dbError) throw dbError;
+          if (dbError) throw dbError;
 
-      setStatus('success');
-      setStatusMessage('Song generated and indexed successfully.');
-      localStorage.removeItem('chordFormDraft');
-      
-      if (insertedSong) {
-          setTimeout(() => navigate(`/song/${insertedSong.id}`), 1500);
+          setStatus('success');
+          setStatusMessage('Song generated and indexed successfully.');
+          localStorage.removeItem('chordFormDraft');
+          
+          if (insertedSong) {
+              setTimeout(() => navigate(`/song/${insertedSong.id}`), 1500);
+          }
+          setFormData({ title: '', artist: '', lyrics: '', spotifyUrl: '', youtubeUrl: '', difficulty: 'Medium' });
+
+      } else {
+          // USER: Show Local Preview Only
+          setGeneratedResult({
+              title: chordData.title || formData.title,
+              artist: chordData.artist || formData.artist,
+              chords: chordData.chords
+          });
+          setStatus('success');
+          setStatusMessage('Song generated! Scroll down to play.');
       }
-      
-      setFormData({ title: '', artist: '', lyrics: '', spotifyUrl: '', youtubeUrl: '', difficulty: 'Medium' });
 
     } catch (error: any) {
       setStatus('error');
@@ -103,6 +131,59 @@ const AIChordForm: React.FC = () => {
       setFormData(prev => ({ ...prev, lyrics: prev.lyrics + (prev.lyrics ? '\n' : '') + text }));
   };
 
+  const resetForm = () => {
+      setGeneratedResult(null);
+      setFormData({ title: '', artist: '', lyrics: '', spotifyUrl: '', youtubeUrl: '', difficulty: 'Medium' });
+      setStatus('idle');
+  };
+
+  // --- RENDER VIEW: GENERATED RESULT (User Only) ---
+  if (generatedResult && !isAdmin) {
+      return (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }} 
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full max-w-4xl mx-auto"
+          >
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-primary/20 shadow-2xl overflow-hidden relative">
+                  {/* Header */}
+                  <div className="p-6 border-b border-slate-200 dark:border-white/10 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50">
+                      <div>
+                          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{generatedResult.title}</h2>
+                          <p className="text-primary font-medium">{generatedResult.artist}</p>
+                      </div>
+                      <div className="flex gap-2">
+                          <button 
+                            onClick={() => setGeneratedResult(null)} // Go back to edit
+                            className="px-4 py-2 bg-slate-200 dark:bg-slate-800 rounded-lg text-sm font-bold hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors"
+                          >
+                             Edit
+                          </button>
+                          <button 
+                            onClick={resetForm}
+                            className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold hover:bg-primary/90 transition-colors flex items-center gap-2"
+                          >
+                             <Sparkles className="w-4 h-4" /> New Song
+                          </button>
+                      </div>
+                  </div>
+
+                  {/* Warning Banner */}
+                  <div className="bg-blue-50 dark:bg-blue-900/10 border-b border-blue-100 dark:border-blue-900/20 px-6 py-2 text-xs text-blue-600 dark:text-blue-400 flex items-center gap-2">
+                      <AlertCircle className="w-3 h-3" />
+                      <span><strong>Preview Mode:</strong> This song is available for your session only and has not been saved to the public library.</span>
+                  </div>
+
+                  {/* Content */}
+                  <div className="p-8 bg-white dark:bg-[#0A0F1C] min-h-[400px]">
+                       <SongLyricsDisplay html={html} />
+                  </div>
+              </div>
+          </motion.div>
+      );
+  }
+
+  // --- RENDER VIEW: FORM ---
   return (
     <div className="w-full max-w-2xl mx-auto">
       <div className="relative group rounded-2xl p-[1px] bg-gradient-to-b from-slate-200 to-transparent dark:from-white/10">
@@ -116,7 +197,7 @@ const AIChordForm: React.FC = () => {
                         Neural Chord Generator
                     </h2>
                     <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-                        Powered by Gemini 2.5 Edge Runtime. High-fidelity music transcription.
+                        {isAdmin ? "Admin Mode: Output will be saved to Database." : "User Mode: Output is for personal practice only."}
                     </p>
                 </div>
                 {lastSaved && (
@@ -176,34 +257,36 @@ const AIChordForm: React.FC = () => {
                      </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                        <label className="text-xs font-mono text-slate-500 dark:text-slate-400 uppercase">Spotify URL (Optional)</label>
-                        <div className="relative">
-                            <LinkIcon className="absolute left-3 top-3 w-4 h-4 text-green-500" />
-                            <input 
-                                type="text"
-                                value={formData.spotifyUrl}
-                                onChange={(e) => setFormData({...formData, spotifyUrl: e.target.value})}
-                                className="w-full bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-lg py-2.5 pl-10 pr-4 text-xs text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary/50 transition-all"
-                                placeholder="https://open.spotify.com/..."
-                            />
+                {isAdmin && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-200 dark:border-white/5 pt-4">
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-primary uppercase">Admin: Spotify URL</label>
+                            <div className="relative">
+                                <LinkIcon className="absolute left-3 top-3 w-4 h-4 text-green-500" />
+                                <input 
+                                    type="text"
+                                    value={formData.spotifyUrl}
+                                    onChange={(e) => setFormData({...formData, spotifyUrl: e.target.value})}
+                                    className="w-full bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-lg py-2.5 pl-10 pr-4 text-xs text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-primary transition-all"
+                                    placeholder="Optional"
+                                />
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                             <label className="text-[10px] font-bold text-primary uppercase">Admin: YouTube URL</label>
+                            <div className="relative">
+                                <LinkIcon className="absolute left-3 top-3 w-4 h-4 text-red-500" />
+                                <input 
+                                    type="text"
+                                    value={formData.youtubeUrl}
+                                    onChange={(e) => setFormData({...formData, youtubeUrl: e.target.value})}
+                                    className="w-full bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-lg py-2.5 pl-10 pr-4 text-xs text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-primary transition-all"
+                                    placeholder="Optional"
+                                />
+                            </div>
                         </div>
                     </div>
-                    <div className="space-y-1">
-                        <label className="text-xs font-mono text-slate-500 dark:text-slate-400 uppercase">YouTube URL (Optional)</label>
-                        <div className="relative">
-                            <LinkIcon className="absolute left-3 top-3 w-4 h-4 text-red-500" />
-                            <input 
-                                type="text"
-                                value={formData.youtubeUrl}
-                                onChange={(e) => setFormData({...formData, youtubeUrl: e.target.value})}
-                                className="w-full bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-lg py-2.5 pl-10 pr-4 text-xs text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary/50 transition-all"
-                                placeholder="https://youtube.com/watch?v=..."
-                            />
-                        </div>
-                    </div>
-                </div>
+                )}
 
                 <div className="space-y-1">
                     <div className="flex justify-between items-end">
@@ -236,17 +319,17 @@ const AIChordForm: React.FC = () => {
                             ) : (
                                 <>
                                     <Sparkles className="w-4 h-4" />
-                                    Generate Chords
+                                    {isAdmin ? "Generate & Save to Library" : "Generate Preview"}
                                 </>
                             )}
                         </span>
                     </button>
                 </div>
 
-                {status === 'success' && (
+                {status === 'success' && !isAdmin && (
                     <motion.div initial={{opacity: 0, y: 10}} animate={{opacity: 1, y: 0}} className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-400/10 p-3 rounded-lg border border-green-200 dark:border-green-400/20">
                         <Sparkles className="w-3 h-3" />
-                        <span>{statusMessage || "Success! Redirecting..."}</span>
+                        <span>Success! Preview loaded below.</span>
                     </motion.div>
                 )}
                 

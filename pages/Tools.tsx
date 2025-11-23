@@ -66,13 +66,32 @@ const ToolsPage: React.FC = () => {
       if (!assistantQuery.trim()) return;
       setIsAssistantLoading(true);
       try {
+          // System Instruction: Music Professor Persona
+          const prompt = `
+            You are an elite Music Professor and Multi-instrumentalist Expert.
+            Your Role: Act as a comprehensive mentor for music students and musicians.
+            
+            Your Areas of Expertise:
+            1. Music Theory & Analysis (Harmony, Counterpoint, Modes, Jazz Theory)
+            2. History & Musicology (Baroque to Modern, Genres, Cultural Context)
+            3. Composition & Arrangement (Songwriting structures, Orchestration)
+            4. Music Production & Technology (Mixing, Mastering, DAW workflows, Sound Design)
+            5. Music Pedagogy (Effective practice techniques, learning strategies)
+
+            Tone: Professional, academic yet accessible, encouraging, and highly detailed.
+            
+            User Question: "${assistantQuery}"
+            
+            Provide a clear, structured, and helpful answer. If the question implies a need for a practical example (like a chord progression or scale pattern), provide it.
+          `;
+
           const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
-            contents: `You are a Guitar Learning Assistant. Question: "${assistantQuery}". Provide a concise, helpful answer.`
+            contents: prompt
           });
-          setAssistantResponse(response.text || "I couldn't tune into that frequency.");
+          setAssistantResponse(response.text || "I couldn't analyze that musical concept right now.");
       } catch (error) {
-          setAssistantResponse("Connection interrupted. Check your neural link.");
+          setAssistantResponse("Neural Link Interrupted. Please check your connection.");
       } finally {
           setIsAssistantLoading(false);
       }
@@ -88,13 +107,14 @@ const ToolsPage: React.FC = () => {
       { note: 'G3', freq: 196.00 }, { note: 'B3', freq: 246.94 }, { note: 'E4', freq: 329.63 },
   ];
 
+  // Updated: AI Generator is now available to everyone (removed isAdmin check on show)
   const tabs = [
       { id: 'tuner', label: 'Guitar Tuner', icon: Activity, show: true },
       { id: 'metronome', label: 'Metronome', icon: Mic2, show: true },
       { id: 'library', label: 'Chord Visualizer', icon: Book, show: true },
-      { id: 'assistant', label: 'AI Assistant', icon: GraduationCap, show: true },
+      { id: 'assistant', label: 'Professor AI', icon: GraduationCap, show: true }, // Renamed to Professor AI
       { id: 'upload', label: 'Upload', icon: Upload, show: true },
-      { id: 'ai', label: 'AI Generator', icon: Sparkles, show: isAdmin },
+      { id: 'ai', label: 'Song Generator', icon: Sparkles, show: true }, // Available to all users now
   ];
 
   return (
@@ -105,7 +125,7 @@ const ToolsPage: React.FC = () => {
       <div className="max-w-5xl mx-auto relative z-10">
         <div className="text-center mb-12">
             <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-4">Tools & Utilities</h1>
-            <p className="text-slate-600 dark:text-slate-400">Musician's Toolkit: Tuner, Metronome, and AI.</p>
+            <p className="text-slate-600 dark:text-slate-400">Musician's Toolkit: Tuner, Metronome, and AI Research.</p>
         </div>
 
         {/* Tabs */}
@@ -120,7 +140,7 @@ const ToolsPage: React.FC = () => {
         </div>
 
         {/* View Content */}
-        {activeTab === 'ai' && isAdmin && <AIChordForm />}
+        {activeTab === 'ai' && <AIChordForm />} {/* Access for all users */}
         {activeTab === 'upload' && <SongUploader />}
         
         {activeTab === 'tuner' && (
@@ -173,19 +193,33 @@ const ToolsPage: React.FC = () => {
         
         {activeTab === 'assistant' && (
              <div className="w-full max-w-3xl mx-auto bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 overflow-hidden shadow-xl">
-                <div className="bg-primary/10 p-8 text-center"><h2 className="text-2xl font-bold dark:text-white flex items-center justify-center gap-2"><GraduationCap className="w-6 h-6 text-primary" /> AI Tutor</h2><p className="text-slate-500 text-sm mt-2">Ask about chords, theory, or technique.</p></div>
+                <div className="bg-primary/10 p-8 text-center">
+                    <h2 className="text-2xl font-bold dark:text-white flex items-center justify-center gap-2">
+                        <GraduationCap className="w-6 h-6 text-primary" /> Music Professor AI
+                    </h2>
+                    <p className="text-slate-500 text-sm mt-2">
+                        Ask about Theory, History, Composition, Production, or Pedagogy.
+                    </p>
+                </div>
                 <div className="p-6">
                      <div className="mb-6 min-h-[100px] bg-slate-50 dark:bg-slate-950 rounded-xl p-6 border border-slate-200 dark:border-white/10">
                          {assistantResponse ? (
                              <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{assistantResponse}</p>
                          ) : (
-                             <div className="text-center text-slate-400 py-4 flex flex-col items-center gap-2"><Lightbulb className="w-6 h-6 opacity-50" /><p className="text-sm">"How do I play an F barre chord?"</p></div>
+                             <div className="text-center text-slate-400 py-4 flex flex-col items-center gap-4">
+                                <Lightbulb className="w-6 h-6 opacity-50" />
+                                <div className="space-y-2">
+                                    <p className="text-xs italic">"Explain the Circle of Fifths and how to use it in Jazz."</p>
+                                    <p className="text-xs italic">"What are the key characteristics of Baroque composition?"</p>
+                                    <p className="text-xs italic">"How do I compress a vocal track properly?"</p>
+                                </div>
+                             </div>
                          )}
                      </div>
                      <form onSubmit={handleAssistantSubmit} className="relative">
-                         <input type="text" value={assistantQuery} onChange={(e) => setAssistantQuery(e.target.value)} placeholder="Ask a question..." className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl py-4 pl-4 pr-12 text-sm dark:text-white focus:ring-2 focus:ring-primary/50 outline-none shadow-inner" />
+                         <input type="text" value={assistantQuery} onChange={(e) => setAssistantQuery(e.target.value)} placeholder="Ask your professor..." className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl py-4 pl-4 pr-12 text-sm dark:text-white focus:ring-2 focus:ring-primary/50 outline-none shadow-inner" />
                          <button type="submit" disabled={isAssistantLoading || !assistantQuery.trim()} className="absolute right-2 top-2 p-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
-                             <Send className="w-4 h-4" />
+                             {isAssistantLoading ? <Activity className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                          </button>
                      </form>
                 </div>
