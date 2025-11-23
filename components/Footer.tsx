@@ -63,8 +63,8 @@ const Footer: React.FC = () => {
       try {
         const { data: dbData } = await supabase.from('page_content').select('content').eq('id', 'footer').single();
         if (dbData?.content) {
-            // Merge defaults ensures structure exists even if DB partial
-            setData({ ...DEFAULT_FOOTER, ...dbData.content });
+          // Merge defaults ensures structure exists even if DB partial
+          setData({ ...DEFAULT_FOOTER, ...dbData.content });
         }
       } catch (e) {
         // Fallback silently to default
@@ -74,18 +74,18 @@ const Footer: React.FC = () => {
   }, []);
 
   const getIcon = (key: string) => {
-      switch(key.toLowerCase()) {
-          case 'twitter': return Twitter;
-          case 'github': return Github;
-          case 'instagram': return Instagram;
-          case 'facebook': return Facebook;
-          case 'linkedin': return Linkedin;
-          case 'email': return Mail;
-          default: return GlobeIcon;
-      }
+    switch (key.toLowerCase()) {
+      case 'twitter': return Twitter;
+      case 'github': return Github;
+      case 'instagram': return Instagram;
+      case 'facebook': return Facebook;
+      case 'linkedin': return Linkedin;
+      case 'email': return Mail;
+      default: return GlobeIcon;
+    }
   };
 
-  const GlobeIcon = ({className}: {className?: string}) => <Zap className={className} />;
+  const GlobeIcon = ({ className }: { className?: string }) => <Zap className={className} />;
 
   return (
     <footer className="relative bg-white dark:bg-slate-950 border-t border-slate-200 dark:border-white/10 overflow-hidden pt-16 pb-8 transition-colors duration-300">
@@ -95,7 +95,7 @@ const Footer: React.FC = () => {
 
       <div className="max-w-7xl mx-auto px-6 relative z-10">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
-          
+
           {/* Brand Section */}
           <div className="space-y-6">
             <div className="flex items-center gap-2 group">
@@ -113,11 +113,11 @@ const Footer: React.FC = () => {
               {Object.entries(data.socials).map(([key, href], idx) => {
                 const Icon = getIcon(key);
                 return (
-                  <a 
-                    key={idx} 
+                  <a
+                    key={idx}
                     href={href}
                     target="_blank"
-                    rel="noreferrer" 
+                    rel="noreferrer"
                     className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-white/5 hover:bg-primary/10 hover:text-primary dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 dark:hover:text-white transition-all hover:-translate-y-1"
                   >
                     <Icon className="w-4 h-4" />
@@ -129,25 +129,25 @@ const Footer: React.FC = () => {
 
           {/* Dynamic Columns */}
           {data.columns.map((col, idx) => (
-             <div key={idx}>
-                <h3 className="font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
-                    {idx === 0 && <Zap className="w-4 h-4 text-yellow-500 dark:text-yellow-400" />} 
-                    {col.title}
-                </h3>
-                <ul className="space-y-3">
-                    {col.links.map((link, lIdx) => (
-                        <li key={lIdx}>
-                            <Link 
-                                to={link.path} 
-                                className="text-slate-600 dark:text-slate-400 hover:text-primary dark:hover:text-primary text-sm transition-colors flex items-center gap-2 group"
-                            >
-                                <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600 group-hover:bg-primary transition-colors" />
-                                {link.label}
-                            </Link>
-                        </li>
-                    ))}
-                </ul>
-             </div>
+            <div key={idx}>
+              <h3 className="font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
+                {idx === 0 && <Zap className="w-4 h-4 text-yellow-500 dark:text-yellow-400" />}
+                {col.title}
+              </h3>
+              <ul className="space-y-3">
+                {col.links.map((link, lIdx) => (
+                  <li key={lIdx}>
+                    <Link
+                      to={link.path}
+                      className="text-slate-600 dark:text-slate-400 hover:text-primary dark:hover:text-primary text-sm transition-colors flex items-center gap-2 group"
+                    >
+                      <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600 group-hover:bg-primary transition-colors" />
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
           ))}
 
           {/* Newsletter */}
@@ -158,9 +158,9 @@ const Footer: React.FC = () => {
             </p>
             <form className="space-y-3" onSubmit={(e) => e.preventDefault()}>
               <div className="relative">
-                <input 
-                  type="email" 
-                  placeholder="Enter your email" 
+                <input
+                  type="email"
+                  placeholder="Enter your email"
                   className="w-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg py-2.5 pl-4 pr-10 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all placeholder-slate-500 dark:placeholder-slate-600"
                 />
                 <button type="submit" className="absolute right-2 top-2 p-1 bg-primary rounded-md text-white hover:bg-primary/90 transition-colors">
@@ -182,7 +182,7 @@ const Footer: React.FC = () => {
           <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-500">
             <span>Made with</span>
             <Heart className="w-4 h-4 text-red-500 fill-red-500 animate-pulse" />
-            <span>by Neural Architects</span>
+            <span>by RJ </span>
           </div>
         </div>
       </div>
