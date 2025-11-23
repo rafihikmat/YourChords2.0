@@ -64,12 +64,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ className, variant = 'navbar' }) 
       
       try {
         const newResults: SearchResult[] = [];
+        
+        // 1. Search Local Library (Songs) - Matches Title OR Artist
         if (activeTab === 'all' || activeTab === 'songs') {
             const { data: librarySongs } = await supabase
             .from('songs')
             .select('id, title, artist')
-            .ilike('title', `%${query}%`)
-            .limit(4);
+            .or(`title.ilike.%${query}%,artist.ilike.%${query}%`)
+            .limit(5);
 
             if (librarySongs) {
             newResults.push(...librarySongs.map(s => ({
@@ -82,12 +84,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ className, variant = 'navbar' }) 
             }
         }
 
+        // 2. Search Local Library (Albums) - Matches Title OR Artist
         if (activeTab === 'all' || activeTab === 'albums') {
              const { data: libraryAlbums } = await supabase
                 .from('albums')
                 .select('id, title, artist, cover_url')
-                .ilike('title', `%${query}%`)
-                .limit(3);
+                .or(`title.ilike.%${query}%,artist.ilike.%${query}%`)
+                .limit(4);
             
             if (libraryAlbums) {
                 newResults.push(...libraryAlbums.map(a => ({
@@ -101,10 +104,33 @@ const SearchBar: React.FC<SearchBarProps> = ({ className, variant = 'navbar' }) 
             }
         }
 
+        // 3. Search Local Video Tutorials
+        if (activeTab === 'all' || activeTab === 'tutorials') {
+            const { data: localVideos } = await supabase
+                .from('video_tutorials')
+                .select('video_id, title, channel_title, thumbnail_url')
+                .ilike('title', `%${query}%`)
+                .eq('is_active', true)
+                .limit(3);
+
+            if (localVideos) {
+                newResults.push(...localVideos.map(v => ({
+                    id: v.video_id,
+                    title: v.title,
+                    artist: v.channel_title,
+                    thumbnail: v.thumbnail_url,
+                    source: 'youtube' as const,
+                    url: `https://www.youtube.com/watch?v=${v.video_id}`
+                })));
+            }
+        }
+
+        // 4. External API Searches (Spotify & YouTube)
         const promises = [];
         if (activeTab === 'all' || activeTab === 'songs') {
             promises.push(supabase.functions.invoke('search-spotify', { body: { query } }));
         }
+        // Only fetch external YouTube if specifically looking for tutorials or all
         if (activeTab === 'all' || activeTab === 'tutorials') {
             promises.push(supabase.functions.invoke('search-youtube', { body: { query } }));
         }
@@ -114,6 +140,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ className, variant = 'navbar' }) 
         resultsExternal.forEach(res => {
             if (res.status === 'fulfilled' && res.value.data) {
                 const data = res.value.data;
+                
+                // Spotify Results
                 if (data.tracks?.items) {
                      newResults.push(...data.tracks.items.slice(0, 2).map((item: any) => ({
                         id: item.id,
@@ -124,6 +152,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ className, variant = 'navbar' }) 
                         url: item.external_urls?.spotify
                     })));
                 }
+                
+                // YouTube External Results
                 if (data.items) {
                      newResults.push(...data.items.slice(0, 2).map((item: any) => ({
                         id: item.id.videoId,
@@ -160,7 +190,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ className, variant = 'navbar' }) 
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onFocus={() => setIsOpen(true)}
-                placeholder={variant === 'navbar' ? "Search songs, artists..." : "Search library, Spotify & YouTube..."}
+                placeholder={variant === 'navbar' ? "Search artist, song, or tutorial..." : "Search library, Spotify & YouTube..."}
                 className="bg-transparent border-none outline-none text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-neutral-500 w-full text-sm"
                 autoComplete="off"
             />
@@ -171,7 +201,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ className, variant = 'navbar' }) 
             )}
         </div>
         
-        {showResults && (
+        {/* Tabs are now visible whenever the search bar is Open (focused or has query) */}
+        {isOpen && (
              <div className="flex border-t border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-black/20">
                  {['all', 'songs', 'albums', 'tutorials'].map((tab) => (
                      <button
@@ -180,7 +211,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ className, variant = 'navbar' }) 
                         className={cn(
                             "flex-1 py-1.5 text-[10px] uppercase font-bold tracking-wider transition-colors",
                             activeTab === tab 
-                                ? "bg-white dark:bg-white/10 text-primary" 
+                                ? "bg-white dark:bg-white/10 text-primary border-b-2 border-primary" 
                                 : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
                         )}
                      >
@@ -192,7 +223,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ className, variant = 'navbar' }) 
       </div>
 
       <AnimatePresence>
-        {(showResults || showSuggestions) && (
+        {(isOpen) && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
