@@ -87,8 +87,8 @@ export const AlbumManager: React.FC<AlbumManagerProps> = ({ searchTerm }) => {
         setEditingId(null);
     };
 
-    // Use Smart Search Hook
-    const filteredAlbums = useSmartSearch(albums, searchTerm, ['title', 'artist']);
+    // Use Smart Search Hook with generic
+    const filteredAlbums = useSmartSearch<Album>(albums, searchTerm, ['title', 'artist']);
 
     return (
         <div className="space-y-8 animate-in slide-in-from-right-4 duration-300">

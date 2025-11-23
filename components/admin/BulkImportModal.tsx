@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, X, FileText, CheckCircle2, AlertTriangle, Loader2, Disc3, Music, FileType } from 'lucide-react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { supabase } from '../../lib/supabase';
-import { convertToChordPro, parseChordsFromText } from '../../lib/musicUtils';
+import { parseChordsFromText } from '../../lib/musicUtils';
 import { cn } from '../../lib/utils';
 
 // Set worker source for PDF.js
@@ -33,6 +33,35 @@ interface ProcessedFile {
   errorMsg?: string;
 }
 
+// --- CONSTANTS & REGEX ---
+const META_FILTER_REGEX = /^(difficulty|tuning|capo|tabbed by|strumming|bpm|page|author|key|time sig)/i;
+const TAB_LINE_REGEX = /^[-0-9|hpx\/\\]{5,}$/; // Detects e|--0--2--|
+const CHORD_STRICT_REGEX = /\b[A-G][#b]?(?:m|min|maj|dim|aug|sus|add|7|9|11|13|5|6|o)*(?:\/[A-G][#b]?)?\b/g;
+
+// --- HELPER: DETECT CHORD LINE ---
+// Returns true if the line is overwhelmingly composed of chords and spaces
+const isChordLine = (line: string): boolean => {
+    const trimmed = line.trim();
+    if (!trimmed) return false;
+    
+    // 1. If it contains obvious lyric words, it's not a chord line
+    // (Simple stoplist for common words)
+    if (/\b(the|and|you|that|was|for|are|with|his|they|this)\b/i.test(trimmed)) return false;
+
+    // 2. Calculate density
+    const tokens = trimmed.split(/\s+/);
+    let chordCount = 0;
+    
+    tokens.forEach(t => {
+        if (t.match(/^[A-G][#b]?(?:m|min|maj|dim|aug|sus|add|7|9|11|13|5|6|o)*(?:\/[A-G][#b]?)?$/)) {
+            chordCount++;
+        }
+    });
+
+    // If > 80% of tokens are chords, it's a chord line
+    return (chordCount / tokens.length) > 0.8;
+};
+
 export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClose }) => {
   const [isDragActive, setIsDragActive] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
@@ -54,10 +83,10 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
     e.preventDefault();
     setIsDragActive(false);
     
-    const droppedFiles = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf');
+    // Explicitly type 'f' to ensure 'type' property is accessible
+    const droppedFiles = Array.from(e.dataTransfer.files).filter((f: File) => f.type === 'application/pdf');
     if (droppedFiles.length > 0) {
         setFiles(prev => [...prev, ...droppedFiles]);
-        // Initialize results state for these files
         setResults(prev => [
             ...prev, 
             ...droppedFiles.map(f => ({ 
@@ -71,7 +100,8 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files) {
-          const selected = Array.from(e.target.files).filter(f => f.type === 'application/pdf');
+          // Explicitly type 'f' to ensure 'type' property is accessible
+          const selected = Array.from(e.target.files).filter((f: File) => f.type === 'application/pdf');
           setFiles(prev => [...prev, ...selected]);
           setResults(prev => [
             ...prev, 
@@ -84,97 +114,193 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
       }
   };
 
-  // --- PDF LOGIC ---
-  const extractTextFromPdf = async (file: File): Promise<string> => {
+  // --- CORE LOGIC: EXTRACT TEXT WITH SPATIAL AWARENESS ---
+  const extractTextWithLayout = async (file: File): Promise<string> => {
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-      let fullText = '';
+      let fullOutput = '';
       
-      // Only read first 3 pages max to save time, usually enough for tabs
-      const maxPages = Math.min(pdf.numPages, 3);
+      // Limit pages to avoid huge docs
+      const maxPages = Math.min(pdf.numPages, 5);
       
       for (let i = 1; i <= maxPages; i++) {
           const page = await pdf.getPage(i);
           const textContent = await page.getTextContent();
           
-          // Sort items by Y position (descending) then X position (ascending)
-          // PDF coordinates: (0,0) is bottom-left usually, but items.transform[5] is Y
-          const items = textContent.items as any[];
-          items.sort((a, b) => {
-              const yDiff = b.transform[5] - a.transform[5];
-              if (Math.abs(yDiff) > 5) return yDiff; // Significant line difference
-              return a.transform[4] - b.transform[4]; // X diff
+          // Group items by Y coordinate (Row detection)
+          // PDF Y-coordinates originate from bottom-left usually.
+          const rows: Record<number, { str: string, x: number }[]> = {};
+          
+          textContent.items.forEach((item: any) => {
+              // Transform: [scaleX, skewY, skewX, scaleY, x, y]
+              const y = Math.round(item.transform[5]); // Round to group slight misalignments
+              const x = item.transform[4];
+              const str = item.str;
+              
+              if (!str.trim()) return; // Skip empty visual items
+
+              if (!rows[y]) rows[y] = [];
+              rows[y].push({ str, x });
           });
 
-          // Better Reconstruction Strategy
-          let lastY = -1;
-          let textPage = '';
-          for (const item of items) {
-              if (lastY !== -1 && Math.abs(item.transform[5] - lastY) > 10) {
-                  textPage += '\n';
-              }
-              textPage += item.str; 
-              lastY = item.transform[5];
-          }
+          // Sort rows by Y descending (Top to Bottom)
+          const sortedY = Object.keys(rows).map(Number).sort((a, b) => b - a);
           
-          fullText += textPage + '\n\n';
+          // Construct text lines
+          const pageLines: string[] = [];
+          
+          sortedY.forEach(y => {
+              // Sort items in this row by X ascending (Left to Right)
+              const items = rows[y].sort((a, b) => a.x - b.x);
+              
+              let lineStr = "";
+              let lastX = 0;
+              
+              // Approximate character width (heuristic)
+              const charWidth = 4; 
+
+              items.forEach(item => {
+                  // Calculate gap
+                  const gap = item.x - lastX;
+                  // If gap is significant, insert spaces
+                  if (gap > charWidth && lastX !== 0) {
+                      const spaces = Math.floor(gap / charWidth);
+                      lineStr += " ".repeat(Math.min(spaces, 20)); // Cap spaces to prevent wild jumps
+                  }
+                  lineStr += item.str;
+                  lastX = item.x + (item.str.length * charWidth);
+              });
+              
+              pageLines.push(lineStr);
+          });
+          
+          fullOutput += pageLines.join('\n') + '\n';
       }
-      return fullText;
+      return fullOutput;
+  };
+
+  // --- CORE LOGIC: CLEAN & MERGE CHORDS ---
+  const cleanAndMergeChords = (rawText: string): string => {
+      let lines = rawText.split('\n');
+      const processedLines: string[] = [];
+
+      // 1. Initial Cleaning
+      lines = lines.filter(line => {
+          const clean = line.trim();
+          if (!clean) return false; // Remove empty lines
+          if (META_FILTER_REGEX.test(clean)) return false; // Remove metadata
+          if (TAB_LINE_REGEX.test(clean.replace(/\s/g, ''))) return false; // Remove ascii tabs
+          if (/^\d+$/.test(clean)) return false; // Remove standalone page numbers
+          return true;
+      });
+
+      // 2. Vertical Merging Logic
+      for (let i = 0; i < lines.length; i++) {
+          const currentLine = lines[i];
+          // Look ahead safely
+          const nextLine = i + 1 < lines.length ? lines[i + 1] : null;
+
+          // Scenario A: Chord Line above Lyric Line -> MERGE
+          if (isChordLine(currentLine)) {
+              if (nextLine && !isChordLine(nextLine) && nextLine.trim().length > 0) {
+                  // --- MERGE ALGORITHM ---
+                  let mergedLine = nextLine;
+                  const matches = [...currentLine.matchAll(CHORD_STRICT_REGEX)];
+                  
+                  // We process matches from Right to Left to prevent index shifting issues
+                  matches.reverse().forEach(match => {
+                      const chord = match[0];
+                      const index = match.index || 0;
+                      
+                      // Pad the lyric line if the chord extends beyond it
+                      if (index >= mergedLine.length) {
+                          mergedLine += " ".repeat(index - mergedLine.length);
+                      }
+                      
+                      // Insert the chord [C] at the specific index
+                      const part1 = mergedLine.slice(0, index);
+                      const part2 = mergedLine.slice(index);
+                      mergedLine = `${part1}[${chord}]${part2}`;
+                  });
+                  
+                  processedLines.push(mergedLine);
+                  i++; // SKIP the next line because we just consumed it
+              } 
+              else {
+                  // Scenario B: Chord Line with no lyrics below (Intro/Outro) -> WRAP
+                  const wrapped = currentLine.replace(CHORD_STRICT_REGEX, '[$&]');
+                  processedLines.push(wrapped);
+              }
+          } 
+          else {
+              // Scenario C: Just Lyrics (or header) -> KEEP
+              // Detect Header style like "Chorus:" or "[Chorus]"
+              const trimmed = currentLine.trim();
+              if (/^\[.+\]$/.test(trimmed) || /^(Chorus|Verse|Bridge).*:/i.test(trimmed)) {
+                  const headerName = trimmed.replace(/[:\[\]]/g, '').trim();
+                  processedLines.push(`{comment: ${headerName}}`);
+              } else {
+                  processedLines.push(currentLine);
+              }
+          }
+      }
+
+      // 3. Final Polish
+      return processedLines
+          .join('\n')
+          .replace(/\[([A-G][#b]?)\/\]/g, '[$1]') // Fix broken slash chords e.g. [A/] -> [A]
+          .replace(/\s{2,}/g, ' '); // Collapse excess whitespace in lyrics
   };
 
   const parseMetadata = (text: string, fileName: string) => {
+      // Try to extract Title/Artist from first few lines before we processed them deeply
       const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-      let title = fileName.replace('.pdf', '');
+      let title = fileName.replace(/\.pdf$/i, '');
       let artist = 'Unknown Artist';
       
-      // Heuristics:
-      // 1. Look for "by [Artist]"
-      // 2. Look for "Artist: [Name]"
-      // 3. Assume Line 1 = Title, Line 2 = Artist if mostly text
-      
-      // Try to find explicit "by"
-      const byLineIndex = lines.findIndex(l => /^(by|artist:)\s+/i.test(l));
-      
-      if (byLineIndex !== -1) {
-          artist = lines[byLineIndex].replace(/^(by|artist:)\s+/i, '').trim();
-          // Assuming title is above
-          if (byLineIndex > 0) {
-              title = lines[byLineIndex - 1];
+      // Simple heuristic: "Song by Artist" or lines 1 & 2
+      const byLine = lines.find(l => /\bby\b/i.test(l));
+      if (byLine) {
+          const parts = byLine.split(/\bby\b/i);
+          if (parts.length > 1) {
+              artist = parts[1].trim();
+              // If the line before 'by' exists, it might be title
+              const idx = lines.indexOf(byLine);
+              if (idx > 0) title = lines[idx-1];
           }
-      } else {
-          // Fallback: Line 1 Title, Line 2 Artist (if not chord line)
-          if (lines.length > 0) title = lines[0];
-          if (lines.length > 1 && lines[1].length < 50) artist = lines[1];
+      } else if (lines.length >= 2) {
+          // Check if first line is NOT a chord line
+          if (!isChordLine(lines[0])) {
+              title = lines[0];
+              if (!isChordLine(lines[1]) && lines[1].length < 50) {
+                  artist = lines[1];
+              }
+          }
       }
-
-      // Cleanup
-      title = title.replace(/tabs?|chords?|lyrics?/gi, '').trim();
+      
+      // Clean filename artifacts
+      title = title.replace(/[-_]/g, ' ').replace(/\d/g, '').trim();
       
       return { title, artist };
   };
 
-  // --- ALBUM CLUSTERING LOGIC (FIXED WITH TYPES) ---
+  // --- ALBUM CLUSTERING LOGIC ---
   const ensureAlbum = async (artistName: string): Promise<{ id: string, action: 'created' | 'linked' | 'none' }> => {
       if (!artistName || artistName === 'Unknown Artist') return { id: '', action: 'none' };
 
       const normalized = artistName.toLowerCase().trim();
       
-      // 1. Search existing - USING TYPE ASSERTION
-      // .select() returns T[] | null. We cast it to AlbumRow[].
       const { data: existingData } = await supabase
         .from('albums')
         .select('id, artist')
         .ilike('artist', normalized)
         .limit(1);
 
-      // Safely check length
       if (existingData && existingData.length > 0) {
-          // Cast the first element
           const existingAlbum = existingData[0] as unknown as AlbumRow;
           return { id: existingAlbum.id, action: 'linked' };
       }
 
-      // 2. Create new - USING TYPE ASSERTION
       const { data: newAlbumData, error } = await supabase
         .from('albums')
         .insert([{
@@ -185,11 +311,9 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
         .select()
         .single();
 
-      if (error || !newAlbumData) throw new Error("Failed to create album");
+      if (error || !newAlbumData) return { id: '', action: 'none' };
       
-      // Force type on the returned row
       const newAlbum = newAlbumData as unknown as AlbumRow;
-      
       return { id: newAlbum.id, action: 'created' };
   };
 
@@ -199,26 +323,29 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
 
       for (let i = 0; i < files.length; i++) {
           const file = files[i];
-          const resultIndex = i; // Since files and results arrays align 1:1 initially
-          
+          if (results[i].status === 'done') continue; // Skip already done
+
           const updateStatus = (s: Partial<ProcessedFile>) => {
               setResults(prev => {
                   const next = [...prev];
-                  next[resultIndex] = { ...next[resultIndex], ...s };
+                  next[i] = { ...next[i], ...s };
                   return next;
               });
           };
 
           try {
               updateStatus({ status: 'parsing' });
-              const rawText = await extractTextFromPdf(file);
               
-              const { title, artist } = parseMetadata(rawText, file.name);
+              // 1. Advanced Extraction
+              const rawTextWithLayout = await extractTextWithLayout(file);
+              const { title, artist } = parseMetadata(rawTextWithLayout, file.name);
               updateStatus({ detectedTitle: title, detectedArtist: artist });
 
-              // Convert to ChordPro
-              const chordPro = convertToChordPro(rawText);
-              const parsedChords = parseChordsFromText(chordPro); // For the chords column (legacy compatibility)
+              // 2. Smart Cleaning & Merging
+              const finalChordPro = cleanAndMergeChords(rawTextWithLayout);
+              
+              // 3. Database Prep
+              const parsedChords = parseChordsFromText(finalChordPro); // Legacy compatibility
 
               updateStatus({ status: 'clustering' });
               const { id: albumId, action } = await ensureAlbum(artist);
@@ -228,9 +355,9 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
               const { error } = await supabase.from('songs').insert([{
                   title,
                   artist,
-                  difficulty: 'Medium', // Default
+                  difficulty: 'Medium', 
                   album_id: albumId || null,
-                  chords: parsedChords, // This saves {line, chords}[]
+                  chords: parsedChords, // Saves structured format
                   view_count: 0
               }]);
 
@@ -261,9 +388,9 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
                 <div className="p-6 border-b border-slate-200 dark:border-white/10 flex justify-between items-center bg-slate-50 dark:bg-white/5">
                     <div>
                         <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                            <FileType className="w-5 h-5 text-primary" /> Bulk PDF Import
+                            <FileType className="w-5 h-5 text-primary" /> Smart PDF Importer
                         </h2>
-                        <p className="text-xs text-slate-500 mt-1">Drag & Drop multiple PDFs to auto-extract and categorize.</p>
+                        <p className="text-xs text-slate-500 mt-1">Uses visual layout analysis to merge chords and lyrics perfectly.</p>
                     </div>
                     <button onClick={onClose} disabled={isProcessing} className="p-2 hover:bg-slate-200 dark:hover:bg-white/10 rounded-full transition-colors">
                         <X className="w-5 h-5 text-slate-500" />
@@ -286,9 +413,9 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
                     <label htmlFor="bulk-file-input" className="cursor-pointer flex flex-col items-center w-full h-full">
                         <Upload className={cn("w-10 h-10 mb-3 transition-colors", isDragActive ? "text-primary" : "text-slate-400")} />
                         <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
-                            {isDragActive ? "Drop files now" : "Click to upload or drag PDFs here"}
+                            {isDragActive ? "Drop PDF files now" : "Click to upload or drag PDFs here"}
                         </p>
-                        <p className="text-xs text-slate-500 mt-2">Supports batch processing with Auto-Album clustering.</p>
+                        <p className="text-xs text-slate-500 mt-2">Auto-aligns chords, removes metadata, and groups albums.</p>
                     </label>
                 </div>
 

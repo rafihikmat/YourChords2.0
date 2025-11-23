@@ -56,8 +56,8 @@ const SongManager: React.FC = () => {
         }
     };
 
-    // Implementation of Smart Search
-    const searchResults = useSmartSearch(songs, searchTerm, ['title', 'artist']);
+    // Implementation of Smart Search with explicit generic
+    const searchResults = useSmartSearch<Song>(songs, searchTerm, ['title', 'artist']);
     
     const filteredSongs = searchResults.filter(s => 
         difficultyFilter ? s.difficulty === difficultyFilter : true

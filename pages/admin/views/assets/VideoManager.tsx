@@ -197,8 +197,8 @@ export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
         setStatus(null);
     };
 
-    // Use Smart Search Hook
-    const filteredVideos = useSmartSearch(videos, searchTerm, ['title', 'channel_title', 'video_id']);
+    // Use Smart Search Hook with generic
+    const filteredVideos = useSmartSearch<VideoTutorial>(videos, searchTerm, ['title', 'channel_title', 'video_id']);
 
     // Memoize Player to prevent reloading during typing
     const previewPlayer = useMemo(() => {

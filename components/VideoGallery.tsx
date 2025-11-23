@@ -68,8 +68,8 @@ export const VideoGallery: React.FC = () => {
       }
   };
 
-  // Use the new Smart Search Hook
-  const filteredVideos = useSmartSearch(allVideos, searchQuery, ['title', 'channel_title']);
+  // Use the new Smart Search Hook with generic
+  const filteredVideos = useSmartSearch<VideoTutorial>(allVideos, searchQuery, ['title', 'channel_title']);
 
   return (
     <div className="space-y-8">

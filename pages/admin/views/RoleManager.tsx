@@ -53,8 +53,8 @@ const RoleManager: React.FC = () => {
         }
     };
 
-    // Apply Smart Search Logic
-    const searchResults = useSmartSearch(users, searchQuery, ['full_name', 'id']);
+    // Apply Smart Search Logic with explicit generic
+    const searchResults = useSmartSearch<Profile>(users, searchQuery, ['full_name', 'id']);
 
     const filteredUsers = searchResults.filter(u => 
         roleFilter === 'all' ? true : u.role === roleFilter
