@@ -1,7 +1,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, X, FileText, CheckCircle2, AlertTriangle, Loader2, Disc3, Music, FileType, Eye, ChevronRight, ChevronDown, Layout } from 'lucide-react';
+import { Upload, X, FileText, CheckCircle2, AlertTriangle, Loader2, Disc3, Music, Eye, ChevronDown, Layout, Ban } from 'lucide-react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { supabase } from '../../lib/supabase';
 import { parseChordsFromText } from '../../lib/musicUtils';
@@ -27,26 +27,33 @@ interface ProcessedFile {
   previewText?: string; 
 }
 
-// --- CONSTANTS & REGEX ---
-const META_FILTER_REGEX = /^(difficulty|tuning|capo|tabbed by|strumming|bpm|page|author|key|time sig|date|chords used|artist|title)/i;
-// Strict Chord Regex for individual tokens
-const CHORD_TOKEN_STRICT = /^[A-G][#b]?(?:m|min|maj|dim|aug|sus|add|7|9|11|13|5|6|o|\+|M)*(?:\/[A-G][#b]?)?(?:\([^\)]+\))?$/;
-
-// --- TYPES FOR SPATIAL ENGINE ---
-interface TextItem {
+// --- GRID ENGINE TYPES ---
+interface GridItem {
     str: string;
     x: number;
-    y: number;
+    y: number; // PDF Y coordinates (0 at bottom)
     w: number;
     h: number;
 }
 
-interface PDFRow {
-    y: number; // Vertical centroid
-    items: TextItem[];
-    type: 'chord' | 'lyric' | 'header' | 'meta' | 'empty';
-    text: string;
+interface GridRow {
+    y: number; // Centroid Y
+    items: GridItem[];
+    text: string; // Full concatenated text
+    type: 'chord' | 'lyric' | 'header' | 'meta' | 'garbage';
 }
+
+// --- REGEX PATTERNS ---
+// Patterns that trigger immediate row deletion
+const TRASH_PATTERNS = [
+    /^(difficulty|tuning|capo|key|strumming|bpm|author|tabbed by|generated using|http|www\.|copyright|page \d|chords used)/i,
+    /^e\|-+/i, // Tablature lines
+    /^\|-+/i,  // Tablature lines
+    /^[x0-9\s]{5,}$/ // Chord diagrams like "x 0 2 2 2 0"
+];
+
+// Heuristic to identify chord lines (allow specific extensions)
+const CHORD_TOKEN_REGEX = /^[A-G][#b]?(?:m|min|maj|dim|aug|sus|add|7|9|11|13|5|6|o|\+|M)*(?:\/[A-G][#b]?)?(?:\([^\)]+\))?$/;
 
 export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClose }) => {
   const [isDragActive, setIsDragActive] = useState(false);
@@ -68,7 +75,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragActive(false);
-    const droppedFiles = Array.from(e.dataTransfer.files).filter((f: File) => f.type === 'application/pdf');
+    const droppedFiles = Array.from(e.dataTransfer.files).filter((f: any) => f.type === 'application/pdf') as File[];
     if (droppedFiles.length > 0) {
         setFiles(prev => [...prev, ...droppedFiles]);
         setResults(prev => [...prev, ...droppedFiles.map(f => ({ 
@@ -81,7 +88,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files) {
-          const selected = Array.from(e.target.files).filter((f: File) => f.type === 'application/pdf');
+          const selected = Array.from(e.target.files).filter((f: any) => f.type === 'application/pdf') as File[];
           setFiles(prev => [...prev, ...selected]);
           setResults(prev => [...prev, ...selected.map(f => ({ 
                 id: Math.random().toString(36).substr(2, 9), 
@@ -91,103 +98,89 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
       }
   };
 
-  // --- SPATIAL ENGINE LOGIC ---
+  // --- CORE GRID ENGINE ---
 
-  const classifyRow = (items: TextItem[]): PDFRow['type'] => {
-      const fullText = items.map(i => i.str).join('').trim();
-      if (!fullText) return 'empty';
+  const classifyRow = (text: string): GridRow['type'] => {
+      const clean = text.trim();
+      if (!clean) return 'garbage';
 
-      // 1. Metadata / Page Numbers
-      if (META_FILTER_REGEX.test(fullText) || /^\d+\s*(\/|of)\s*\d+$/.test(fullText)) {
-          return 'meta';
-      }
-
-      // 2. Headers (e.g. [Chorus], Intro:)
-      if (/^\[.+\]$/.test(fullText) || /^(Chorus|Verse|Bridge|Intro|Outro|Instrumental).*:/i.test(fullText)) {
+      // 1. Filter Trash
+      if (TRASH_PATTERNS.some(p => p.test(clean))) return 'meta';
+      
+      // 2. Detect Headers
+      if (/^(chorus|verse|bridge|intro|outro|instrumental|pre-chorus).*:/i.test(clean) || /^\[.+\]$/.test(clean)) {
           return 'header';
       }
+      if (/^(chorus|verse|bridge)$/i.test(clean)) return 'header'; // Loose headers
 
-      // 3. Chord Analysis
-      // We tokenize by looking at individual items or splitting the string
-      const tokens = fullText.split(/\s+/).filter(t => t.length > 0);
-      if (tokens.length === 0) return 'empty';
+      // 3. Detect Chords
+      const tokens = clean.split(/\s+/).filter(t => t);
+      const chordCount = tokens.filter(t => CHORD_TOKEN_REGEX.test(t.replace(/[\(\)]/g, ''))).length;
+      
+      // If > 60% of tokens look like chords, treat as chord line
+      if (chordCount / tokens.length > 0.6) return 'chord';
 
-      let chordCount = 0;
-      let lyricWordCount = 0;
-
-      tokens.forEach(t => {
-          // Clean punctuation
-          const clean = t.replace(/[\(\)\[\]]/g, '');
-          if (CHORD_TOKEN_STRICT.test(clean)) {
-              chordCount++;
-          } else {
-              // Basic check for lyric-like words
-              if (clean.length > 1 || (clean === 'I' || clean === 'a')) {
-                  lyricWordCount++;
-              }
-          }
-      });
-
-      // Heuristics
-      const isMajorityChords = chordCount > lyricWordCount;
-      const hasLyricsKeywords = /\b(the|and|you|that|was|for|are|with|heart|love|when|what|your)\b/i.test(fullText);
-
-      if (isMajorityChords && !hasLyricsKeywords) return 'chord';
       return 'lyric';
   };
 
-  const extractRawPdfItems = async (file: File): Promise<TextItem[]> => {
+  const extractGridItems = async (file: File): Promise<GridItem[]> => {
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-      const allItems: TextItem[] = [];
+      const items: GridItem[] = [];
       
-      // Limit pages to prevent browser crash on huge books
+      // Limit to first 5 pages to prevent overload
       const maxPages = Math.min(pdf.numPages, 5); 
 
       for (let i = 1; i <= maxPages; i++) {
           const page = await pdf.getPage(i);
           const textContent = await page.getTextContent();
-          const viewport = page.getViewport({ scale: 1.0 });
+          // Viewport needed for normalization (PDF coords are bottom-up)
+          const viewport = page.getViewport({ scale: 1.0 }); 
 
           textContent.items.forEach((item: any) => {
-              // Transform: [scaleX, skewY, skewX, scaleY, x, y]
-              // PDF coords: (0,0) is usually bottom-left. We invert Y to make it top-down.
+              // item.transform: [scaleX, skewY, skewX, scaleY, x, y]
+              // In PDF, (0,0) is bottom-left. 
               const tx = item.transform;
               const x = tx[4];
-              const y = viewport.height - tx[5]; 
+              const y = tx[5]; // Keep raw PDF Y for now, sort desc later
               const w = item.width;
               const h = item.height || 10;
-              
-              if (item.str.trim().length > 0) {
-                  allItems.push({ str: item.str, x, y, w, h });
+              const str = item.str;
+
+              if (str.trim().length > 0) {
+                  items.push({ str, x, y, w, h });
               }
           });
       }
-      return allItems;
+      return items;
   };
 
   const processPdfToChordPro = async (file: File): Promise<{ text: string, title: string, artist: string }> => {
-      const items = await extractRawPdfItems(file);
-      
-      // 1. Cluster items into visual rows
-      // Sort by Y (vertical) then X (horizontal)
-      items.sort((a, b) => (Math.abs(a.y - b.y) < 5) ? (a.x - b.x) : (a.y - b.y));
+      const rawItems = await extractGridItems(file);
 
-      const rows: PDFRow[] = [];
-      let currentRow: TextItem[] = [];
-      let currentY = items[0]?.y || 0;
+      // --- PHASE 1: ROW GROUPING ---
+      // Sort by Y descending (Top to Bottom), then X ascending
+      rawItems.sort((a, b) => b.y - a.y || a.x - b.x);
 
-      items.forEach(item => {
-          // If vertical distance > tolerance, start new row
-          if (Math.abs(item.y - currentY) > 8) { 
+      const rows: GridRow[] = [];
+      let currentRow: GridItem[] = [];
+      let currentY = rawItems[0]?.y || 0;
+
+      // Tolerance for Y grouping (lines are roughly same height)
+      const TOLERANCE = 4; 
+
+      rawItems.forEach(item => {
+          if (Math.abs(item.y - currentY) > TOLERANCE) {
+              // New row detected
               if (currentRow.length > 0) {
-                  // Sort items horizontally in the row
+                  // Sort items left-to-right strictly
                   currentRow.sort((a, b) => a.x - b.x);
+                  const rowText = currentRow.map(i => i.str).join('').replace(/\s+/g, ' '); // Normalized space for classification
                   rows.push({
                       y: currentY,
                       items: currentRow,
-                      type: classifyRow(currentRow),
-                      text: currentRow.map(i => i.str).join('') // Raw text for display/fallback
+                      text: rowText,
+                      type: classifyRow(rowText)
                   });
               }
               currentRow = [item];
@@ -196,22 +189,24 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
               currentRow.push(item);
           }
       });
-      // Push last row
+      // Flush last row
       if (currentRow.length > 0) {
           currentRow.sort((a, b) => a.x - b.x);
-          rows.push({ y: currentY, items: currentRow, type: classifyRow(currentRow), text: currentRow.map(i => i.str).join('') });
+          const rowText = currentRow.map(i => i.str).join('').replace(/\s+/g, ' ');
+          rows.push({ y: currentY, items: currentRow, text: rowText, type: classifyRow(rowText) });
       }
 
-      // 2. Metadata Extraction (First few rows)
+      // --- PHASE 2: META EXTRACTION & CLEANING ---
+      // Extract metadata from top rows before we delete them
       let title = file.name.replace('.pdf', '');
       let artist = 'Unknown Artist';
-      
-      // Try to find title/artist in first 5 lines
+
+      // Look for "Title by Artist" pattern in first 5 rows
       for (let i = 0; i < Math.min(rows.length, 5); i++) {
           const txt = rows[i].text;
           if (txt.toLowerCase().includes(' by ')) {
               const parts = txt.split(/ by /i);
-              if (parts.length === 2) {
+              if (parts.length === 2 && parts[0].length < 50 && parts[1].length < 50) {
                   title = parts[0].trim();
                   artist = parts[1].trim();
                   break;
@@ -219,127 +214,131 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
           }
       }
 
-      // 3. Spatial Merge (The Core Logic)
-      const outputLines: string[] = [];
-      
-      for (let i = 0; i < rows.length; i++) {
-          const row = rows[i];
-          const nextRow = i + 1 < rows.length ? rows[i + 1] : null;
+      // Filter out garbage rows
+      const cleanRows = rows.filter(r => r.type !== 'meta' && r.type !== 'garbage');
 
-          if (row.type === 'meta' || row.type === 'empty') continue;
+      // --- PHASE 3: VISUAL MERGE ---
+      const output: string[] = [];
+      
+      for (let i = 0; i < cleanRows.length; i++) {
+          const row = cleanRows[i];
+          const nextRow = i + 1 < cleanRows.length ? cleanRows[i + 1] : null;
 
           if (row.type === 'header') {
-              // Clean header
-              const cleaned = row.text.replace(/[:\[\]]/g, '').trim();
-              outputLines.push(`\n{comment: ${cleaned}}`);
+              const header = row.text.replace(/[:\[\]]/g, '').trim();
+              // Deduplication: Don't add header if previous line was same header
+              if (output.length === 0 || !output[output.length - 1].includes(header)) {
+                  output.push(`\n{comment: ${header}}`);
+              }
               continue;
           }
 
           if (row.type === 'chord') {
-              // Check if we can merge with next row
+              // CHECK: Is the next row Lyrics?
               if (nextRow && nextRow.type === 'lyric') {
-                  // === SPATIAL MERGE START ===
+                  // === SPATIAL OVERLAY ALGORITHM ===
                   
-                  // 1. Construct a detailed map of the lyric line with char positions
-                  // We need to interpolate X positions for every character in the lyric line
-                  const lyricMap: { char: string, x: number }[] = [];
+                  // 1. Build Character Map of Lyric Line
+                  // Interpolate X position for every character
+                  const charMap: { char: string, x: number }[] = [];
                   
-                  // Helper to create linear interpolation for lyric items
                   nextRow.items.forEach((item, idx) => {
-                      // If there's a gap from previous item, insert spaces
-                      const prevItemEnd = idx > 0 ? (nextRow.items[idx-1].x + nextRow.items[idx-1].w) : item.x;
-                      const gap = item.x - prevItemEnd;
-                      
-                      if (gap > 5) { // 5px threshold for space
-                          const spaceCount = Math.max(1, Math.floor(gap / 6)); // Assume ~6px per char
-                          for(let s=0; s<spaceCount; s++) {
-                              lyricMap.push({ char: ' ', x: prevItemEnd + (s*6) });
+                      // Check for gap from previous item -> Insert Spaces
+                      if (idx > 0) {
+                          const prev = nextRow.items[idx - 1];
+                          const gap = item.x - (prev.x + prev.w);
+                          if (gap > 4) { // 4px threshold
+                              const spaces = Math.floor(gap / 4); // Approx space width
+                              for (let s = 0; s < spaces; s++) {
+                                  charMap.push({ char: ' ', x: prev.x + prev.w + (s * 4) });
+                              }
                           }
                       }
 
                       const chars = item.str.split('');
                       const charWidth = item.w / chars.length;
-                      
-                      chars.forEach((char, charIdx) => {
-                          lyricMap.push({ 
-                              char, 
-                              x: item.x + (charIdx * charWidth) 
-                          });
+                      chars.forEach((c, cIdx) => {
+                          charMap.push({ char: c, x: item.x + (cIdx * charWidth) });
                       });
                   });
 
-                  // 2. Insert chords into the lyric string based on X overlap
-                  // We create an array of insertions to apply later
+                  // 2. Insert Chords
+                  // Create array of insertions { index: number, text: string }
                   const insertions: { index: number, text: string }[] = [];
 
                   row.items.forEach(chordItem => {
-                      // Split if multiple chords in one item (rare but possible)
-                      const chords = chordItem.str.split(/\s+/).filter(c => c.length > 0);
-                      // Distribute them uniformly across item width if multiple
-                      const subWidth = chordItem.w / chords.length;
-                      
-                      chords.forEach((chord, cIdx) => {
-                          if (!CHORD_TOKEN_STRICT.test(chord.replace(/[\(\)]/g,''))) return;
-                          
-                          const chordCenter = chordItem.x + (cIdx * subWidth);
-                          
-                          // Find closest char in lyric map
-                          let closestIdx = lyricMap.length; // Default to end
-                          let minDist = 9999;
+                      // Handle cases where one item contains multiple chords "C G"
+                      const parts = chordItem.str.split(/(\s+)/); // Keep delimiters to calculate offset
+                      let localOffset = 0;
+                      const partWidth = chordItem.w / chordItem.str.length; // Approx char width in chord line
 
-                          for (let m = 0; m < lyricMap.length; m++) {
-                              const dist = Math.abs(lyricMap[m].x - chordCenter);
-                              if (dist < minDist) {
-                                  minDist = dist;
-                                  closestIdx = m;
-                              }
+                      parts.forEach(part => {
+                          if (!part.trim()) {
+                              localOffset += part.length * partWidth;
+                              return;
                           }
                           
-                          // Adjust for line bounds
-                          if (closestIdx > lyricMap.length) closestIdx = lyricMap.length;
+                          // Clean & Normalize Chord
+                          let chord = part.trim();
+                          // Normalization: A+ -> Aaug, Amaj -> Amaj7 (heuristic)
+                          chord = chord.replace('+', 'aug').replace('maj', 'maj7').replace('min', 'm');
+                          // Remove '77' typo if present, ensure basic validity
+                          if (!CHORD_TOKEN_REGEX.test(chord)) {
+                              localOffset += part.length * partWidth;
+                              return;
+                          }
+
+                          const chordX = chordItem.x + localOffset;
                           
-                          insertions.push({ index: closestIdx, text: `[${chord}]` });
+                          // Find closest character index in lyrics
+                          let bestIdx = charMap.length;
+                          let minDiff = 99999;
+
+                          for (let k = 0; k < charMap.length; k++) {
+                              const diff = Math.abs(charMap[k].x - chordX);
+                              if (diff < minDiff) {
+                                  minDiff = diff;
+                                  bestIdx = k;
+                              }
+                          }
+
+                          insertions.push({ index: bestIdx, text: `[${chord}]` });
+                          localOffset += part.length * partWidth;
                       });
                   });
 
-                  // 3. Build final string
-                  // Sort insertions by index descending to avoid shifting
+                  // 3. Construct Merged Line
+                  // Sort insertions descending index to prevent drift
                   insertions.sort((a, b) => b.index - a.index);
                   
-                  // Reconstruct lyric string
-                  let finalLine = lyricMap.map(m => m.char).join('');
-                  
+                  // Rebuild string
+                  let mergedLine = charMap.map(c => c.char).join('');
                   insertions.forEach(ins => {
-                      // Handle edge case: insertion beyond length
-                      if (ins.index >= finalLine.length) {
-                          finalLine += ins.text;
-                      } else {
-                          finalLine = finalLine.slice(0, ins.index) + ins.text + finalLine.slice(ins.index);
-                      }
+                      if (ins.index >= mergedLine.length) mergedLine += ins.text;
+                      else mergedLine = mergedLine.slice(0, ins.index) + ins.text + mergedLine.slice(ins.index);
                   });
 
-                  outputLines.push(finalLine);
-                  i++; // Skip next row since we merged it
+                  output.push(mergedLine);
+                  i++; // Skip lyric row as it's merged
               } 
               else {
-                  // Orphan chord line (e.g. Intro) - just wrap in brackets
+                  // Orphan Chord Line (Intro/Outro)
+                  // Just wrap chords in brackets
                   const wrapped = row.items.map(i => {
-                      const chords = i.str.split(/\s+/).filter(c => c);
-                      return chords.map(c => {
-                          if (CHORD_TOKEN_STRICT.test(c.replace(/[\(\)]/g,''))) return `[${c}]`;
-                          return c;
+                      return i.str.split(/\s+/).map(token => {
+                          if (CHORD_TOKEN_REGEX.test(token)) return `[${token}]`;
+                          return token;
                       }).join(' ');
                   }).join(' ');
-                  outputLines.push(wrapped);
+                  output.push(wrapped);
               }
-          }
-          else if (row.type === 'lyric') {
-              outputLines.push(row.text);
+          } else if (row.type === 'lyric') {
+              output.push(row.text);
           }
       }
 
       return {
-          text: outputLines.join('\n'),
+          text: output.join('\n'),
           title,
           artist
       };
@@ -388,7 +387,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
           try {
               updateStatus({ status: 'parsing' });
               
-              // Run the new Spatial Engine
+              // Grid Engine Execution
               const { text: chordPro, title, artist } = await processPdfToChordPro(file);
               
               updateStatus({ detectedTitle: title, detectedArtist: artist, previewText: chordPro });
@@ -438,9 +437,9 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
                 <div className="p-6 border-b border-slate-200 dark:border-white/10 flex justify-between items-center bg-slate-50 dark:bg-white/5">
                     <div>
                         <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                            <Layout className="w-5 h-5 text-primary" /> Spatial PDF Importer v2.0
+                            <Layout className="w-5 h-5 text-primary" /> Grid-Based PDF Importer v3.0
                         </h2>
-                        <p className="text-xs text-slate-500 mt-1">High-Fidelity conversion using exact coordinate mapping.</p>
+                        <p className="text-xs text-slate-500 mt-1">Exact layout reconstruction with visual overlay merging.</p>
                     </div>
                     <button onClick={onClose} disabled={isProcessing} className="p-2 hover:bg-slate-200 dark:hover:bg-white/10 rounded-full transition-colors">
                         <X className="w-5 h-5 text-slate-500" />
@@ -465,7 +464,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
                         <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
                             {isDragActive ? "Drop PDF files now" : "Click to upload or drag PDFs here"}
                         </p>
-                        <p className="text-xs text-slate-500 mt-2">Supports: Standard text-based PDF Chord Sheets</p>
+                        <p className="text-xs text-slate-500 mt-2">Optimized for: Ultimate Guitar PDFs, ChordTela, and Standard Chord Sheets</p>
                     </label>
                 </div>
 
@@ -509,7 +508,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
                                             </div>
                                         )}
                                         
-                                        {file.errorMsg && <p className="text-xs text-red-500 mt-1">{file.errorMsg}</p>}
+                                        {file.errorMsg && <p className="text-xs text-red-500 mt-1 flex items-center gap-1"><Ban className="w-3 h-3"/> {file.errorMsg}</p>}
                                     </div>
 
                                     {file.previewText && (
@@ -533,7 +532,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
 
                                 {expandedPreviewId === file.id && (
                                     <div className="p-4 border-t border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-black/20 animate-in slide-in-from-top-2">
-                                        <p className="text-xs font-bold text-slate-500 mb-2 uppercase">ChordPro Preview:</p>
+                                        <p className="text-xs font-bold text-slate-500 mb-2 uppercase">ChordPro Reconstruction:</p>
                                         <pre className="text-[10px] font-mono text-slate-600 dark:text-slate-300 whitespace-pre-wrap bg-white dark:bg-slate-950 p-3 rounded border border-slate-200 dark:border-white/5 max-h-40 overflow-y-auto leading-relaxed">
                                             {file.previewText}
                                         </pre>
@@ -563,7 +562,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
                             className="px-6 py-2 bg-primary hover:bg-primary/90 text-white font-bold rounded-lg shadow-lg shadow-primary/20 transition-all disabled:opacity-50 flex items-center gap-2"
                         >
                             {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                            {isProcessing ? 'Processing...' : 'Start Import'}
+                            {isProcessing ? 'Processing...' : 'Start Reconstruction'}
                         </button>
                     </div>
                 </div>
