@@ -70,35 +70,50 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
       }
   };
 
-  // --- VISION ENGINE: RENDER PDF TO IMAGES ---
-  const pdfToImages = async (file: File): Promise<string[]> => {
+  // --- TEXT ENGINE: EXTRACT TEXT WITH LAYOUT PRESERVATION ---
+  const extractTextFromPDF = async (file: File): Promise<string> => {
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-      const images: string[] = [];
-      
-      // PAYLOAD OPTIMIZATION:
-      // Limit to first 2 pages (usually contains all necessary chord info)
-      // Reduce scale to 1.2 and Quality to 0.5 to prevent Supabase Edge Function payload limit errors (6MB)
-      const maxPages = Math.min(pdf.numPages, 2); 
+      let fullRawText = "";
 
-      for (let i = 1; i <= maxPages; i++) {
+      for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
-          // 1.2 scale is sufficient for Gemini 2.5 Flash to read chords
-          const viewport = page.getViewport({ scale: 1.2 }); 
-          
-          const canvas = document.createElement('canvas');
-          const context = canvas.getContext('2d');
-          canvas.height = viewport.height;
-          canvas.width = viewport.width;
+          const textContent = await page.getTextContent();
+          const items = textContent.items as any[];
 
-          if (context) {
-              await page.render({ canvasContext: context, viewport }).promise;
-              // High compression (0.5) to keep JSON body small
-              const base64 = canvas.toDataURL('image/jpeg', 0.5).split(',')[1];
-              images.push(base64);
-          }
+          if (items.length === 0) continue;
+
+          // Group items by Y coordinate (lines)
+          // Tolerance of 5 units handles slight misalignments in PDF generation
+          const lines: { y: number, items: any[] }[] = [];
+          
+          items.forEach(item => {
+              const y = item.transform[5]; // Y coordinate
+              // Find existing line within tolerance
+              const existingLine = lines.find(l => Math.abs(l.y - y) < 5);
+              if (existingLine) {
+                  existingLine.items.push(item);
+              } else {
+                  lines.push({ y, items: [item] });
+              }
+          });
+
+          // Sort lines Top-to-Bottom (PDF Y is usually 0 at bottom, so descending)
+          lines.sort((a, b) => b.y - a.y);
+
+          // Construct text page
+          let pageText = "";
+          lines.forEach(line => {
+              // Sort items Left-to-Right within line
+              line.items.sort((a, b) => a.transform[4] - b.transform[4]);
+              // Join with spaces (simple logic, can be improved with X-distance calc)
+              const lineStr = line.items.map(item => item.str).join(' ');
+              pageText += lineStr + "\n";
+          });
+
+          fullRawText += pageText + "\n\n";
       }
-      return images;
+      return fullRawText;
   };
 
   const ensureAlbum = async (artistName: string): Promise<{ id: string, action: 'created' | 'linked' | 'none' }> => {
@@ -144,22 +159,26 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
           try {
               updateStatus({ status: 'rendering' });
               
-              // 1. Convert PDF to Visual Data (Images)
-              const images = await pdfToImages(file);
+              // 1. Extract Raw Text directly (No Vision API needed, much lighter)
+              const extractedText = await extractTextFromPDF(file);
               
+              if (!extractedText || extractedText.length < 50) {
+                  throw new Error("PDF appears to be empty or scanned image. Text mode requires selectable text.");
+              }
+
               updateStatus({ status: 'analyzing' });
 
-              // 2. Send Images to Gemini Vision via Edge Function
+              // 2. Send Text to Gemini via Edge Function
               const { data: aiData, error: aiError } = await supabase.functions.invoke('generate-chords', {
                   body: {
-                      images: images,
-                      mode: 'vision_extraction' // Special mode for PDF extraction
+                      text: extractedText,
+                      mode: 'text_extraction' // New lightweight mode
                   }
               });
 
               if (aiError) {
                   console.error("Supabase Function Error:", aiError);
-                  throw new Error(aiError.message || "Network/Payload Error. Try fewer files.");
+                  throw new Error(aiError.message || "AI Processing Error");
               }
               
               if (aiData.error) throw new Error(aiData.error);
@@ -220,9 +239,9 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
                 <div className="p-6 border-b border-slate-200 dark:border-white/10 flex justify-between items-center bg-slate-50 dark:bg-white/5">
                     <div>
                         <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                            <Eye className="w-5 h-5 text-primary" /> Visual PDF Transcriber
+                            <FileText className="w-5 h-5 text-primary" /> Text-Based PDF Import
                         </h2>
-                        <p className="text-xs text-slate-500 mt-1">Uses Computer Vision to read PDFs exactly as they appear.</p>
+                        <p className="text-xs text-slate-500 mt-1">Fast extraction for text-based PDFs (Ultimate Guitar, etc).</p>
                     </div>
                     <button onClick={onClose} disabled={isProcessing} className="p-2 hover:bg-slate-200 dark:hover:bg-white/10 rounded-full transition-colors">
                         <X className="w-5 h-5 text-slate-500" />
@@ -245,7 +264,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
                         <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/50 z-10 flex items-center justify-center backdrop-blur-sm">
                             <div className="flex flex-col items-center">
                                 <Loader2 className="w-8 h-8 animate-spin text-primary mb-2" />
-                                <span className="text-xs font-bold text-primary animate-pulse">PROCESSING VISUAL DATA</span>
+                                <span className="text-xs font-bold text-primary animate-pulse">ANALYZING TEXT STREAMS</span>
                             </div>
                         </div>
                     )}
@@ -255,7 +274,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
                         <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
                             {isDragActive ? "Drop PDF files now" : "Click to upload or drag PDFs here"}
                         </p>
-                        <p className="text-xs text-slate-500 mt-2">High-Fidelity Visual Extraction via Gemini Vision</p>
+                        <p className="text-xs text-slate-500 mt-2">Instant conversion using Neural Text Analysis</p>
                     </label>
                 </div>
 
@@ -271,7 +290,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
                             <div key={file.id} className="bg-slate-50 dark:bg-white/5 rounded-lg border border-slate-200 dark:border-white/5 overflow-hidden">
                                 <div className="flex items-center gap-4 p-3">
                                     <div className="p-2 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-white/10">
-                                        <FileText className="w-4 h-4 text-red-500" />
+                                        <FileText className="w-4 h-4 text-blue-500" />
                                     </div>
                                     
                                     <div className="flex-1 min-w-0">
@@ -355,7 +374,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
                             className="px-6 py-2 bg-primary hover:bg-primary/90 text-white font-bold rounded-lg shadow-lg shadow-primary/20 transition-all disabled:opacity-50 flex items-center gap-2"
                         >
                             {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                            {isProcessing ? 'Analyzing...' : 'Start Visual Extraction'}
+                            {isProcessing ? 'Analyzing...' : 'Start Import'}
                         </button>
                     </div>
                 </div>

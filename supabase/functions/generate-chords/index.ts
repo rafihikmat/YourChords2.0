@@ -15,7 +15,8 @@ serve(async (req) => {
   }
 
   try {
-    const { title, artist, lyrics, images, mode } = await req.json();
+    // Input can be standard (lyrics), vision (images), or text extraction (raw pdf text)
+    const { title, artist, lyrics, images, text, mode } = await req.json();
     const apiKey = Deno.env.get('API_KEY') ?? '';
 
     if (!apiKey) {
@@ -23,28 +24,57 @@ serve(async (req) => {
     }
 
     const ai = new GoogleGenAI({ apiKey });
+    // Default text model
     const model = 'gemini-2.5-flash';
 
     let prompt = "";
     let contentParts: any[] = [];
 
-    if (mode === 'vision_extraction' && images && Array.isArray(images) && images.length > 0) {
-        // --- VISION MODE (PDF to CHORDPRO) ---
+    // --- MODE 1: TEXT EXTRACTION (Raw PDF Text -> Structured ChordPro) ---
+    if (mode === 'text_extraction' && text) {
         prompt = `
-          You are an expert Music Transcriber. 
+          You are an expert music transcriber and data cleaner.
           
-          TASK:
-          Look at the provided images of a guitar chord sheet (PDF pages).
+          I will give you RAW TEXT extracted from a music PDF file. 
+          The text layout might be messy (e.g., line breaks might be weird, or chords might be on a line above lyrics).
+          
+          YOUR TASKS:
+          1. **Metadata**: Identify the Title and Artist from the text. If unclear, use "Unknown".
+          2. **Structure**: Convert the song content into valid JSON.
+          3. **Merge Logic (CRITICAL)**: 
+             - If you see a line of chords (e.g. "G  C  D") followed immediately by a line of lyrics (e.g. "Hello world today"), 
+             - You MUST merge them into ChordPro format: "[G]Hello [C]world [D]today".
+             - Place the chord [X] exactly where it appears visually relative to the lyric word.
+          4. **Cleanup**: Remove page numbers, copyright footers, or "Difficulty: Medium" type metadata lines from the 'chords' array.
+          
+          OUTPUT JSON FORMAT:
+          {
+            "title": "Song Title",
+            "artist": "Artist Name",
+            "difficulty": "Medium",
+            "chords": [
+              { "line": "[Am]This is the [F]merged line...", "chords": ["Am", "F"] },
+              { "line": "[Chorus]", "chords": [] }
+            ]
+          }
+
+          RAW TEXT INPUT:
+          ${text.substring(0, 30000)} 
+        `; 
+        // Limit text length to prevent context window overflow, though 2.5 flash handles ~1M tokens.
+        contentParts.push({ text: prompt });
+    } 
+    // --- MODE 2: VISION (Images -> ChordPro) ---
+    else if (mode === 'vision_extraction' && images && Array.isArray(images) && images.length > 0) {
+        prompt = `
+          You are an expert Music Transcriber. Look at the provided images of a guitar chord sheet.
           Transcribe them EXACTLY as they appear into a JSON structure.
           
-          CRITICAL RULES FOR ACCURACY:
-          1. **Structure**: Return a valid JSON object.
-          2. **Alignment**: If a chord (e.g., A7) is visually located above a specific word in the image, you MUST place it immediately before that syllable in the output using brackets [A7]. 
-             Example: If "A7" is above "Hello", output "[A7]Hello".
-          3. **Fidelity**: Do not invent chords. Do not change the lyrics. Copy exactly what is on the page.
-          4. **Headers**: Identify sections (Chorus, Verse, Intro) and put them in the "line" text, but ensure chords are empty for those lines.
-          5. **Metadata**: Extract the Title and Artist from the top of the first page if visible.
-          6. **Cleaning**: Ignore "Page 1/3", "Copyright", or website URLs at the bottom. Focus on the song content.
+          CRITICAL RULES:
+          1. **Alignment**: If a chord (e.g., A7) is visually located above a word, output it as [A7]Word.
+          2. **Fidelity**: Copy lyrics exactly.
+          3. **Headers**: Identify [Chorus], [Verse] etc.
+          4. **Metadata**: Extract Title/Artist from top.
 
           OUTPUT JSON FORMAT:
           {
@@ -52,13 +82,11 @@ serve(async (req) => {
             "artist": "Extracted Artist",
             "difficulty": "Medium",
             "chords": [
-              { "line": "[Bm]Full lyric line with [A]merged chords...", "chords": ["Bm", "A"] },
-              { "line": "[Chorus]", "chords": [] }
+              { "line": "[Bm]Full lyric line...", "chords": ["Bm"] }
             ]
           }
         `;
 
-        // Add images to payload using proper SDK structure
         images.forEach((base64: string) => {
             contentParts.push({ 
                 inlineData: { 
@@ -68,14 +96,12 @@ serve(async (req) => {
             });
         });
         contentParts.push({ text: prompt });
-
-    } else {
-        // --- TEXT GENERATION MODE (Lyrics to Chords) ---
+    } 
+    // --- MODE 3: STANDARD GENERATION (Lyrics -> AI Composed Chords) ---
+    else {
         prompt = `
           You are a music theory expert.
           Analyze the song "${title}" by "${artist}".
-          
-          Rules:
           1. Place chords at the START of phrases or words where harmonic change occurs.
           2. Match the emotion.
           3. Output JSON.
@@ -101,9 +127,8 @@ serve(async (req) => {
       contents: { parts: contentParts },
     });
 
-    const text = response.text || "{}";
-    // Clean markdown code blocks if present (```json ... ```)
-    const cleanJson = text.replace(/^```json\s*/, '').replace(/\s*```$/, '').trim();
+    const textResponse = response.text || "{}";
+    const cleanJson = textResponse.replace(/^```json\s*/, '').replace(/\s*```$/, '').trim();
     
     let chordData;
     try {
