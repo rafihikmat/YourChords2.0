@@ -73,35 +73,48 @@ const ManualEntry: React.FC = () => {
         }
     }, [state]);
 
-    // --- SMART ZIPPER ALGORITHM ---
+    // --- IMPROVED SMART ZIPPER ALGORITHM v2 ---
 
     const isChordLine = (line: string): boolean => {
         const trimmed = line.trim();
         if (!trimmed) return false;
         
-        // Regex matching valid chord tokens
-        // Matches: A, Am, A#m7, G/B, Csus4, etc.
-        const chordTokenRegex = /\b[A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|2|4|5|6|7|9|11|13)*\d*(?:\/[A-G][#b]?)?\b/g;
-        
-        const matches = trimmed.match(chordTokenRegex) || [];
-        if (matches.length === 0) return false;
+        // Filter out common words that might look like chords (I, A)
+        // We count how many tokens look like chords vs how many don't.
+        const tokens = trimmed.split(/\s+/);
+        let chordCount = 0;
+        let nonChordCount = 0;
 
-        const chordCharsCount = matches.join('').length;
-        const totalNonSpaceChars = trimmed.replace(/\s/g, '').length;
-        
-        // Heuristic: If > 50% of non-space characters are chords, it's a chord line
-        return (chordCharsCount / totalNonSpaceChars) > 0.5;
+        // Strict Regex for a single chord token
+        const strictChordRegex = /^[A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|2|4|5|6|7|9|11|13)*\d*(?:\/[A-G][#b]?)?$/;
+
+        for (const token of tokens) {
+            // Remove structural chars like brackets or bars for checking
+            const cleanToken = token.replace(/[\(\)\[\]\|]/g, '');
+            if (strictChordRegex.test(cleanToken)) {
+                chordCount++;
+            } else {
+                // Allow some noise like "-", "|", or purely numeric tab markers, but penalize actual words
+                if (/[a-z]{2,}/i.test(cleanToken)) {
+                    nonChordCount++; 
+                }
+            }
+        }
+
+        // It's a chord line if valid chords outnumber actual words
+        if (nonChordCount === 0 && chordCount > 0) return true;
+        return chordCount > nonChordCount;
     };
 
     const convertRawToChordPro = (fullText: string) => {
-        const lines = fullText.split(/\r?\n/);
+        // 1. Pre-process: Expand tabs to spaces to ensure visual alignment corresponds to string index
+        const expandedText = fullText.replace(/\t/g, '    ').replace(/\r\n/g, '\n');
+        const lines = expandedText.split('\n');
         const resultLines: string[] = [];
         
-        // Auto-Title Detection (First non-empty line)
+        // Auto-Title Detection
         let detectedTitle = "";
         let detectedArtist = "";
-        
-        // Find first few non-empty lines
         const nonEmptyLines = lines.filter(l => l.trim().length > 0);
         if (nonEmptyLines.length > 0) detectedTitle = nonEmptyLines[0].trim();
         if (nonEmptyLines.length > 1) {
@@ -112,10 +125,10 @@ const ManualEntry: React.FC = () => {
         }
 
         for (let i = 0; i < lines.length; i++) {
-            const line = lines[i]; // Keep original line for indexing
+            const line = lines[i]; // Preserve indentation
             const trimmed = line.trim();
 
-            // 1. Clean Metadata
+            // Skip metadata lines that clutter output
             if (/^(Tuning|Capo|Key|Difficulty|Strumming|Author|Tempo):/i.test(trimmed)) continue;
             if (!trimmed) {
                 resultLines.push(""); 
@@ -126,54 +139,62 @@ const ManualEntry: React.FC = () => {
             if (isChordLine(line)) {
                 const nextLine = lines[i + 1];
                 
-                // Case A: Merge with Lyrics (Zipper)
+                // Check if next line is a valid lyric line (exists, not empty, not another chord line)
                 if (nextLine && !isChordLine(nextLine) && nextLine.trim().length > 0) {
-                    // Find all chords and their indices in the source line
-                    const chordTokenRegex = /[A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|2|4|5|6|7|9|11|13)*\d*(?:\/[A-G][#b]?)?/g;
-                    const chords = [];
+                    
+                    // --- MERGE LOGIC (Left-to-Right) ---
+                    let mergedLine = "";
+                    let lyricCursor = 0;
+                    
+                    // Find all chords and their indices
+                    const chordRegex = /[A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|2|4|5|6|7|9|11|13)*\d*(?:\/[A-G][#b]?)?/g;
                     let match;
-                    while ((match = chordTokenRegex.exec(line)) !== null) {
-                        chords.push({ text: match[0], index: match.index });
-                    }
-
-                    // We build the new line by inserting chords into the lyric line at specific indices
-                    // Processing from Right to Left avoids index shifting issues!
-                    let mergedLine = nextLine;
                     
-                    // Sort chords descending by index
-                    chords.sort((a, b) => b.index - a.index);
+                    while ((match = chordRegex.exec(line)) !== null) {
+                        const chord = match[0];
+                        const index = match.index;
 
-                    for (const chord of chords) {
-                        const idx = chord.index;
-                        const chordTag = `[${chord.text}]`;
-
-                        if (idx >= mergedLine.length) {
-                            // Pad with spaces if chord is beyond current lyric length
-                            mergedLine = mergedLine.padEnd(idx, ' ') + chordTag;
-                        } else {
-                            // Insert at index
-                            mergedLine = mergedLine.slice(0, idx) + chordTag + mergedLine.slice(idx);
+                        // 1. Append lyrics that appear BEFORE this chord
+                        if (index > lyricCursor) {
+                            if (lyricCursor < nextLine.length) {
+                                mergedLine += nextLine.slice(lyricCursor, index);
+                            } else {
+                                // If chord is beyond the length of lyrics, pad with spaces
+                                mergedLine += " ".repeat(index - lyricCursor);
+                            }
+                            
+                            // Ensure we are at least at the chord's index visually
+                            if (mergedLine.length < index) {
+                                mergedLine = mergedLine.padEnd(index, ' ');
+                            }
+                            
+                            lyricCursor = index;
                         }
+
+                        // 2. Insert the chord in brackets
+                        mergedLine += `[${chord}]`;
                     }
-                    
+
+                    // 3. Append any remaining lyrics after the last chord
+                    if (lyricCursor < nextLine.length) {
+                        mergedLine += nextLine.slice(lyricCursor);
+                    }
+
                     resultLines.push(mergedLine);
-                    i++; // Skip next line (lyrics) as it's merged
+                    i++; // Skip the next line (lyrics) since we merged it
                 } 
-                // Case B: Orphaned Chords (Intro/Instrumental) -> Wrap in brackets
                 else {
-                    const chordTokenRegex = /\b([A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|2|4|5|6|7|9|11|13)*\d*(?:\/[A-G][#b]?)?)\b/g;
-                    // Only wrap if not already wrapped
-                    const wrapped = line.replace(chordTokenRegex, (match) => {
-                        return `[${match}]`; 
-                    });
-                    // Clean up double brackets just in case [[C]] -> [C]
-                    resultLines.push(wrapped.replace(/\[\[/g, '[').replace(/\]\]/g, ']'));
+                    // Orphaned Chord Line (e.g., Intro, Outro, or Solo)
+                    // Just wrap chords in brackets so they render as chords, not lyrics
+                    const chordRegex = /\b([A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|2|4|5|6|7|9|11|13)*\d*(?:\/[A-G][#b]?)?)\b/g;
+                    resultLines.push(line.replace(chordRegex, '[$1]'));
                 }
             } else {
                 // Regular Lyric Line or Header
-                if (/^(Chorus|Verse|Bridge|Intro|Outro|Reff).*:/i.test(trimmed) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
-                    // It's likely a header
-                    resultLines.push(trimmed);
+                if (/^\[.+\]$/.test(trimmed) || /^(Chorus|Verse|Bridge|Intro|Outro|Reff).*:/i.test(trimmed)) {
+                    // Format headers
+                    const cleanHeader = trimmed.replace(/[:\[\]]/g, '').trim();
+                    resultLines.push(`{comment: ${cleanHeader}}`);
                 } else {
                     resultLines.push(line);
                 }
