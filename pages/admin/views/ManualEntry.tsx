@@ -85,14 +85,18 @@ const ManualEntry: React.FC = () => {
             });
 
             if (error) {
-                console.error("Edge Function Error:", error);
-                if (error.message?.includes("404") || error.message?.includes("not found") || error.context?.status === 404) {
-                    throw new Error("Scraper Service not deployed. Please run 'supabase functions deploy scrape-song'.");
+                console.error("Edge Function Invocation Error:", error);
+                // Handle specific invocation errors
+                if (error.code === 'FUNCTIONS_HTTP_STATUS_404') {
+                    throw new Error("Scraper Function not deployed. Please run 'supabase functions deploy scrape-song'.");
                 }
                 throw error;
             }
             
-            if (data?.error) throw new Error(data.error);
+            // Check if function returned logical error
+            if (data?.error) {
+                throw new Error(data.error);
+            }
 
             setFormData(prev => ({
                 ...prev,
@@ -101,10 +105,11 @@ const ManualEntry: React.FC = () => {
                 rawText: data.rawText || prev.rawText
             }));
 
-            setImportStatus({ type: 'success', msg: 'Import successful! Converted to ChordPro.' });
+            setImportStatus({ type: 'success', msg: `Successfully imported "${data.title}"` });
             setImportUrl('');
         } catch (err: any) {
-            setImportStatus({ type: 'error', msg: err.message || 'Import failed.' });
+            console.error("Import Logic Error:", err);
+            setImportStatus({ type: 'error', msg: err.message || 'Import failed due to network error.' });
         } finally {
             setIsImporting(false);
         }
