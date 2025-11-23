@@ -165,6 +165,15 @@ const ContentManager: React.FC = () => {
                                             className="w-full p-3 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 outline-none resize-none"
                                         />
                                     </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold uppercase text-slate-500">Founder Credits (Bottom Text)</label>
+                                        <input 
+                                            value={editContent.founded_text || ''} 
+                                            onChange={(e) => updateField('founded_text', e.target.value)}
+                                            className="w-full p-3 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 outline-none font-mono text-xs"
+                                            placeholder="Founded in 2024 by RJ..."
+                                        />
+                                    </div>
                                 </>
                             )}
                             {selectedPage === 'footer' && (
@@ -183,11 +192,12 @@ const ContentManager: React.FC = () => {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-xs font-bold uppercase text-slate-500">Copyright Text</label>
+                                        <label className="text-xs font-bold uppercase text-slate-500">Copyright Text (Year auto-generated)</label>
                                         <input 
                                             value={editContent.copyright_text || ''} 
                                             onChange={(e) => updateField('copyright_text', e.target.value)}
                                             className="w-full p-3 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 outline-none"
+                                            placeholder="YourChords AI. All rights reserved."
                                         />
                                     </div>
                                 </>

@@ -120,6 +120,7 @@ INSERT INTO public.page_content (id, content) VALUES
     "subtitle": "We merge advanced AI with musical passion to create the ultimate learning platform.",
     "mission_title": "Our Mission",
     "mission_text": "To democratize music theory and accessibility. We believe every song should be playable, every chord understood, and every musician empowered with the best tools available.",
+    "founded_text": "Founded in 2024 by RJ. Powered by RJ.",
     "features": [
       { "title": "Neural Analysis", "desc": "Proprietary AI algorithms dissect audio to provide 99% accurate chords." },
       { "title": "Global Library", "desc": "A user-driven database connecting musicians from every corner of the world." },
