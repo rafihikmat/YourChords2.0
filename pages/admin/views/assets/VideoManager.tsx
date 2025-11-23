@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Save, ToggleRight, ToggleLeft, PlayCircle, Video, RefreshCw, ExternalLink, Image as ImageIcon, Edit2, X, Youtube, AlertCircle, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Plus, Trash2, Save, ToggleRight, ToggleLeft, PlayCircle, RefreshCw, ExternalLink, Image as ImageIcon, Edit2, X, Youtube, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../../../../lib/supabase';
 import { VideoTutorial } from '../../../../types';
 import { cn, fuzzySearch } from '../../../../lib/utils';
@@ -30,7 +30,6 @@ export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
             if (extractedId) {
                 setVideoForm(prev => ({ ...prev, video_id: extractedId }));
             } else if (inputUrl.length === 11) {
-                // Fallback for raw ID paste
                 setVideoForm(prev => ({ ...prev, video_id: inputUrl }));
             }
         }
@@ -70,7 +69,6 @@ export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
         let success = false;
         let errorMessage = "";
         
-        // Strategy 1: Supabase Edge Function (Primary - uses API Key for full details)
         try {
             const { data, error } = await supabase.functions.invoke('get-video-details', {
                 body: { videoId: targetId }
@@ -92,12 +90,11 @@ export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
             errorMessage = err.message;
         }
 
-        // Strategy 2: NoEmbed (Fallback - Client side, no API key needed)
         if (!success) {
+            // Fallback to NoEmbed
             try {
                 const response = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${targetId}`);
                 const data = await response.json();
-                
                 if (data.error) throw new Error(data.error);
 
                 setVideoForm(prev => ({
@@ -109,11 +106,10 @@ export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
                 }));
                 success = true;
             } catch (err) {
-                console.warn('Fallback failed:', err);
+                 console.warn('Fallback failed:', err);
             }
         }
 
-        // Final Result Handling
         if (!success) {
              const fallbackThumb = `https://img.youtube.com/vi/${targetId}/maxresdefault.jpg`;
              setVideoForm(prev => ({
@@ -123,15 +119,13 @@ export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
             }));
             setStatus({ 
                 type: 'error', 
-                message: `Auto-fill failed (${errorMessage || 'Service unavailable'}). ID set, please fill Title manually.` 
+                message: `Auto-fill failed. ID set, please fill Title manually.` 
             });
         } else {
             if (!editingVideoId) setInputUrl(targetId);
             setStatus({ type: 'success', message: 'Metadata retrieved successfully.' });
-            // Clear success message after 3 seconds
             setTimeout(() => setStatus(null), 3000);
         }
-
         setMetadataLoading(false);
     };
 
@@ -204,6 +198,22 @@ export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
 
     const filteredVideos = fuzzySearch<VideoTutorial>(videos, searchTerm, ['title', 'channel_title', 'video_id']);
 
+    // Memoize Player to prevent reloading during typing
+    const previewPlayer = useMemo(() => {
+        if (!videoForm.video_id) return null;
+        return (
+            <div 
+                className="rounded-lg overflow-hidden border border-slate-200 dark:border-white/10 bg-black aspect-video relative group"
+                style={{ contain: 'content' }}
+            >
+                <YouTubePlayer videoId={videoForm.video_id} />
+                <div className="absolute top-2 right-2 px-2 py-1 bg-red-600 text-white text-[10px] font-bold rounded uppercase shadow-md pointer-events-none">
+                    Preview
+                </div>
+            </div>
+        );
+    }, [videoForm.video_id]);
+
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in slide-in-from-right-4 duration-300">
             {/* LEFT COLUMN: CREATE/EDIT FORM */}
@@ -260,24 +270,14 @@ export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
                             )}
                         </div>
 
-                        {/* Video Preview (If ID exists) - ISOLATED FOR PERFORMANCE */}
-                        {videoForm.video_id && (
-                            <div 
-                                className="rounded-lg overflow-hidden border border-slate-200 dark:border-white/10 bg-black aspect-video relative group"
-                                style={{ contain: 'content' }}
-                            >
-                                <YouTubePlayer videoId={videoForm.video_id} />
-                                <div className="absolute top-2 right-2 px-2 py-1 bg-red-600 text-white text-[10px] font-bold rounded uppercase shadow-md pointer-events-none">
-                                    Preview
-                                </div>
-                            </div>
-                        )}
+                        {/* Video Preview - ISOLATED */}
+                        {previewPlayer}
 
                         <div>
                             <label className="text-xs text-slate-500 uppercase font-bold mb-1 block">Title</label>
                             <input 
                                 value={videoForm.title} 
-                                onChange={e => setVideoForm({...videoForm, title: e.target.value})} 
+                                onChange={e => setVideoForm(prev => ({...prev, title: e.target.value}))} 
                                 className="w-full p-2 rounded border bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-sm focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none" 
                                 placeholder="Video Title"
                                 required 
@@ -288,7 +288,7 @@ export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
                             <label className="text-xs text-slate-500 uppercase font-bold mb-1 block">Channel Name</label>
                             <input 
                                 value={videoForm.channel_title} 
-                                onChange={e => setVideoForm({...videoForm, channel_title: e.target.value})} 
+                                onChange={e => setVideoForm(prev => ({...prev, channel_title: e.target.value}))} 
                                 className="w-full p-2 rounded border bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-sm focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none" 
                                 placeholder="Channel Name"
                                 required 
@@ -308,7 +308,7 @@ export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
                                 <ImageIcon className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                                 <input 
                                     value={videoForm.thumbnail_url} 
-                                    onChange={e => setVideoForm({...videoForm, thumbnail_url: e.target.value})} 
+                                    onChange={e => setVideoForm(prev => ({...prev, thumbnail_url: e.target.value}))} 
                                     className="w-full pl-9 p-2 rounded border bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-sm focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none truncate" 
                                     placeholder="https://..."
                                     required 
@@ -316,7 +316,6 @@ export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
                             </div>
                         </div>
 
-                        {/* Status Message */}
                         {status && (
                             <div className={cn(
                                 "p-3 rounded-lg text-xs flex items-center gap-2",
@@ -376,32 +375,13 @@ export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
                                 </div>
 
                                 <div className="flex flex-col gap-2 items-end py-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                                    <button 
-                                        onClick={() => toggleVideoActive(video.video_id, (video as any).is_active)}
-                                        className={cn(
-                                            "flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold uppercase transition-colors w-24 justify-center",
-                                            (video as any).is_active !== false 
-                                                ? "bg-green-500/10 text-green-600 border border-green-500/20" 
-                                                : "bg-slate-200 dark:bg-slate-800 text-slate-500 border border-slate-300 dark:border-slate-700"
-                                        )}
-                                    >
+                                    <button onClick={() => toggleVideoActive(video.video_id, (video as any).is_active)} className={cn("flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold uppercase transition-colors w-24 justify-center", (video as any).is_active !== false ? "bg-green-500/10 text-green-600 border border-green-500/20" : "bg-slate-200 dark:bg-slate-800 text-slate-500 border border-slate-300 dark:border-slate-700")}>
                                         {(video as any).is_active !== false ? <ToggleRight className="w-3 h-3" /> : <ToggleLeft className="w-3 h-3" />}
                                         {(video as any).is_active !== false ? "Active" : "Hidden"}
                                     </button>
-                                    
                                     <div className="flex gap-2">
-                                        <button 
-                                            onClick={() => handleEditVideo(video)}
-                                            className="flex items-center gap-1 px-3 py-1 rounded-lg text-[10px] font-bold text-yellow-600 hover:bg-yellow-50 dark:text-yellow-500 dark:hover:bg-yellow-900/20 transition-colors"
-                                        >
-                                            <Edit2 className="w-3 h-3" /> Edit
-                                        </button>
-                                        <button 
-                                            onClick={() => handleDeleteVideo(video.video_id)}
-                                            className="flex items-center gap-1 px-3 py-1 rounded-lg text-[10px] font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                                        >
-                                            <Trash2 className="w-3 h-3" /> Remove
-                                        </button>
+                                        <button onClick={() => handleEditVideo(video)} className="flex items-center gap-1 px-3 py-1 rounded-lg text-[10px] font-bold text-yellow-600 hover:bg-yellow-50 dark:text-yellow-500 dark:hover:bg-yellow-900/20 transition-colors"><Edit2 className="w-3 h-3" /> Edit</button>
+                                        <button onClick={() => handleDeleteVideo(video.video_id)} className="flex items-center gap-1 px-3 py-1 rounded-lg text-[10px] font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"><Trash2 className="w-3 h-3" /> Remove</button>
                                     </div>
                                 </div>
                             </div>
