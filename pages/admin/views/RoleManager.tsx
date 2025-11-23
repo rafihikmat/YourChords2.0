@@ -3,8 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../contexts/AuthContext';
 import { Profile } from '../../../types';
-import { cn, fuzzySearch } from '../../../lib/utils';
+import { cn } from '../../../lib/utils';
 import { Search, Shield, UserCog, AlertCircle } from 'lucide-react';
+import { useSmartSearch } from '../../../lib/hooks/useSmartSearch';
 
 const RoleManager: React.FC = () => {
     const [users, setUsers] = useState<Profile[]>([]);
@@ -52,7 +53,10 @@ const RoleManager: React.FC = () => {
         }
     };
 
-    const filteredUsers = fuzzySearch<Profile>(users, searchQuery, ['full_name', 'id']).filter(u => 
+    // Apply Smart Search Logic
+    const searchResults = useSmartSearch(users, searchQuery, ['full_name', 'id']);
+
+    const filteredUsers = searchResults.filter(u => 
         roleFilter === 'all' ? true : u.role === roleFilter
     );
 

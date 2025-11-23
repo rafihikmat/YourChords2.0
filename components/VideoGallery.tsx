@@ -8,10 +8,9 @@ import YouTubePlayer from './YouTubePlayer';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import Fuse from 'fuse.js';
+import { useSmartSearch } from '../lib/hooks/useSmartSearch';
 
 export const VideoGallery: React.FC = () => {
-  const [videos, setVideos] = useState<VideoTutorial[]>([]);
   const [allVideos, setAllVideos] = useState<VideoTutorial[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -36,9 +35,7 @@ export const VideoGallery: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (data) {
-          const vids = data as unknown as VideoTutorial[];
-          setAllVideos(vids);
-          setVideos(vids);
+          setAllVideos(data as unknown as VideoTutorial[]);
       }
     } finally {
       setLoading(false);
@@ -47,9 +44,6 @@ export const VideoGallery: React.FC = () => {
 
   const fetchFavorites = async () => {
       if (!user) return;
-      // Assuming a video_favorites table exists or reusing structure. 
-      // If table doesn't exist, this might fail silently or error depending on backend.
-      // Based on typical patterns, we fetch where user_id matches.
       const { data } = await supabase.from('video_favorites').select('video_id').eq('user_id', user.id);
       if (data) {
           setFavoriteIds(data.map((item: any) => item.video_id));
@@ -74,23 +68,8 @@ export const VideoGallery: React.FC = () => {
       }
   };
 
-  // Fuse.js Implementation
-  useEffect(() => {
-    if (searchQuery.trim().length < 2) {
-        setVideos(allVideos);
-        return;
-    }
-
-    const fuse = new Fuse(allVideos, {
-        keys: ['title', 'channel_title'],
-        threshold: 0.4,
-        distance: 100,
-        minMatchCharLength: 2,
-    });
-
-    const results = fuse.search(searchQuery);
-    setVideos(results.map(result => result.item));
-  }, [searchQuery, allVideos]);
+  // Use the new Smart Search Hook
+  const filteredVideos = useSmartSearch(allVideos, searchQuery, ['title', 'channel_title']);
 
   return (
     <div className="space-y-8">
@@ -121,13 +100,13 @@ export const VideoGallery: React.FC = () => {
               [1,2,3].map(i => (
                   <div key={i} className="aspect-video bg-slate-200 dark:bg-white/5 rounded-xl animate-pulse" />
               ))
-          ) : videos.length === 0 ? (
+          ) : filteredVideos.length === 0 ? (
               <div className="col-span-full py-12 text-center bg-slate-100 dark:bg-white/5 rounded-2xl border border-slate-200 dark:border-white/5">
                   <Video className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
                   <p className="text-slate-500 font-medium">No tutorials found matching "{searchQuery}"</p>
               </div>
           ) : (
-              videos.map((video) => (
+              filteredVideos.map((video) => (
                   <motion.div 
                     layoutId={video.video_id}
                     key={video.video_id} 

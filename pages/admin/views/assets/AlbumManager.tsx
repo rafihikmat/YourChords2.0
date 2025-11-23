@@ -3,7 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Disc3, Edit2, Save, X, Image as ImageIcon } from 'lucide-react';
 import { supabase } from '../../../../lib/supabase';
 import { Album } from '../../../../types';
-import { fuzzySearch, cn } from '../../../../lib/utils';
+import { cn } from '../../../../lib/utils';
+import { useSmartSearch } from '../../../../lib/hooks/useSmartSearch';
 
 interface AlbumManagerProps {
     searchTerm: string;
@@ -86,7 +87,8 @@ export const AlbumManager: React.FC<AlbumManagerProps> = ({ searchTerm }) => {
         setEditingId(null);
     };
 
-    const filteredAlbums = fuzzySearch<Album>(albums, searchTerm, ['title', 'artist']);
+    // Use Smart Search Hook
+    const filteredAlbums = useSmartSearch(albums, searchTerm, ['title', 'artist']);
 
     return (
         <div className="space-y-8 animate-in slide-in-from-right-4 duration-300">

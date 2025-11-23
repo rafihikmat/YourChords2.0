@@ -3,8 +3,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Trash2, Save, ToggleRight, ToggleLeft, PlayCircle, RefreshCw, ExternalLink, Image as ImageIcon, Edit2, X, Youtube, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../../../../lib/supabase';
 import { VideoTutorial } from '../../../../types';
-import { cn, fuzzySearch } from '../../../../lib/utils';
+import { cn } from '../../../../lib/utils';
 import YouTubePlayer from '../../../../components/YouTubePlayer';
+import { useSmartSearch } from '../../../../lib/hooks/useSmartSearch';
 
 interface VideoManagerProps {
     searchTerm: string;
@@ -196,7 +197,8 @@ export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
         setStatus(null);
     };
 
-    const filteredVideos = fuzzySearch<VideoTutorial>(videos, searchTerm, ['title', 'channel_title', 'video_id']);
+    // Use Smart Search Hook
+    const filteredVideos = useSmartSearch(videos, searchTerm, ['title', 'channel_title', 'video_id']);
 
     // Memoize Player to prevent reloading during typing
     const previewPlayer = useMemo(() => {

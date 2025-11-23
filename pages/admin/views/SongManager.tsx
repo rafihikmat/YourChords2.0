@@ -4,7 +4,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Search, ExternalLink, Edit, Trash2, Disc3, Eye } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { Song, Album } from '../../../types';
-import { cn, fuzzySearch, DIFFICULTY_COLORS } from '../../../lib/utils';
+import { cn, DIFFICULTY_COLORS } from '../../../lib/utils';
+import { useSmartSearch } from '../../../lib/hooks/useSmartSearch';
 
 const SongManager: React.FC = () => {
     const [songs, setSongs] = useState<Song[]>([]);
@@ -55,7 +56,10 @@ const SongManager: React.FC = () => {
         }
     };
 
-    const filteredSongs = fuzzySearch<Song>(songs, searchTerm, ['title', 'artist']).filter(s => 
+    // Implementation of Smart Search
+    const searchResults = useSmartSearch(songs, searchTerm, ['title', 'artist']);
+    
+    const filteredSongs = searchResults.filter(s => 
         difficultyFilter ? s.difficulty === difficultyFilter : true
     );
 
