@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Loader2 } from "lucide-react";
+import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Loader2, AlertTriangle } from "lucide-react";
 import { cn, formatTime } from "../lib/utils";
 
 interface YouTubePlayerProps {
@@ -20,176 +20,162 @@ declare global {
 const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoId, className, onTimeUpdate, onReady }) => {
   const playerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const rafIdRef = useRef<number | null>(null);
   
-  // Direct DOM Refs (Performance Optimization)
-  const progressBarRef = useRef<HTMLDivElement>(null);
-  const thumbRef = useRef<HTMLDivElement>(null);
-  const timeTextRef = useRef<HTMLSpanElement>(null);
-  const rangeInputRef = useRef<HTMLInputElement>(null);
-  
-  // Keep latest callback ref to prevent Effect re-runs
-  const onTimeUpdateRef = useRef(onTimeUpdate);
-  useEffect(() => { onTimeUpdateRef.current = onTimeUpdate; }, [onTimeUpdate]);
-
   // State
+  const [isReady, setIsReady] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(50);
   const [isMuted, setIsMuted] = useState(false);
-  const [isReady, setIsReady] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
-  // --- GPU Optimized Animation Loop ---
-  const updateLoop = useCallback(() => {
-    if (!playerRef.current || !playerRef.current.getCurrentTime) return;
-
-    const time = playerRef.current.getCurrentTime();
-    const safeDuration = duration || 1;
-    const ratio = time / safeDuration; // 0 to 1
-    const percent = ratio * 100;
-
-    // 1. GPU Updates: Use transforms instead of width/left to avoid Layout Thrashing
-    if (progressBarRef.current) {
-        progressBarRef.current.style.transform = `scaleX(${ratio})`;
-    }
-    if (thumbRef.current) {
-        // We use percentage for left because translate depends on element width which is small
-        // But to be super optimized, we can use a container width approach. 
-        // For simplicity and "good enough" performance, left% is okay if we don't read it back.
-        // Better: Use translate on a 100% width container? 
-        // Current: direct style update is fine if we don't read layout properties.
-        thumbRef.current.style.left = `${percent}%`;
-    }
-
-    // 2. Text Update
-    if (timeTextRef.current) {
-        timeTextRef.current.textContent = formatTime(time);
-    }
-
-    // 3. External Callback (Throttled by parent logic usually, but safe to call)
-    if (onTimeUpdateRef.current) {
-        onTimeUpdateRef.current(time);
-    }
-    
-    if (isPlaying) {
-        rafIdRef.current = requestAnimationFrame(updateLoop);
-    }
-  }, [isPlaying, duration]);
-
+  // --- 1. Initialization Logic (Fixes Black Screen Race Condition) ---
   useEffect(() => {
-    if (isPlaying) {
-        rafIdRef.current = requestAnimationFrame(updateLoop);
-    } else {
-        if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
-        // Sync input one last time when pausing so dragging works correctly
-        if (playerRef.current && rangeInputRef.current) {
-             rangeInputRef.current.value = playerRef.current.getCurrentTime().toString();
-        }
-    }
-    return () => {
-        if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
-    };
-  }, [isPlaying, updateLoop]);
+    if (!videoId) return;
 
-  // --- Initialization ---
-  useEffect(() => {
-    if (!window.YT) {
-      const tag = document.createElement('script');
-      tag.src = 'https://www.youtube.com/iframe_api';
-      const firstScriptTag = document.getElementsByTagName('script')[0];
-      firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
-    }
+    let isMounted = true;
+    setIsReady(false);
+    setHasError(false);
 
-    const createPlayer = () => {
-        if (!containerRef.current) return;
-        // Cleanup existing
+    const loadVideo = () => {
+      if (!containerRef.current) return;
+
+      try {
+        // Cleanup existing instance if any
         if (playerRef.current) {
-            try { playerRef.current.destroy(); } catch(e) {}
+            playerRef.current.destroy();
         }
 
         playerRef.current = new window.YT.Player(containerRef.current, {
-            videoId: videoId,
-            height: '100%',
-            width: '100%',
-            playerVars: {
-                autoplay: 0,
-                controls: 0,
-                disablekb: 1,
-                fs: 0,
-                iv_load_policy: 3,
-                modestbranding: 1,
-                rel: 0,
-                showinfo: 0,
-                playsinline: 1,
-                origin: window.location.origin
+          videoId: videoId,
+          height: '100%',
+          width: '100%',
+          playerVars: {
+            autoplay: 0,
+            controls: 0,
+            disablekb: 1,
+            fs: 0,
+            iv_load_policy: 3,
+            modestbranding: 1,
+            rel: 0,
+            showinfo: 0,
+            playsinline: 1,
+            origin: window.location.origin
+          },
+          events: {
+            onReady: (event: any) => {
+              if (isMounted) {
+                setIsReady(true);
+                setDuration(event.target.getDuration());
+                event.target.setVolume(volume);
+                if (onReady) onReady();
+              }
             },
-            events: {
-                onReady: (event: any) => {
-                    setIsReady(true);
-                    setDuration(event.target.getDuration());
-                    event.target.setVolume(volume);
-                    onReady?.();
-                },
-                onStateChange: (event: any) => {
-                    const playing = event.data === window.YT.PlayerState.PLAYING;
-                    setIsPlaying(playing);
-                    if (playing) {
-                        const dur = event.target.getDuration();
-                        if(dur) setDuration(dur);
-                    }
-                },
+            onStateChange: (event: any) => {
+              if (!isMounted) return;
+              const playing = event.data === window.YT.PlayerState.PLAYING;
+              setIsPlaying(playing);
+              
+              // Ensure duration is captured if it wasn't ready earlier
+              if (playing && !duration) {
+                 setDuration(event.target.getDuration());
+              }
             },
+            onError: (e: any) => {
+                console.error("YouTube Player Error:", e);
+                if (isMounted) setHasError(true);
+            }
+          },
         });
+      } catch (e) {
+        console.error("Error initializing YT Player", e);
+        setHasError(true);
+      }
     };
 
+    // CRITICAL FIX: Check if API is ALREADY ready
     if (window.YT && window.YT.Player) {
-        createPlayer();
+      loadVideo();
     } else {
-        const existingCallback = window.onYouTubeIframeAPIReady;
-        window.onYouTubeIframeAPIReady = () => {
-            if (existingCallback) existingCallback();
-            createPlayer();
-        };
+      // If not, check if script tag exists
+      const existingScript = document.querySelector('script[src="https://www.youtube.com/iframe_api"]');
+      if (!existingScript) {
+        const tag = document.createElement('script');
+        tag.src = 'https://www.youtube.com/iframe_api';
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+      }
+
+      // Hook into the global callback
+      const previousCallback = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => {
+        if (previousCallback) previousCallback();
+        loadVideo();
+      };
     }
 
+    // Fallback: If YouTube API hangs, show error state after 5 seconds so UI isn't stuck
+    const fallbackTimer = setTimeout(() => {
+        if (!isReady && !playerRef.current) {
+            setHasError(true);
+        }
+    }, 5000);
+
+    // Cleanup function
     return () => {
-      // Strict cleanup to prevent memory leaks
-      if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
-      if (playerRef.current) {
-        try { playerRef.current.destroy(); } catch(e) {}
+      isMounted = false;
+      clearTimeout(fallbackTimer);
+      if (playerRef.current && typeof playerRef.current.destroy === 'function') {
+        try {
+            playerRef.current.destroy();
+        } catch (e) {
+            // Ignore destroy errors on unmount
+        }
       }
     };
   }, [videoId]);
 
+  // --- 2. Performance Optimized Loop (Fixes Lag) ---
+  useEffect(() => {
+    if (!isPlaying || !isReady) return;
+
+    // Updates UI every 800ms instead of 100ms
+    // We use CSS transitions on the progress bar to smooth the movement
+    const interval = setInterval(() => {
+      if (playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
+        const time = playerRef.current.getCurrentTime();
+        setCurrentTime(time);
+        if (onTimeUpdate) onTimeUpdate(time);
+      }
+    }, 800);
+
+    return () => clearInterval(interval);
+  }, [isPlaying, isReady, onTimeUpdate]);
+
   // --- Controls ---
   const togglePlay = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    if (!playerRef.current || !isReady) return;
+    if (!playerRef.current) return;
     if (isPlaying) playerRef.current.pauseVideo();
     else playerRef.current.playVideo();
   };
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const time = parseFloat(e.target.value);
-    // Immediate UI feedback
-    const ratio = time / (duration || 1);
-    const percent = ratio * 100;
-    
-    if (progressBarRef.current) progressBarRef.current.style.transform = `scaleX(${ratio})`;
-    if (thumbRef.current) thumbRef.current.style.left = `${percent}%`;
-    if (timeTextRef.current) timeTextRef.current.textContent = formatTime(time);
-    
-    if (playerRef.current) playerRef.current.seekTo(time, true);
+    setCurrentTime(time); // Immediate UI update
+    if (playerRef.current) {
+      playerRef.current.seekTo(time, true);
+    }
   };
 
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newVol = parseInt(e.target.value);
-    setVolume(newVol);
-    if (playerRef.current) {
-      playerRef.current.setVolume(newVol);
-      if (newVol > 0 && isMuted) setIsMuted(false);
-    }
+  const skip = (seconds: number, e?: React.MouseEvent) => {
+      e?.stopPropagation();
+      if (!playerRef.current) return;
+      const newTime = Math.min(Math.max(currentTime + seconds, 0), duration);
+      setCurrentTime(newTime);
+      playerRef.current.seekTo(newTime, true);
   };
 
   const toggleMute = (e?: React.MouseEvent) => {
@@ -204,24 +190,37 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoId, className, onTim
       }
   };
 
-  const skip = (seconds: number, e?: React.MouseEvent) => {
-      e?.stopPropagation();
-      if (!playerRef.current || !playerRef.current.getCurrentTime) return;
-      const curr = playerRef.current.getCurrentTime();
-      const newTime = Math.min(Math.max(curr + seconds, 0), duration);
-      playerRef.current.seekTo(newTime, true);
-      if (rangeInputRef.current) rangeInputRef.current.value = newTime.toString();
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newVol = parseInt(e.target.value);
+    setVolume(newVol);
+    if (playerRef.current) {
+      playerRef.current.setVolume(newVol);
+      if (newVol > 0 && isMuted) setIsMuted(false);
+    }
   };
+
+  // --- UI Render ---
+  if (hasError) {
+      return (
+          <div className={cn("aspect-video w-full bg-slate-900 rounded-xl flex flex-col items-center justify-center text-slate-500 border border-slate-800", className)}>
+              <AlertTriangle className="w-10 h-10 mb-2 text-yellow-500" />
+              <p className="text-sm font-medium">Video unavailable</p>
+              <p className="text-xs opacity-60">Check ID or connection</p>
+          </div>
+      );
+  }
 
   return (
     <div 
-        className={cn("group relative rounded-xl overflow-hidden bg-black shadow-2xl border border-slate-800 isolate transform-gpu", className)}
+        className={cn("group relative rounded-xl overflow-hidden bg-black shadow-2xl border border-slate-800 isolate", className)}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        style={{ transform: 'translateZ(0)' }} // Force hardware acceleration
     >
       <div className="aspect-video w-full relative bg-black">
+         {/* The Iframe Container */}
          <div ref={containerRef} className="w-full h-full" />
+         
+         {/* Loading Overlay */}
          {!isReady && (
              <div className="absolute inset-0 flex items-center justify-center bg-slate-900 text-slate-500 z-10">
                  <Loader2 className="w-8 h-8 animate-spin" />
@@ -233,42 +232,27 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoId, className, onTim
       <div 
         className={cn(
             "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-4 transition-opacity duration-300 flex flex-col gap-2 z-20",
-            isHovered || !isPlaying ? "opacity-100" : "opacity-0"
+            (isHovered || !isPlaying) && isReady ? "opacity-100" : "opacity-0"
         )}
       >
          {/* Progress Bar */}
          <div className="flex items-center gap-3 text-xs font-mono text-slate-300 select-none">
-             <span ref={timeTextRef} className="w-10 text-right">0:00</span>
+             <span className="w-10 text-right">{formatTime(currentTime)}</span>
              <div className="flex-1 relative h-1 bg-white/20 rounded-full group/slider cursor-pointer overflow-hidden">
-                 {/* Input is purely for interaction, visual is handled by divs below */}
                  <input 
-                    ref={rangeInputRef}
                     type="range" 
                     min="0" 
                     max={duration || 100} 
-                    step="0.1" 
-                    defaultValue="0"
+                    step="1" 
+                    value={currentTime} 
                     onChange={handleSeek} 
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-30" 
                  />
-                 
-                 {/* Visual Progress Bar (Hardware Accelerated) */}
                  <div 
-                    ref={progressBarRef}
-                    className="absolute top-0 left-0 h-full w-full bg-primary origin-left will-change-transform" 
-                    style={{ transform: 'scaleX(0)' }} 
+                    className="absolute top-0 left-0 h-full bg-primary transition-all duration-500 ease-linear will-change-[width]" 
+                    style={{ width: `${(currentTime / (duration || 1)) * 100}%` }} 
                  />
              </div>
-             
-             {/* Independent Thumb (Hardware Accelerated) */}
-             <div className="relative w-0 h-0">
-                 <div 
-                    ref={thumbRef}
-                    className="absolute -top-[5px] -left-[6px] w-3 h-3 bg-white rounded-full shadow pointer-events-none opacity-0 group-hover/slider:opacity-100 transition-opacity will-change-[left]" 
-                    style={{ left: '0%' }} 
-                 />
-             </div>
-
              <span className="w-10">{formatTime(duration)}</span>
          </div>
 
@@ -296,5 +280,5 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoId, className, onTim
   );
 };
 
-// Robust Memoization: Only re-render if Video ID changes
-export default React.memo(YouTubePlayer, (prev, next) => prev.videoId === next.videoId);
+// Memoize to prevent re-renders from parent updates unless videoId changes
+export default React.memo(YouTubePlayer);
