@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase, supabaseUrl } from '../lib/supabase';
 import { Song } from '../types';
@@ -11,6 +12,7 @@ import YouTubePlayer from '../components/YouTubePlayer';
 import { useMetronome } from '../lib/hooks';
 import { useChordSheetParser } from '../lib/hooks/useChordSheetParser';
 import SongLyricsDisplay from '../components/SongLyricsDisplay';
+import { getChordFingering } from '../lib/musicUtils';
 
 export default function SongDetail() {
   const { id } = useParams<{ id: string }>();
@@ -40,7 +42,28 @@ export default function SongDetail() {
     transposeSteps: transposeSteps - capoFret
   });
 
-  const displayChords = uniqueChords.length > 0 ? uniqueChords : (Array.isArray(song?.chords) ? song.chords as unknown as string[] : []);
+  // --- GHOST DIAGRAM FIX: Strict Filtering & Deduping ---
+  const displayChords = useMemo(() => {
+      // 1. Determine source list (Parser unique list OR DB Legacy list)
+      const rawList = uniqueChords.length > 0 
+          ? uniqueChords 
+          : (Array.isArray(song?.chords) ? song.chords as unknown as string[] : []);
+
+      // 2. Clean, Dedup, and Validate
+      // We strictly filter out any chord that does NOT have a valid fingering in our DB.
+      // This prevents "empty black boxes" (Ghost Diagrams) from rendering.
+      const validSet = new Set<string>();
+      
+      rawList.forEach(c => {
+          if (!c) return;
+          const clean = c.trim();
+          if (clean.length > 0 && getChordFingering(clean) !== null) {
+              validSet.add(clean);
+          }
+      });
+
+      return Array.from(validSet);
+  }, [uniqueChords, song?.chords]);
 
   useEffect(() => {
     if (!id || !/^[0-9a-f-]{36}$/i.test(id)) { setError("Invalid Song ID"); setLoading(false); return; }
@@ -214,7 +237,7 @@ export default function SongDetail() {
                         <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2"><Book className="w-5 h-5 text-primary" /> Chords Used</h3>
                         <div className="flex flex-wrap gap-6 justify-center">
                             {displayChords.map(chord => (
-                                <div key={chord} className="flex flex-col items-center p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-white/5 rounded-xl cursor-pointer hover:border-primary/50" onClick={() => setSelectedChord(chord)}>
+                                <div key={chord} className="flex flex-col items-center p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-white/5 rounded-xl cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setSelectedChord(chord)}>
                                     <ChordDiagram name={chord} />
                                 </div>
                             ))}
