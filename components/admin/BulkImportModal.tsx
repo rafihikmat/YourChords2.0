@@ -6,10 +6,9 @@ import * as pdfjsLib from 'pdfjs-dist';
 import { supabase } from '../../lib/supabase';
 import { cn } from '../../lib/utils';
 
-// Dynamically resolve worker version
-const pdfjsVersion = pdfjsLib.version || '4.0.379';
-// Use .min.js for better browser compatibility and to avoid MIME type issues with .mjs
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsVersion}/pdf.worker.min.js`;
+// FIX: Hardcode worker version to match the importmap version (4.0.379)
+// This prevents errors where the library reports a newer version (e.g. 5.x) that isn't available on CDN yet.
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js`;
 
 interface BulkImportModalProps {
   isOpen: boolean;
@@ -130,10 +129,6 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
                           const numSpaces = Math.round(gap / spaceWidth);
                           lineText += " ".repeat(Math.max(1, numSpaces));
                       }
-                  } else if (idx === 0) {
-                      // Optional: Handle Leading Indentation
-                      // const indent = Math.round(x / spaceWidth);
-                      // if (indent > 0) lineText += " ".repeat(indent);
                   }
 
                   lineText += item.str;
