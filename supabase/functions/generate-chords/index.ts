@@ -1,6 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { GoogleGenAI } from "https://esm.sh/@google/genai@0.1.1";
+import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.1.3";
 
 declare const Deno: any;
 
@@ -23,16 +23,16 @@ serve(async (req) => {
       throw new Error('API_KEY is not set in Supabase Secrets');
     }
 
-    const ai = new GoogleGenAI({ apiKey });
-    // Default text model
-    const model = 'gemini-1.5-flash';
+    const genAI = new GoogleGenerativeAI(apiKey);
+    // Use gemini-1.5-flash for stability as requested
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     let prompt = "";
     let contentParts: any[] = [];
 
     // --- MODE 1: TEXT EXTRACTION (Raw PDF Text -> Structured ChordPro) ---
     if (mode === 'text_extraction' && text) {
-      prompt = `
+        prompt = `
           You are an expert music transcriber and data cleaner.
           
           I will give you RAW TEXT extracted from a music PDF. 
@@ -72,13 +72,12 @@ serve(async (req) => {
 
           RAW TEXT INPUT:
           ${text.substring(0, 30000)} 
-        `;
-      // Limit text length to prevent context window overflow, though 2.5 flash handles ~1M tokens.
-      contentParts.push({ text: prompt });
-    }
+        `; 
+        contentParts.push({ text: prompt });
+    } 
     // --- MODE 2: VISION (Images -> ChordPro) ---
     else if (mode === 'vision_extraction' && images && Array.isArray(images) && images.length > 0) {
-      prompt = `
+        prompt = `
           You are an expert Music Transcriber. Look at the provided images of a guitar chord sheet.
           Transcribe them EXACTLY as they appear into a JSON structure.
           
@@ -99,19 +98,19 @@ serve(async (req) => {
           }
         `;
 
-      images.forEach((base64: string) => {
-        contentParts.push({
-          inlineData: {
-            mimeType: 'image/jpeg',
-            data: base64
-          }
+        images.forEach((base64: string) => {
+            contentParts.push({ 
+                inlineData: { 
+                    mimeType: 'image/jpeg', 
+                    data: base64 
+                } 
+            });
         });
-      });
-      contentParts.push({ text: prompt });
-    }
+        contentParts.push({ text: prompt });
+    } 
     // --- MODE 3: STANDARD GENERATION (Lyrics -> AI Composed Chords) ---
     else {
-      prompt = `
+        prompt = `
           You are a music theory expert.
           Analyze the song "${title}" by "${artist}".
           1. Place chords at the START of phrases or words where harmonic change occurs.
@@ -131,23 +130,21 @@ serve(async (req) => {
             ]
           }
         `;
-      contentParts.push({ text: prompt });
+        contentParts.push({ text: prompt });
     }
 
-    const response = await ai.models.generateContent({
-      model: model,
-      contents: { parts: contentParts },
-    });
-
-    const textResponse = response.text || "{}";
+    const result = await model.generateContent(contentParts);
+    const response = await result.response;
+    const textResponse = response.text() || "{}";
+    
     const cleanJson = textResponse.replace(/^```json\s*/, '').replace(/\s*```$/, '').trim();
-
+    
     let chordData;
     try {
-      chordData = JSON.parse(cleanJson);
+        chordData = JSON.parse(cleanJson);
     } catch (e) {
-      console.error("AI JSON Parse Error", cleanJson);
-      throw new Error("AI returned invalid format. Please try again.");
+        console.error("AI JSON Parse Error", cleanJson);
+        throw new Error("AI returned invalid format. Please try again.");
     }
 
     return new Response(JSON.stringify(chordData), {
