@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, ExternalLink, Edit, Trash2, Disc3, Eye } from 'lucide-react';
+import { Search, ExternalLink, Edit, Trash2, Disc3, Eye, Upload, Plus } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { Song, Album } from '../../../types';
 import { cn, DIFFICULTY_COLORS } from '../../../lib/utils';
 import { useSmartSearch } from '../../../lib/hooks/useSmartSearch';
+import { BulkImportModal } from '../../../components/admin/BulkImportModal';
 
 const SongManager: React.FC = () => {
     const [songs, setSongs] = useState<Song[]>([]);
@@ -13,6 +14,7 @@ const SongManager: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [difficultyFilter, setDifficultyFilter] = useState<string | null>(null);
+    const [isImportOpen, setIsImportOpen] = useState(false);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -64,25 +66,51 @@ const SongManager: React.FC = () => {
     );
 
     return (
-        <div className="p-8 animate-in fade-in">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div className="p-8 animate-in fade-in relative">
+            <BulkImportModal 
+                isOpen={isImportOpen} 
+                onClose={() => setIsImportOpen(false)} 
+                onSuccess={fetchData} 
+            />
+
+            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-8 gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Song Registry</h1>
                     <p className="text-slate-500">Manage library content and metadata.</p>
                 </div>
-                <div className="flex items-center gap-3 bg-white dark:bg-slate-900 p-1.5 rounded-xl border border-slate-200 dark:border-white/10 shadow-sm">
-                    <div className="relative">
-                        <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                        <input type="text" placeholder="Search library..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 pr-4 py-2 rounded-lg bg-transparent border-none focus:ring-0 text-sm w-64 text-slate-900 dark:text-white placeholder-slate-500" />
+                
+                <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
+                    {/* Search & Filter Group */}
+                    <div className="flex items-center gap-3 bg-white dark:bg-slate-900 p-1.5 rounded-xl border border-slate-200 dark:border-white/10 shadow-sm flex-1 xl:flex-none">
+                        <div className="relative flex-1 xl:w-64">
+                            <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                            <input type="text" placeholder="Search library..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 pr-4 py-2 rounded-lg bg-transparent border-none focus:ring-0 text-sm w-full text-slate-900 dark:text-white placeholder-slate-500" />
+                        </div>
+                        <div className="h-6 w-px bg-slate-200 dark:bg-white/10"></div>
+                        <select className="bg-transparent text-sm font-medium text-slate-600 dark:text-slate-400 focus:outline-none cursor-pointer" value={difficultyFilter || ''} onChange={(e) => setDifficultyFilter(e.target.value || null)}>
+                            <option value="">All Levels</option>
+                            <option value="Easy">Easy</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Hard">Hard</option>
+                            <option value="Expert">Expert</option>
+                        </select>
                     </div>
-                    <div className="h-6 w-px bg-slate-200 dark:bg-white/10"></div>
-                    <select className="bg-transparent text-sm font-medium text-slate-600 dark:text-slate-400 focus:outline-none cursor-pointer" value={difficultyFilter || ''} onChange={(e) => setDifficultyFilter(e.target.value || null)}>
-                        <option value="">All Levels</option>
-                        <option value="Easy">Easy</option>
-                        <option value="Medium">Medium</option>
-                        <option value="Hard">Hard</option>
-                        <option value="Expert">Expert</option>
-                    </select>
+
+                    {/* Action Group */}
+                    <div className="flex gap-2">
+                        <button 
+                            onClick={() => setIsImportOpen(true)}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-white text-sm font-bold rounded-xl transition-colors border border-slate-200 dark:border-white/5"
+                        >
+                            <Upload className="w-4 h-4" /> Bulk Import
+                        </button>
+                        <button 
+                            onClick={() => navigate('/admin/manual-entry')}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary/90 text-white text-sm font-bold rounded-xl shadow-lg shadow-primary/20 transition-colors"
+                        >
+                            <Plus className="w-4 h-4" /> Add Song
+                        </button>
+                    </div>
                 </div>
             </div>
 

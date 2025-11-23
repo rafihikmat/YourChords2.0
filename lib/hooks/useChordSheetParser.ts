@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useMemo } from 'react';
-import ChordSheetJS from 'chordsheetjs';
+import { ChordProParser, HtmlTableFormatter } from 'chordsheetjs';
 import { ChordLine } from '../../types';
 
 /**
@@ -13,8 +13,6 @@ const convertJsonToRawText = (chordData: ChordLine[] | null): string => {
   return chordData.map(line => {
     // SMART HEADER DETECTION:
     // Only treat as header if it contains a single bracketed item and NOTHING else.
-    // e.g. "[Chorus]" -> Header
-    // e.g. "[F7]Tak[A7]..." -> NOT Header (Lyrics with chords)
     const trimmed = line.line?.trim() || '';
     if (trimmed && /^\[[^\[\]]+\]$/.test(trimmed)) {
         return `{comment: ${trimmed.replace(/[\[\]]/g, '')}}`;
@@ -31,8 +29,26 @@ const convertJsonToRawText = (chordData: ChordLine[] | null): string => {
   }).join('\n');
 };
 
+/**
+ * Sanitizes raw ChordPro text to prevent parsing errors during live typing.
+ * specifically handles "Expected ... but end of input/newline found" errors
+ * by auto-closing brackets at end of lines.
+ */
+const sanitizeChordPro = (text: string): string => {
+    if (!text) return '';
+    return text.split(/\r?\n/).map(line => {
+        let open = 0;
+        for (const char of line) {
+            if (char === '[') open++;
+            if (char === ']') open = Math.max(0, open - 1);
+        }
+        // Auto-close brackets at end of line to prevent parser crash
+        return line + ']'.repeat(open);
+    }).join('\n');
+};
+
 interface UseChordSheetParserProps {
-    songData: ChordLine[] | string | null;
+    songData: ChordLine[] | string[] | string | null;
     transposeSteps?: number;
 }
 
@@ -52,20 +68,42 @@ export const useChordSheetParser = ({ songData, transposeSteps = 0 }: UseChordSh
 
     // 1. Prepare the Source String (Ensure ChordPro format)
     const rawSource = useMemo(() => {
-        if (typeof songData === 'string') return songData;
-        // If it's a string array (legacy simple chords), we can't really parse it as a song sheet easily
-        if (Array.isArray(songData) && typeof songData[0] === 'string') return ''; 
-        // If it's ChordLine[], convert it
-        return convertJsonToRawText(songData as ChordLine[]);
+        let source = '';
+        
+        if (typeof songData === 'string') {
+            // Direct string input (e.g. from Manual Entry Preview or rawText content)
+            source = songData;
+        } else if (Array.isArray(songData)) {
+            // Handle Arrays
+            if (songData.length === 0) {
+                source = '';
+            } else if (typeof songData[0] === 'string') {
+                // Handle Legacy string[] (e.g. saved from Manual Entry to DB)
+                // Join with newlines to reconstruct the full song text
+                source = (songData as string[]).join('\n');
+            } else {
+                // Handle ChordLine[] (AI Generated structure)
+                source = convertJsonToRawText(songData as ChordLine[]);
+            }
+        } else {
+            // Null or undefined
+            return '';
+        }
+        
+        // Apply sanitization to fix common syntax errors before parsing
+        return sanitizeChordPro(source);
     }, [songData]);
 
     useEffect(() => {
-        if (!rawSource) return;
+        if (!rawSource || rawSource.trim().length === 0) {
+             setParsedData({ html: '', uniqueChords: [], metadata: {} });
+             return;
+        }
 
         try {
-            // Use the ChordSheetJS namespace to access classes
-            const parser = new ChordSheetJS.ChordProParser();
-            const formatter = new ChordSheetJS.HtmlTableFormatter();
+            // Use Named Imports classes
+            const parser = new ChordProParser();
+            const formatter = new HtmlTableFormatter();
 
             // 2. Parse
             const song = parser.parse(rawSource);
@@ -108,13 +146,14 @@ export const useChordSheetParser = ({ songData, transposeSteps = 0 }: UseChordSh
             });
 
         } catch (error) {
-            console.error("ChordSheetJS Parsing Failed:", error);
-            // Fallback display if parsing fails
-            setParsedData({
-                html: `<div class="p-4 text-red-500 border border-red-200 rounded">Error parsing song data. <pre class="mt-2 text-xs text-slate-500">${error}</pre></div>`,
-                uniqueChords: [],
-                metadata: {}
-            });
+            console.error("Chord Parsing Error:", error);
+            // Fallback UI for syntax errors that pass sanitization but fail parsing
+            setParsedData(prev => ({
+                ...prev,
+                html: rawSource.length > 5 
+                    ? `<div class="text-xs text-slate-400 italic mt-2 p-4 border border-dashed border-slate-300 dark:border-white/10 rounded">Rendering preview... <span class="opacity-50">(Typing or Format Error)</span></div>` 
+                    : ''
+            }));
         }
 
     }, [rawSource, transposeSteps]);

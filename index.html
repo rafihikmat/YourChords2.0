@@ -45,6 +45,7 @@
       /* Custom scrollbar for Cyber-Zen feel */
       ::-webkit-scrollbar {
         width: 8px;
+        height: 8px;
       }
       ::-webkit-scrollbar-track {
         background: transparent;
@@ -78,16 +79,16 @@
         color: #0f172a;
       }
 
-      /* --- CHORD SHEET JS STYLES (Strict Table Layout) --- */
-      /* Forces proper table display behavior for ChordSheetJS HtmlTableFormatter output */
+      /* --- CHORD SHEET JS STYLES (Futuristic) --- */
       
       .chord-sheet-container .chord-sheet,
       .chord-sheet-container .chord-sheet-table {
         width: 100% !important;
-        border-collapse: collapse !important;
+        border-collapse: separate !important;
+        border-spacing: 0 4px !important; /* Add slight row spacing */
         table-layout: auto !important;
-        display: table !important; /* Force table display to override block */
-        margin-bottom: 1.5rem;
+        display: table !important;
+        margin-bottom: 2rem;
       }
 
       /* Force rows */
@@ -97,56 +98,73 @@
         border: none !important;
       }
 
-      /* Force cells */
+      /* Force cells & inherit font size for slider to work */
       .chord-sheet-container td, 
       .chord-sheet-container .chord, 
       .chord-sheet-container .lyrics {
         display: table-cell !important; 
         vertical-align: bottom !important;
-        padding-right: 0.5em !important; /* Minimum spacing */
-        padding-bottom: 0.4em !important;
-        white-space: pre !important; /* CRITICAL: Preserves spacing from formatter */
+        padding-right: 0.5em !important;
+        padding-bottom: 0.5em !important;
+        white-space: pre !important;
         border: none !important;
+        font-size: inherit !important; /* CRITICAL: Allows parent font-size to control children */
       }
 
-      /* Specific styling for the chords above lyrics */
+      /* Chords with Neon Glow Effect */
       .chord-sheet-container .chord {
-        color: #eab308; /* Yellow-500 */
-        font-weight: bold;
-        font-family: 'JetBrains Mono', 'Courier New', monospace !important;
-        font-size: 0.95em;
-        line-height: 1.2;
+        color: #FACC15; /* Yellow-400 brightness */
+        font-weight: 700;
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 0.9em !important; /* Relative to inherited size */
+        line-height: 1.4;
         cursor: pointer;
-        transition: all 0.2s;
-        padding-bottom: 0 !important; /* Sit tight on lyrics */
+        transition: all 0.2s ease-in-out;
+        padding-bottom: 2px !important;
+      }
+      
+      /* Dark mode specific glow */
+      html.dark .chord-sheet-container .chord {
+        text-shadow: 0 0 12px rgba(250, 204, 21, 0.2); /* Subtle yellow glow */
       }
       
       .chord-sheet-container .chord:hover {
         color: #8B5CF6; /* Violet */
-        text-shadow: 0 0 8px rgba(139, 92, 246, 0.4);
+        text-shadow: 0 0 15px rgba(139, 92, 246, 0.6);
+        transform: translateY(-1px);
       }
 
-      /* Styling for the lyrics */
+      /* Lyrics Styling */
       .chord-sheet-container .lyrics {
-        font-family: 'JetBrains Mono', 'Courier New', monospace !important;
+        font-family: 'JetBrains Mono', monospace !important;
         color: inherit;
-        font-size: 1em;
+        font-size: 1em !important;
+        line-height: 1.6; /* Better readability */
+        opacity: 0.9;
       }
 
       /* Section Headers (e.g. [Chorus]) */
       .chord-sheet-container .comment {
-        display: block;
-        margin-top: 2rem;
+        display: inline-block;
+        margin-top: 2.5rem;
         margin-bottom: 1rem;
         font-family: 'Inter', sans-serif !important;
         font-weight: 800;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: #94a3b8; /* Slate 400 */
-        font-size: 0.85em;
-        border-bottom: 1px solid rgba(148, 163, 184, 0.2);
-        padding-bottom: 4px;
-        width: 100%;
+        letter-spacing: 0.1em;
+        font-size: 0.75em !important; /* Fixed small size relative to base */
+        padding: 4px 12px;
+        border-radius: 99px;
+        background: rgba(148, 163, 184, 0.1);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        color: #94a3b8;
+      }
+      
+      /* Light mode overrides for headers */
+      html:not(.dark) .chord-sheet-container .comment {
+        background: #e2e8f0;
+        color: #475569;
+        border-color: #cbd5e1;
       }
       
       .chord-sheet-container .paragraph {
@@ -171,6 +189,11 @@
         .chord-sheet-container .chord {
             color: #000 !important;
             font-weight: 800 !important;
+            text-shadow: none !important;
+        }
+        .chord-sheet-container .comment {
+            border: 1px solid #000;
+            color: #000;
         }
       }
     </style>
@@ -190,7 +213,8 @@
     "@google/genai": "https://esm.run/@google/genai",
     "chordsheetjs": "https://aistudiocdn.com/chordsheetjs@^12.3.1",
     "fuse.js": "https://aistudiocdn.com/fuse.js@^7.1.0",
-    "mammoth": "https://esm.sh/mammoth@1.6.0"
+    "mammoth": "https://esm.sh/mammoth@1.6.0",
+    "pdfjs-dist": "https://esm.sh/pdfjs-dist@3.11.174"
   }
 }
 </script>

@@ -1,22 +1,38 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Music, Save, Grid, Eye, Edit3, Globe, Loader2, AlertTriangle, CheckCircle, FileText } from 'lucide-react';
+import { Music, Save, Grid, Eye, Edit3, Globe, Loader2, AlertTriangle, CheckCircle, FileText, Link as LinkIcon, Download, Lock, RefreshCw } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { Song } from '../../../types';
 import { cn } from '../../../lib/utils';
-import { CHORD_FAMILIES, parseChordsFromText } from '../../../lib/musicUtils';
+import { CHORD_FAMILIES, convertToChordPro } from '../../../lib/musicUtils';
 import SongLyricsDisplay from '../../../components/SongLyricsDisplay';
 import { useChordSheetParser } from '../../../lib/hooks/useChordSheetParser';
 import * as mammoth from 'mammoth';
+import * as pdfjsLib from 'pdfjs-dist';
+
+// --- PDF WORKER INITIALIZATION ---
+// We use CDNJS because esm.sh often has strict CORS on Web Workers or version mismatch issues.
+const pdfApi = (pdfjsLib as any).default || pdfjsLib;
+if (typeof window !== 'undefined' && pdfApi) {
+    // Manually set worker source to a stable CDN that matches the imported version (3.11.174)
+    // This fixes "Uncaught TypeError: Cannot set properties of undefined (setting 'workerSrc')"
+    // and "NetworkError" due to CORS.
+    if (!pdfApi.GlobalWorkerOptions.workerSrc) {
+        pdfApi.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+}
 
 const ManualEntry: React.FC = () => {
     const location = useLocation();
     const state = location.state as { songToEdit?: Song } | null;
     const [mode, setMode] = useState<'edit' | 'preview'>('edit');
     
-    // Local File Import State
+    // Import State
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isProcessingFile, setIsProcessingFile] = useState(false);
+    const [urlInput, setUrlInput] = useState('');
+    const [isScraping, setIsScraping] = useState(false);
     const [importStatus, setImportStatus] = useState<{type: 'success' | 'error', msg: string} | null>(null);
 
     const [formData, setFormData] = useState({
@@ -72,142 +88,96 @@ const ManualEntry: React.FC = () => {
         }
     }, [state]);
 
-    // --- IMPROVED SMART ZIPPER ALGORITHM v3 (HIGH PRECISION FIX) ---
-
-    const isChordLine = (line: string): boolean => {
-        const trimmed = line.trim();
-        if (!trimmed) return false;
-
-        // 1. Filter out Headers/Comments strictly
-        if (/^\[.*\]$/.test(trimmed) || /^\(.*\)$/.test(trimmed)) return false;
-
-        // 2. Tokenizing
-        const tokens = trimmed.split(/\s+/);
-        let chordCount = 0;
-        let nonChordCount = 0;
-
-        // UPDATED REGEX: Handles (A), A+, A/G, and standard chords
-        const strictChordRegex = /^[\(\[]?[A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|2|4|5|6|7|9|11|13)*\d*\+?(?:\/[A-G][#b]?)?[\)\]]?$/;
-
-        for (const token of tokens) {
-            // Clean punctuation but keep chord structure
-            const cleanToken = token.replace(/[.,!]/g, ''); 
-            
-            if (strictChordRegex.test(cleanToken)) {
-                chordCount++;
-            } else {
-                // Ignore structural spacers like "|", "-", but count words
-                if (/[a-z]{2,}/i.test(cleanToken)) {
-                    nonChordCount++;
-                }
-            }
-        }
-
-        // Logic: It is a chord line if valid chords exist and outnumber actual words
-        if (nonChordCount === 0 && chordCount > 0) return true;
-        return chordCount > nonChordCount;
-    };
-
-    const convertRawToChordPro = (fullText: string) => {
-        // Normalize Line Endings
-        const expandedText = fullText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-        const lines = expandedText.split('\n');
-        const resultLines: string[] = [];
-
-        // Auto-Title Detection
-        let detectedTitle = "";
-        let detectedArtist = "";
-        const nonEmptyLines = lines.filter(l => l.trim().length > 0);
-        if (nonEmptyLines.length > 0) detectedTitle = nonEmptyLines[0].trim();
-        if (nonEmptyLines.length > 1) {
-            const secondLine = nonEmptyLines[1].trim();
-            if (secondLine.toLowerCase().startsWith('by') || secondLine.length < 40) {
-                detectedArtist = secondLine.replace(/^by\s+/i, '');
-            }
-        }
-
-        // UPDATED EXTRACTION REGEX: Captures content inside potential parentheses
-        const extractionRegex = /[\(\[]?([A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|2|4|5|6|7|9|11|13)*\d*\+?(?:\/[A-G][#b]?)?)[\)\]]?/g;
-
-        for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
-            const trimmed = line.trim();
-
-            // Skip metadata lines
-            if (/^(Tuning|Capo|Key|Difficulty|Strumming|Author|Tempo|By):/i.test(trimmed)) continue;
-            if (!trimmed) {
-                resultLines.push("");
-                continue;
+    /**
+     * PDF Text Extractor with Layout Preservation (Spatial Analysis)
+     * 
+     * Problem: Standard PDF extraction dumps text linearly, often losing the visual alignment
+     * required for "Chords over Lyrics" (e.g., an 'A' chord floating far right over the word 'love').
+     * 
+     * Solution: This algorithm:
+     * 1. Extracts every text item with its (x, y) coordinates.
+     * 2. Groups items into "Lines" based on Y-coordinate (with a tolerance for imperfect alignment).
+     * 3. Sorts items inside a line by X-coordinate.
+     * 4. Calculates the horizontal gap between items.
+     * 5. Inserts synthetic spaces based on gap size to mimic the visual layout in a monospace font.
+     */
+    const extractTextFromPdf = async (arrayBuffer: ArrayBuffer): Promise<string> => {
+        try {
+            if (!pdfApi || !pdfApi.getDocument) {
+                throw new Error("PDF Library not initialized correctly.");
             }
 
-            // Detect Headers (Chorus, Verse, etc.)
-            if (/^\[.+\]$/.test(trimmed) || /^(Chorus|Verse|Bridge|Intro|Outro|Reff|Instrumental).*[:]?$/i.test(trimmed)) {
-                const cleanHeader = trimmed.replace(/[:\[\]]/g, '').trim();
-                resultLines.push(`{comment: ${cleanHeader}}`);
-                continue;
-            }
+            const loadingTask = pdfApi.getDocument({ data: arrayBuffer });
+            const pdf = await loadingTask.promise;
+            let fullText = '';
 
-            if (isChordLine(line)) {
-                const nextLine = lines[i + 1];
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
                 
-                // CRITICAL CHECK: ONLY MERGE IF NEXT LINE IS LYRICS
-                const isNextLineLyrics = nextLine && 
-                                         nextLine.trim().length > 0 && 
-                                         !isChordLine(nextLine) &&
-                                         !/^\[.+\]$/.test(nextLine.trim());
+                // Map items to include coordinate data
+                const items = textContent.items.map((item: any) => ({
+                    str: item.str,
+                    x: item.transform[4], // x coordinate
+                    y: item.transform[5], // y coordinate
+                    width: item.width,
+                    height: item.height || 10
+                }));
 
-                if (isNextLineLyrics) {
-                    // --- MERGE LOGIC (CHORD OVER LYRIC) ---
-                    let mergedLine = "";
-                    let lyricCursor = 0;
-                    let match;
+                // 1. Group items into lines based on Y position (Row clustering)
+                const lines: Record<string, typeof items> = {};
+                const tolerance = 4; // Tolerance for slight Y misalignments (e.g. subscripts)
 
-                    extractionRegex.lastIndex = 0;
+                items.forEach(item => {
+                    // Find an existing line key that is close enough
+                    const existingY = Object.keys(lines).find(y => Math.abs(Number(y) - item.y) < tolerance);
+                    const key = existingY || item.y.toString();
+                    
+                    if (!lines[key]) lines[key] = [];
+                    lines[key].push(item);
+                });
 
-                    while ((match = extractionRegex.exec(line)) !== null) {
-                        // match[1] contains the clean chord without parens
-                        const chordClean = match[1]; 
-                        const index = match.index;
+                // 2. Sort lines from Top to Bottom (PDF Y origin is bottom-left)
+                const sortedY = Object.keys(lines).sort((a, b) => Number(b) - Number(a));
 
-                        if (index > lyricCursor) {
-                            if (lyricCursor < nextLine.length) {
-                                mergedLine += nextLine.slice(lyricCursor, index);
-                            }
-                            lyricCursor = index;
+                sortedY.forEach(y => {
+                    // 3. Sort items in the line from Left to Right
+                    const lineItems = lines[y].sort((a, b) => a.x - b.x);
+                    let lineStr = '';
+                    let lastX = 0; 
+                    
+                    // Normalize start x (margin)
+                    if (lineItems.length > 0) lastX = lineItems[0].x;
+
+                    lineItems.forEach(item => {
+                        // 4. Calculate gap from previous item
+                        // Only add spaces if we aren't at the absolute start
+                        const gap = item.x - lastX;
+                        
+                        // Heuristic: Average font character width is roughly height * 0.4 or ~4-5 units
+                        // We insert spaces if the gap is significant.
+                        // This preserves the "Chord ...... Chord" spacing.
+                        if (gap > 2) {
+                            // 3.5 is an arbitrary divisor to approximate space width in PDF units
+                            const spaces = Math.max(0, Math.floor(gap / 3.5));
+                            lineStr += ' '.repeat(spaces);
                         }
+                        
+                        lineStr += item.str;
+                        lastX = item.x + item.width;
+                    });
 
-                        // Pad if necessary (optional, depending on preference, currently strictly inserting)
-                        if (lyricCursor > nextLine.length) {
-                             mergedLine += " "; 
-                        }
-
-                        mergedLine += `[${chordClean}]`;
-                    }
-
-                    if (lyricCursor < nextLine.length) {
-                        mergedLine += nextLine.slice(lyricCursor);
-                    }
-
-                    resultLines.push(mergedLine);
-                    i++; // Skip the next line since we merged it
-                } 
-                else {
-                    // --- ORPHANED CHORD LINE (Instrumental/Intro) ---
-                    // Just wrap chords in brackets, preserve spaces roughly
-                    const formattedLine = line.replace(extractionRegex, (match, p1) => `[${p1}]`);
-                    resultLines.push(formattedLine);
-                }
-            } else {
-                // Regular Lyric Line
-                resultLines.push(line);
+                    fullText += lineStr + '\n';
+                });
+                
+                fullText += '\n';
             }
-        }
 
-        return {
-            processedText: resultLines.join('\n'),
-            title: detectedTitle,
-            artist: detectedArtist
-        };
+            return fullText;
+        } catch (e: any) {
+            console.error("PDF Extraction Error:", e);
+            throw new Error("Could not read PDF. " + (e.message || "Worker failed."));
+        }
     };
 
     const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -218,36 +188,47 @@ const ManualEntry: React.FC = () => {
         setImportStatus(null);
 
         try {
-            let rawText = "";
-
-            if (file.name.endsWith('.docx')) {
+            let rawContent = "";
+            
+            if (file.name.toLowerCase().endsWith('.pdf')) {
                 const arrayBuffer = await file.arrayBuffer();
-                // Mammoth extracts raw text from Word
+                rawContent = await extractTextFromPdf(arrayBuffer);
+            } 
+            else if (file.name.toLowerCase().endsWith('.docx')) {
+                const arrayBuffer = await file.arrayBuffer();
                 const result = await mammoth.extractRawText({ arrayBuffer });
-                rawText = result.value;
-                if (result.messages.length > 0) {
-                    console.warn("Mammoth warnings:", result.messages);
-                }
-            } else {
-                // .txt file
-                rawText = await file.text();
+                rawContent = result.value;
+            } 
+            else {
+                // Text file
+                rawContent = await file.text();
             }
 
-            if (!rawText || rawText.length < 10) throw new Error("File is empty or too short.");
+            if (!rawContent || rawContent.length < 10) throw new Error("File is empty or too short.");
 
-            const { processedText, title, artist } = convertRawToChordPro(rawText);
+            // CRITICAL: Convert Spatial/Text layout to ChordPro immediately.
+            // This ensures features like Transpose/Capo/Size work because they rely on
+            // identifying [Chord] syntax, not just raw text lines.
+            const processedText = convertToChordPro(rawContent);
+
+            // 2. Metadata Extraction (Heuristics)
+            const lines = rawContent.split('\n').filter(l => l.trim().length > 0);
+            const detectedTitle = lines[0]?.replace(/\[.*?\]/g, '').trim() || "";
+            // Try to find artist in first few lines
+            const artistLine = lines.slice(0, 5).find(l => l.toLowerCase().includes('by '));
+            const detectedArtist = artistLine ? artistLine.replace(/^by\s+/i, '').trim() : "";
 
             setFormData(prev => ({
                 ...prev,
-                rawText: processedText,
-                title: title || prev.title,
-                artist: artist || prev.artist
+                rawText: processedText, // Load the converted ChordPro text
+                title: !prev.title && detectedTitle.length < 50 ? detectedTitle : prev.title,
+                artist: !prev.artist && detectedArtist.length < 50 ? detectedArtist : prev.artist
             }));
 
-            setImportStatus({ type: 'success', msg: `Processed "${file.name}" successfully.` });
+            setImportStatus({ type: 'success', msg: `Processed "${file.name}" successfully. Layout preserved & converted to ChordPro.` });
 
         } catch (error: any) {
-            console.error("File Processing Error:", error);
+            console.error(error);
             setImportStatus({ type: 'error', msg: "Failed to process file. " + error.message });
         } finally {
             setIsProcessingFile(false);
@@ -255,11 +236,45 @@ const ManualEntry: React.FC = () => {
         }
     };
 
+    const handleUrlScrape = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        if (!urlInput) return;
+        setIsScraping(true);
+        setImportStatus(null);
+
+        try {
+            const { data, error } = await supabase.functions.invoke('scrape-song', {
+                body: { url: urlInput }
+            });
+
+            if (error) throw error;
+            if (data.error) throw new Error(data.error);
+
+            // The Edge Function 'scrape-song' also runs convertToChordPro,
+            // so the data.rawText is already in [Chord]Lyrics format.
+            setFormData(prev => ({
+                ...prev,
+                title: data.title || prev.title,
+                artist: data.artist || prev.artist,
+                rawText: data.rawText || prev.rawText
+            }));
+
+            setImportStatus({ type: 'success', msg: `Successfully scraped "${data.title}" from ${new URL(urlInput).hostname}` });
+            setUrlInput('');
+        } catch (err: any) {
+            setImportStatus({ type: 'error', msg: "Scrape failed: " + err.message });
+        } finally {
+            setIsScraping(false);
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
 
-        const parsedChords = parseChordsFromText(formData.rawText);
+        // Store strings array for DB compatibility (legacy format), 
+        // but content is fully ChordPro formatted text.
+        const lines = formData.rawText.split('\n');
 
         const payload = {
             title: formData.title,
@@ -267,7 +282,7 @@ const ManualEntry: React.FC = () => {
             difficulty: formData.difficulty,
             spotify_track_id: formData.spotify_id,
             youtube_video_id: formData.youtube_id,
-            chords: parsedChords,
+            chords: lines, // Stored as array of ChordPro strings
         };
 
         let error;
@@ -293,12 +308,9 @@ const ManualEntry: React.FC = () => {
             const start = textareaRef.current.selectionStart;
             const end = textareaRef.current.selectionEnd;
             const currentText = formData.rawText;
-            
             const textToInsert = `[${chord}]`;
-            
             const newText = currentText.substring(0, start) + textToInsert + currentText.substring(end);
             setFormData({ ...formData, rawText: newText });
-            
             setTimeout(() => {
                 if (textareaRef.current) {
                     textareaRef.current.focus();
@@ -307,6 +319,13 @@ const ManualEntry: React.FC = () => {
                 }
             }, 0);
         }
+    };
+
+    const handleAutoConvert = () => {
+        // Manual trigger to convert current text to ChordPro
+        const converted = convertToChordPro(formData.rawText);
+        setFormData({ ...formData, rawText: converted });
+        setImportStatus({ type: 'success', msg: 'Text structure converted to ChordPro format.' });
     };
 
     return (
@@ -337,44 +356,83 @@ const ManualEntry: React.FC = () => {
                 </div>
             </div>
 
-            {/* FILE IMPORT SECTION */}
+            {/* IMPORT SECTION */}
             <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-6 rounded-xl border border-slate-200 dark:border-white/10 shadow-lg">
-                <div className="flex items-center gap-2 text-primary font-bold text-sm uppercase tracking-wider mb-4">
-                    <Globe className="w-4 h-4" /> Import External Data
+                <div className="flex justify-between items-start mb-6">
+                    <div className="flex items-center gap-2 text-primary font-bold text-sm uppercase tracking-wider">
+                        <Globe className="w-4 h-4" /> Import Source
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2 py-1 rounded-full border border-blue-200 dark:border-blue-900/30">
+                        <Lock className="w-3 h-3" />
+                        Smart Layout Engine Active
+                    </div>
                 </div>
                 
-                <div className="flex items-center gap-4">
-                    <div className="relative flex-1">
-                        <input 
-                            type="file" 
-                            ref={fileInputRef}
-                            accept=".txt,.docx"
-                            onChange={handleFileSelect}
-                            className="hidden"
-                            id="chord-file-import"
-                        />
-                        <label 
-                            htmlFor="chord-file-import" 
-                            className={cn(
-                                "flex items-center justify-between w-full p-3 rounded-lg border border-dashed border-slate-300 dark:border-white/20 bg-slate-50 dark:bg-slate-950 cursor-pointer hover:bg-slate-100 dark:hover:bg-white/5 transition-colors",
-                                isProcessingFile && "opacity-50 cursor-not-allowed"
-                            )}
-                        >
-                            <span className="text-sm text-slate-500 dark:text-slate-400">
-                                {isProcessingFile ? "Processing..." : "Click to select Chord Sheet (.docx / .txt)"}
-                            </span>
-                            <FileText className="w-5 h-5 text-slate-400" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {/* File Upload */}
+                    <div className="space-y-3 border-r border-slate-200 dark:border-white/5 md:pr-8">
+                        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase flex items-center gap-2">
+                            <FileText className="w-3 h-3" /> From File (PDF / Word / Txt)
                         </label>
+                        <div className="flex gap-2">
+                            <div className="relative flex-1">
+                                <input 
+                                    type="file" 
+                                    ref={fileInputRef}
+                                    accept=".txt,.docx,.pdf"
+                                    onChange={handleFileSelect}
+                                    className="hidden"
+                                    id="chord-file-import"
+                                />
+                                <label 
+                                    htmlFor="chord-file-import" 
+                                    className={cn(
+                                        "flex items-center justify-between w-full px-3 py-2.5 rounded-lg border border-dashed border-slate-300 dark:border-white/20 bg-slate-50 dark:bg-slate-950 cursor-pointer hover:bg-slate-100 dark:hover:bg-white/5 transition-colors",
+                                        isProcessingFile && "opacity-50 cursor-not-allowed"
+                                    )}
+                                >
+                                    <span className="text-sm text-slate-500 dark:text-slate-400 truncate">
+                                        {isProcessingFile ? "Extracting Spatial Data..." : "Select PDF, DOCX, or TXT..."}
+                                    </span>
+                                </label>
+                            </div>
+                            
+                            <button 
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={isProcessingFile}
+                                className="px-4 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg font-bold text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-all flex items-center gap-2"
+                            >
+                                {isProcessingFile ? <Loader2 className="w-4 h-4 animate-spin" /> : "Upload"}
+                            </button>
+                        </div>
+                        <p className="text-[10px] text-slate-400">PDFs are analyzed geometrically to preserve Chord-over-Lyric positioning.</p>
                     </div>
-                    
-                    <button 
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={isProcessingFile}
-                        className="px-6 py-3 bg-gradient-to-r from-slate-800 to-slate-900 dark:from-white dark:to-slate-200 text-white dark:text-slate-900 rounded-lg font-bold text-sm flex items-center gap-2 transition-all hover:shadow-lg disabled:opacity-50 whitespace-nowrap active:scale-95"
-                    >
-                        {isProcessingFile ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-                        Process File
-                    </button>
+
+                    {/* URL Scrape */}
+                    <div className="space-y-3">
+                        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase flex items-center gap-2">
+                            <LinkIcon className="w-3 h-3" /> From URL (ChordTela / UG)
+                        </label>
+                        <div className="flex gap-2">
+                            <div className="relative flex-1">
+                                <input 
+                                    type="url"
+                                    value={urlInput}
+                                    onChange={(e) => setUrlInput(e.target.value)}
+                                    placeholder="https://www.chordtela.com/..."
+                                    className="w-full px-3 py-2.5 rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-white focus:ring-1 focus:ring-primary outline-none"
+                                />
+                            </div>
+                            <button 
+                                onClick={handleUrlScrape}
+                                disabled={isScraping || !urlInput}
+                                className="px-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg font-bold text-xs hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-2 min-w-[80px] justify-center"
+                            >
+                                {isScraping ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                                Fetch
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 {importStatus && (
@@ -429,6 +487,14 @@ const ManualEntry: React.FC = () => {
                                 <div className="flex items-center gap-2 text-xs font-bold text-slate-500 px-2">
                                     <Music className="w-4 h-4" /> Chords & Lyrics Editor
                                 </div>
+                                <button 
+                                    type="button"
+                                    onClick={handleAutoConvert}
+                                    className="flex items-center gap-1.5 text-[10px] font-bold bg-primary/10 text-primary px-3 py-1.5 rounded hover:bg-primary/20 transition-colors"
+                                    title="Converts text chords like 'Am' to ChordPro '[Am]'"
+                                >
+                                    <RefreshCw className="w-3 h-3" /> Convert to ChordPro
+                                </button>
                              </div>
                             
                             {/* Quick Insert Panel */}
@@ -483,7 +549,7 @@ const ManualEntry: React.FC = () => {
                             />
                         </>
                     ) : (
-                        /* Live Preview Mode using actual SongLyricsDisplay */
+                        /* Live Preview Mode */
                         <div className="relative bg-white/80 dark:bg-[#0A0F1C]/90 backdrop-blur-xl rounded-2xl border border-slate-200 dark:border-white/10 p-10 shadow-xl min-h-[500px]">
                             <SongLyricsDisplay html={html} />
                         </div>

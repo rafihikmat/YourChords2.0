@@ -47,7 +47,11 @@ const SongLyricsDisplay: React.FC<SongLyricsDisplayProps> = ({
         >
             <div 
                 className="chord-sheet-container font-mono whitespace-pre-wrap"
-                style={{ fontSize: `${fontSize}px`, fontFamily: "'JetBrains Mono', monospace" }}
+                style={{ 
+                    fontSize: `${fontSize}px`, 
+                    fontFamily: "'JetBrains Mono', monospace",
+                    lineHeight: '1.5' 
+                }}
                 onClick={handleClick}
                 dangerouslySetInnerHTML={{ __html: html }}
             />
