@@ -8,7 +8,7 @@ import { cn } from '../../../lib/utils';
 import { CHORD_FAMILIES, parseChordsFromText } from '../../../lib/musicUtils';
 import SongLyricsDisplay from '../../../components/SongLyricsDisplay';
 import { useChordSheetParser } from '../../../lib/hooks/useChordSheetParser';
-import mammoth from 'mammoth';
+import * as mammoth from 'mammoth';
 
 const ManualEntry: React.FC = () => {
     const location = useLocation();
@@ -106,7 +106,6 @@ const ManualEntry: React.FC = () => {
         if (nonEmptyLines.length > 0) detectedTitle = nonEmptyLines[0].trim();
         if (nonEmptyLines.length > 1) {
             const secondLine = nonEmptyLines[1].trim();
-            // Heuristic for artist line (often starts with "By" or is short)
             if (secondLine.toLowerCase().startsWith('by') || secondLine.length < 40) {
                 detectedArtist = secondLine.replace(/^by\s+/i, '');
             }
@@ -232,8 +231,6 @@ const ManualEntry: React.FC = () => {
             if (fileInputRef.current) fileInputRef.current.value = '';
         }
     };
-
-    // --- END LOGIC ---
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
