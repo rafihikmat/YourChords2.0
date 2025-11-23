@@ -22,32 +22,43 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoId, className, onTim
   const containerRef = useRef<HTMLDivElement>(null);
   const rafIdRef = useRef<number | null>(null);
   
-  // State
+  // Direct DOM Refs (Performance Optimization)
+  // Using refs prevents React re-renders during high-frequency updates (60fps)
+  const progressBarRef = useRef<HTMLDivElement>(null);
+  const thumbRef = useRef<HTMLDivElement>(null);
+  const timeTextRef = useRef<HTMLSpanElement>(null);
+  const rangeInputRef = useRef<HTMLInputElement>(null);
+
+  // State (Only for low-frequency changes)
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(50);
   const [isMuted, setIsMuted] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
-  // --- Optimization: Update Loop using RequestAnimationFrame ---
-  // This is much smoother than setInterval and pauses when tab is inactive
+  // --- Optimization: Direct DOM Update Loop ---
+  // Moves UI updates out of React's render cycle to prevent lag
   const updateLoop = useCallback(() => {
     if (playerRef.current && playerRef.current.getCurrentTime) {
       const time = playerRef.current.getCurrentTime();
-      // Only update state if difference is significant to reduce re-renders
-      setCurrentTime(prev => {
-          if (Math.abs(prev - time) > 0.1) return time;
-          return prev;
-      });
+      
+      // 1. Direct DOM updates (Zero React Overhead)
+      if (rangeInputRef.current) rangeInputRef.current.value = time.toString();
+      if (timeTextRef.current) timeTextRef.current.innerText = formatTime(time);
+      
+      const percent = (time / (duration || 1)) * 100;
+      if (progressBarRef.current) progressBarRef.current.style.width = `${percent}%`;
+      if (thumbRef.current) thumbRef.current.style.left = `${percent}%`;
+
+      // 2. Callback for parent logic (if provided)
       if (onTimeUpdate) onTimeUpdate(time);
     }
     
     if (isPlaying) {
         rafIdRef.current = requestAnimationFrame(updateLoop);
     }
-  }, [isPlaying, onTimeUpdate]);
+  }, [isPlaying, duration, onTimeUpdate]);
 
   useEffect(() => {
     if (isPlaying) {
@@ -71,7 +82,6 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoId, className, onTim
 
     const createPlayer = () => {
         if (!containerRef.current) return;
-        // If player exists, clean it up first
         if (playerRef.current) {
             try { playerRef.current.destroy(); } catch(e) {}
         }
@@ -82,15 +92,15 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoId, className, onTim
             width: '100%',
             playerVars: {
                 autoplay: 0,
-                controls: 0, // We use custom controls
+                controls: 0,
                 disablekb: 1,
                 fs: 0,
-                iv_load_policy: 3, // Hide annotations
+                iv_load_policy: 3,
                 modestbranding: 1,
                 rel: 0,
                 showinfo: 0,
-                playsinline: 1, // iOS optimization
-                origin: window.location.origin // Security & Performance
+                playsinline: 1,
+                origin: window.location.origin
             },
             events: {
                 onReady: (event: any) => {
@@ -103,7 +113,8 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoId, className, onTim
                     const playing = event.data === window.YT.PlayerState.PLAYING;
                     setIsPlaying(playing);
                     if (playing) {
-                        setDuration(event.target.getDuration());
+                        const dur = event.target.getDuration();
+                        if(dur) setDuration(dur);
                     }
                 },
             },
@@ -113,7 +124,6 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoId, className, onTim
     if (window.YT && window.YT.Player) {
         createPlayer();
     } else {
-        // Push to global callback stack safely
         const existingCallback = window.onYouTubeIframeAPIReady;
         window.onYouTubeIframeAPIReady = () => {
             if (existingCallback) existingCallback();
@@ -138,7 +148,12 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoId, className, onTim
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const time = parseFloat(e.target.value);
-    setCurrentTime(time);
+    // Update UI immediately for responsiveness
+    if (timeTextRef.current) timeTextRef.current.innerText = formatTime(time);
+    const percent = (time / (duration || 1)) * 100;
+    if (progressBarRef.current) progressBarRef.current.style.width = `${percent}%`;
+    if (thumbRef.current) thumbRef.current.style.left = `${percent}%`;
+    
     if (playerRef.current) playerRef.current.seekTo(time, true);
   };
 
@@ -165,19 +180,22 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoId, className, onTim
 
   const skip = (seconds: number, e?: React.MouseEvent) => {
       e?.stopPropagation();
-      if (!playerRef.current) return;
-      const newTime = Math.min(Math.max(currentTime + seconds, 0), duration);
+      if (!playerRef.current || !playerRef.current.getCurrentTime) return;
+      const curr = playerRef.current.getCurrentTime();
+      const newTime = Math.min(Math.max(curr + seconds, 0), duration);
       playerRef.current.seekTo(newTime, true);
-      setCurrentTime(newTime);
+      
+      // Immediate UI feedback
+      if (rangeInputRef.current) rangeInputRef.current.value = newTime.toString();
   };
 
   return (
     <div 
-        className={cn("group relative rounded-xl overflow-hidden bg-black shadow-2xl border border-slate-800 isolate", className)}
+        className={cn("group relative rounded-xl overflow-hidden bg-black shadow-2xl border border-slate-800 isolate transform-gpu", className)}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        // Hardware acceleration hack to prevent layout thrashing during playback
-        style={{ transform: 'translateZ(0)', willChange: 'transform' }}
+        // Hardware acceleration enforcement
+        style={{ transform: 'translateZ(0)', WebkitTransform: 'translateZ(0)' }}
     >
       <div className="aspect-video w-full relative bg-black">
          <div ref={containerRef} className="w-full h-full" />
@@ -196,25 +214,29 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoId, className, onTim
         )}
       >
          {/* Progress Bar */}
-         <div className="flex items-center gap-3 text-xs font-mono text-slate-300">
-             <span className="w-10 text-right">{formatTime(currentTime)}</span>
+         <div className="flex items-center gap-3 text-xs font-mono text-slate-300 select-none">
+             <span ref={timeTextRef} className="w-10 text-right">0:00</span>
              <div className="flex-1 relative h-1 bg-white/20 rounded-full group/slider cursor-pointer">
+                 {/* Uncontrolled input for performance */}
                  <input 
+                    ref={rangeInputRef}
                     type="range" 
                     min="0" 
                     max={duration || 100} 
                     step="0.1" 
-                    value={currentTime} 
+                    defaultValue="0"
                     onChange={handleSeek} 
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" 
                  />
                  <div 
-                    className="absolute top-0 left-0 h-full bg-primary rounded-full pointer-events-none transition-[width] duration-75 ease-linear" 
-                    style={{ width: `${(currentTime / (duration || 1)) * 100}%` }} 
+                    ref={progressBarRef}
+                    className="absolute top-0 left-0 h-full bg-primary rounded-full pointer-events-none transition-none will-change-[width]" 
+                    style={{ width: '0%' }} 
                  />
                  <div 
-                    className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow pointer-events-none opacity-0 group-hover/slider:opacity-100 transition-opacity" 
-                    style={{ left: `${(currentTime / (duration || 1)) * 100}%` }} 
+                    ref={thumbRef}
+                    className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow pointer-events-none opacity-0 group-hover/slider:opacity-100 transition-opacity will-change-[left]" 
+                    style={{ left: '0%' }} 
                  />
              </div>
              <span className="w-10">{formatTime(duration)}</span>

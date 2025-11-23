@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, SkipForward, Check, Copy, Video, Edit3, AlertCircle, PlayCircle, RotateCcw, Save, Download, ChevronRight, Clock } from 'lucide-react';
 import { cn } from '../../lib/utils';
@@ -29,14 +30,15 @@ const SmartSyncEditor: React.FC = () => {
   
   // --- State: Player & Sync ---
   const [activeIndex, setActiveIndex] = useState<number>(0);
-  const [currentTime, setCurrentTime] = useState(0);
+  // REMOVED: const [currentTime, setCurrentTime] = useState(0); // Performance Killer
   const [isPlaying, setIsPlaying] = useState(false);
   
   // --- Refs ---
   const playerRef = useRef<any>(null);
-  const intervalRef = useRef<number | null>(null);
+  const rafRef = useRef<number | null>(null);
   const activeLineRef = useRef<HTMLDivElement | null>(null);
   const listContainerRef = useRef<HTMLDivElement | null>(null);
+  const timeDisplayRef = useRef<HTMLSpanElement>(null);
 
   // --- Initialization: YouTube API ---
   useEffect(() => {
@@ -51,13 +53,10 @@ const SmartSyncEditor: React.FC = () => {
   // --- Initialization: Player (When switching to Sync phase) ---
   useEffect(() => {
     if (phase === 'sync' && videoId && window.YT) {
-      // Wait briefly for DOM
       setTimeout(() => {
         try {
-            // Destroy existing if any to prevent duplicates
-            if (playerRef.current) {
-                // Only destroy if it's a YT instance
-                if (typeof playerRef.current.destroy === 'function') playerRef.current.destroy();
+            if (playerRef.current && typeof playerRef.current.destroy === 'function') {
+                playerRef.current.destroy();
             }
 
             new window.YT.Player('sync-player', {
@@ -79,18 +78,25 @@ const SmartSyncEditor: React.FC = () => {
     }
   }, [phase, videoId]);
 
-  // --- Loop: Track Time ---
+  // --- Loop: Track Time (Optimized) ---
   useEffect(() => {
-    if (phase === 'sync' && isPlaying) {
-        intervalRef.current = window.setInterval(() => {
-            if (playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
-                setCurrentTime(playerRef.current.getCurrentTime());
+    const loop = () => {
+        if (playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
+            const t = playerRef.current.getCurrentTime();
+            // Update DOM directly, bypassing React Render Cycle
+            if (timeDisplayRef.current) {
+                timeDisplayRef.current.innerText = t.toFixed(2) + 's';
             }
-        }, 50); // High precision update
+        }
+        if (isPlaying) rafRef.current = requestAnimationFrame(loop);
+    };
+
+    if (phase === 'sync' && isPlaying) {
+        rafRef.current = requestAnimationFrame(loop);
     } else {
-        if (intervalRef.current) window.clearInterval(intervalRef.current);
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
     }
-    return () => { if (intervalRef.current) window.clearInterval(intervalRef.current); };
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
   }, [phase, isPlaying]);
 
   // --- Effect: Auto-Scroll Active Line ---
@@ -110,12 +116,11 @@ const SmartSyncEditor: React.FC = () => {
 
     const parsed: SyncLine[] = rawText.split('\n')
         .map((line, idx) => {
-            const trimmed = line.trimEnd(); // Keep indentation for chords if needed, but usually trimEnd is safer
-            if (!trimmed) return null; // Skip empty lines
+            const trimmed = line.trimEnd(); 
+            if (!trimmed) return null;
 
             let type: SyncLine['type'] = 'lyrics';
             if (trimmed.startsWith('[') && trimmed.endsWith(']')) type = 'header';
-            // Heuristic for chords: mostly uppercase, spaces, minimal lowercase words
             else if (/^[A-G][#b]?(m|maj|dim|aug|sus|add|7|9|11|13)*(\/[A-G][#b]?)?(\s+[A-G][#b]?.+)*$/.test(trimmed) || trimmed.includes('   ')) {
                 type = 'chords';
             }
@@ -158,7 +163,6 @@ const SmartSyncEditor: React.FC = () => {
   useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
           if (phase === 'sync' && e.code === 'Space' && !e.repeat) {
-              // Prevent scrolling page
               if ((e.target as HTMLElement).tagName !== 'INPUT') {
                   e.preventDefault(); 
                   recordTimestamp();
@@ -167,7 +171,7 @@ const SmartSyncEditor: React.FC = () => {
       };
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [phase, activeIndex, lines]); // Dep array ensures we have latest state if needed
+  }, [phase, activeIndex, lines]); 
 
   // --- Logic: Utils ---
   const seekTo = (time: number) => {
@@ -302,8 +306,8 @@ const SmartSyncEditor: React.FC = () => {
                       <div className="space-y-4 mb-auto">
                           <div className="flex items-center justify-between text-sm">
                               <span className="text-slate-500">Current Time</span>
-                              <span className="font-mono font-bold text-2xl text-slate-900 dark:text-white">
-                                  {currentTime.toFixed(2)}s
+                              <span ref={timeDisplayRef} className="font-mono font-bold text-2xl text-slate-900 dark:text-white">
+                                  0.00s
                               </span>
                           </div>
                           <div className="h-px bg-slate-200 dark:bg-white/10"></div>
