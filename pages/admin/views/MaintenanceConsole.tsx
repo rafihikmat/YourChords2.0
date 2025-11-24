@@ -16,7 +16,7 @@ const MaintenanceConsole: React.FC = () => {
         try {
             // 1. Get all songs with file_path
             const { data: songs } = await supabase.from('songs').select('file_path');
-            const activeFiles = new Set(songs?.map((s: any) => s.file_path).filter(Boolean));
+            const activeFiles = new Set(songs?.map((s: { file_path: string }) => s.file_path).filter(Boolean));
 
             // 2. List all files in storage
             const { data: files, error } = await supabase.storage.from('song-files').list();
@@ -34,8 +34,12 @@ const MaintenanceConsole: React.FC = () => {
                     setStatus('System Clean. No orphaned files found.');
                 }
             }
-        } catch (e: any) {
-            setStatus('Error: ' + e.message);
+        } catch (e: unknown) {
+            if (e instanceof Error) {
+                setStatus('Error: ' + e.message);
+            } else {
+                setStatus('An unknown error occurred.');
+            }
         }
         setLoading(false);
     };
@@ -51,11 +55,12 @@ const MaintenanceConsole: React.FC = () => {
 
              // 2. Group by Artist
              const artistMap: Record<string, Song[]> = {};
-             songs.forEach((s: any) => {
+             songs.forEach((s) => {
+                 const song = s as unknown as Song;
                  // Normalize artist name to avoid case sensitivity issues
-                 const key = s.artist.trim();
+                 const key = song.artist.trim();
                  if (!artistMap[key]) artistMap[key] = [];
-                 artistMap[key].push(s);
+                 artistMap[key].push(song);
              });
 
              let albumsCreated = 0;
@@ -78,6 +83,11 @@ const MaintenanceConsole: React.FC = () => {
                              cover_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(albumTitle)}&background=random&size=512`
                          }]).select().single();
 
+                         // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                         if (albumError) {
+                            console.error('Error creating album:', albumError);
+                         }
+
                          if (newAlbum) {
                              // Update Songs to link to new album
                              const songIds = artistSongs.map(s => s.id);
@@ -89,8 +99,12 @@ const MaintenanceConsole: React.FC = () => {
              }
              setStatus(`Maintenance Complete: Created ${albumsCreated} new albums from existing artist clusters.`);
 
-        } catch (e: any) {
-            setStatus('Error: ' + e.message);
+        } catch (e: unknown) {
+             if (e instanceof Error) {
+                setStatus('Error: ' + e.message);
+            } else {
+                setStatus('An unknown error occurred.');
+            }
         }
         setLoading(false);
     };
@@ -102,8 +116,12 @@ const MaintenanceConsole: React.FC = () => {
         try {
             const res = await seedDatabase();
             setStatus(`Seed Complete: ${res.success} songs added, ${res.failed} skipped/failed.`);
-        } catch(e: any) {
-            setStatus('Error seeding: ' + e.message);
+        } catch(e: unknown) {
+            if (e instanceof Error) {
+                setStatus('Error seeding: ' + e.message);
+            } else {
+                setStatus('An unknown error occurred.');
+            }
         }
         setLoading(false);
     };

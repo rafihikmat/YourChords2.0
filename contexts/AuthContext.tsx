@@ -74,7 +74,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         setProfile(data as Profile);
       }
-    } catch (error) {
+    } catch {
+      // Ignore error
     } finally {
       setLoading(false);
     }

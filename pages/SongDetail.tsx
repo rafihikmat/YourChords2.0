@@ -37,6 +37,7 @@ export default function SongDetail() {
 
   // --- Parser Hook ---
   // Safely extract source data
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sourceData = (song?.tablature as any)?.content || song?.chords || null;
   
   const { html, uniqueChords } = useChordSheetParser({
@@ -66,7 +67,8 @@ export default function SongDetail() {
               } else if (typeof firstItem === 'object' && firstItem !== null && 'chords' in firstItem) {
                   // AI/New Format: [{ line: "...", chords: ["C", "Am"] }]
                   // Flatten all chords from all lines
-                  // @ts-ignore - Validating structure at runtime
+                  // @ts-expect-error - Validating structure at runtime
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   rawList = (chords as any[]).flatMap(line => Array.isArray(line.chords) ? line.chords : []);
               }
           }
@@ -97,6 +99,7 @@ export default function SongDetail() {
         setSong(data as unknown as Song);
         // Fire & Forget View Count
         supabase.rpc('increment_view_count', { row_id: id });
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (err) {
         setError("Could not retrieve song data.");
       } finally {

@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { DOT_GRID_SVG, cn } from '../lib/utils';
+import { DOT_GRID_SVG } from '../lib/utils';
 import { Spotlight } from '../components/ui/Spotlight';
 import { 
   Music2, Heart, Users, Sparkles, Target, Shield, 
@@ -11,7 +11,9 @@ import {
 } from 'lucide-react';
 
 const About: React.FC = () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [content, setContent] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -26,6 +28,7 @@ const About: React.FC = () => {
         if (data && data.content) {
           setContent(data.content);
         }
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (err) {
         console.log("Using default content.");
       } finally {

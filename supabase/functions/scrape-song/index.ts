@@ -41,7 +41,7 @@ function convertToChordPro(rawText: string): string {
     const nextLine = lines[i + 1];
 
     if (isChordLine(currentLine) && nextLine && !isChordLine(nextLine) && nextLine.trim().length > 0) {
-      let mergedLine = nextLine;
+      const mergedLine = nextLine;
       const matches = [...currentLine.matchAll(CHORD_TOKEN_REGEX)];
       let finalLine = "";
       let lyricCursor = 0;
@@ -86,8 +86,8 @@ function convertToChordPro(rawText: string): string {
     } 
     else {
         const trimmed = currentLine.trim();
-        if (/^\[.+\]$/.test(trimmed) || /^(Chorus|Verse|Bridge|Intro|Outro).*:/i.test(trimmed)) {
-             const headerName = trimmed.replace(/[:\[\]]/g, '').trim();
+        if (/^\[.+]$/.test(trimmed) || /^(Chorus|Verse|Bridge|Intro|Outro).*:/i.test(trimmed)) {
+             const headerName = trimmed.replace(/[:[\]]/g, '').trim();
              result.push(`{comment: ${headerName}}`);
         } else {
              result.push(currentLine);
@@ -192,8 +192,10 @@ serve(async (req) => {
                     }
 
                     storeData = JSON.parse(jsonStr);
-                    break;
-                } catch (e) {}
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                } catch (e) {
+                    // ignore error
+                }
             }
         }
 
@@ -243,9 +245,10 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
-  } catch (error) {
-    console.error("Scrape Error:", error.message);
-    return new Response(JSON.stringify({ error: error.message }), {
+  } catch (error: unknown) {
+    const errorMsg = error instanceof Error ? error.message : "Unknown error";
+    console.error("Scrape Error:", errorMsg);
+    return new Response(JSON.stringify({ error: errorMsg }), {
       status: 422,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

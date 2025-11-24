@@ -38,8 +38,12 @@ const SongManager: React.FC = () => {
                 const { error } = await supabase.from('songs').delete().eq('id', id);
                 if (error) throw error;
                 setSongs(prev => prev.filter(s => s.id !== id));
-            } catch (e: any) {
-                alert("System Error: " + e.message);
+            } catch (e: unknown) {
+                if (e instanceof Error) {
+                    alert("System Error: " + e.message);
+                } else {
+                    alert("System Error: Unknown error");
+                }
             }
         }
     };

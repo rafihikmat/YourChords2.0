@@ -36,7 +36,7 @@ export interface ChordLine {
 }
 
 // Allows flexibility for { content: "[C]ChordPro..." }
-export type TablatureData = Record<string, any> & { content?: string };
+export type TablatureData = Record<string, unknown> & { content?: string };
 
 export interface SongRating {
   song_id: string;
