@@ -14,7 +14,9 @@ const convertJsonToRawText = (chordData: ChordLine[] | null): string => {
     // SMART HEADER DETECTION:
     // Only treat as header if it contains a single bracketed item and NOTHING else.
     const trimmed = line.line?.trim() || '';
+    // eslint-disable-next-line no-useless-escape
     if (trimmed && /^\[[^\[\]]+\]$/.test(trimmed)) {
+        // eslint-disable-next-line no-useless-escape
         return `{comment: ${trimmed.replace(/[\[\]]/g, '')}}`;
     }
     

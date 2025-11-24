@@ -26,8 +26,8 @@ export const transposeChord = (chord: string, semitones: number): string => {
   const match = chord.match(/^([A-G][#b]?)(.*?)(\/([A-G][#b]?))?$/);
   if (!match) return chord;
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars, prefer-const
-  let [_, root, quality, __, bass] = match;
+  // eslint-disable-next-line prefer-const, @typescript-eslint/no-unused-vars
+  let [_match, root, quality, _group3, bass] = match;
   
   const flatMap: Record<string, string> = { 'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#' };
   root = flatMap[root] || root;
@@ -218,7 +218,7 @@ export const convertToChordPro = (rawText: string): string => {
         }
         // Check for headers like [Chorus], Verse 1:, etc.
         else if (/^\[.+\]$/.test(trimmed) || /^(Chorus|Verse|Bridge|Intro|Outro|Reff).*[:]?$/i.test(trimmed)) {
-             const headerName = trimmed.replace(/[:\[\]]/g, '').trim();
+             const headerName = trimmed.replace(/[:[\]]/g, '').trim();
              result.push(`{comment: ${headerName}}`);
         } 
         else {

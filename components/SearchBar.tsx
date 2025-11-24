@@ -126,7 +126,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ className, variant = 'navbar' }) 
         }
 
         // 4. External API Searches (Spotify & YouTube)
-        const promises = [];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const promises: Promise<any>[] = [];
         if (activeTab === 'all' || activeTab === 'songs') {
             promises.push(supabase.functions.invoke('search-spotify', { body: { query } }));
         }
@@ -143,6 +144,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ className, variant = 'navbar' }) 
                 
                 // Spotify Results
                 if (data.tracks?.items) {
+                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                      newResults.push(...data.tracks.items.slice(0, 2).map((item: any) => ({
                         id: item.id,
                         title: item.name,
@@ -155,6 +157,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ className, variant = 'navbar' }) 
                 
                 // YouTube External Results
                 if (data.items) {
+                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                      newResults.push(...data.items.slice(0, 2).map((item: any) => ({
                         id: item.id.videoId,
                         title: item.snippet.title,
@@ -167,7 +170,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ className, variant = 'navbar' }) 
             }
         });
         setResults(newResults);
-      } catch (err) {} finally {
+      } catch {
+        // Ignore error
+      } finally {
         setIsLoading(false);
       }
     }, 400);

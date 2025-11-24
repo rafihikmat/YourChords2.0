@@ -61,7 +61,8 @@ export const useMetronome = (initialBpm = 120) => {
 
     if (isPlaying) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      audioContextRef.current = new AudioContextClass();
       nextNoteTimeRef.current = audioContextRef.current.currentTime;
       scheduler();
     } else {

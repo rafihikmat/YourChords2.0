@@ -179,15 +179,16 @@ const SmartSyncEditor: React.FC = () => {
                     }
                 }
             });
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-empty
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (e) {
+          // ignore error
         }
       }, 200);
     }
     return () => {
         if (playerRef.current && typeof playerRef.current.destroy === 'function') {
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            try { playerRef.current.destroy(); } catch(e) {}
+            try { playerRef.current.destroy(); } catch(e) { /* ignore */ }
         }
     };
   }, [phase, videoId]);
@@ -328,7 +329,7 @@ const SmartSyncEditor: React.FC = () => {
                  <button onClick={() => setPhase('setup')} className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors">
                      <RotateCcw className="w-4 h-4" /> Reset
                  </button>
-                 <div className="h-6 w-px bg-slate-200 dark:bg-white/10 mx-2"></div>
+                 <div className="h-6 w-px bg-slate-200 dark:bg-white/10 mx-1"></div>
                  <button onClick={exportJson} className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-lg shadow-lg shadow-green-500/20 transition-all active:scale-95">
                      <Download className="w-4 h-4" /> Export JSON
                  </button>

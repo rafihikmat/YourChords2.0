@@ -83,7 +83,6 @@ const MaintenanceConsole: React.FC = () => {
                              cover_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(albumTitle)}&background=random&size=512`
                          }]).select().single();
 
-                         // eslint-disable-next-line @typescript-eslint/no-unused-vars
                          if (albumError) {
                             console.error('Error creating album:', albumError);
                          }

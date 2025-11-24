@@ -12,12 +12,14 @@ interface YouTubePlayerProps {
 
 declare global {
   interface Window {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     YT: any;
     onYouTubeIframeAPIReady: () => void;
   }
 }
 
 const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoId, className, onTimeUpdate, onReady }) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const playerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   
@@ -32,6 +34,64 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoId, className, onTim
   const [isHovered, setIsHovered] = useState(false);
 
   // --- 1. Initialization Logic (Fixes Black Screen Race Condition) ---
+  const loadVideo = useCallback(() => {
+    if (!containerRef.current || !window.YT) return;
+
+    try {
+      // Cleanup existing instance if any
+      if (playerRef.current) {
+          if (typeof playerRef.current.destroy === 'function') {
+            playerRef.current.destroy();
+          }
+      }
+
+      playerRef.current = new window.YT.Player(containerRef.current, {
+        videoId: videoId,
+        height: '100%',
+        width: '100%',
+        playerVars: {
+          autoplay: 0,
+          controls: 0,
+          disablekb: 1,
+          fs: 0,
+          iv_load_policy: 3,
+          modestbranding: 1,
+          rel: 0,
+          showinfo: 0,
+          playsinline: 1,
+          origin: window.location.origin
+        },
+        events: {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          onReady: (event: any) => {
+              setIsReady(true);
+              setDuration(event.target.getDuration());
+              event.target.setVolume(volume);
+              if (onReady) onReady();
+          },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          onStateChange: (event: any) => {
+            const playing = event.data === window.YT.PlayerState.PLAYING;
+            setIsPlaying(playing);
+
+            // Ensure duration is captured if it wasn't ready earlier
+            if (playing && !duration) {
+               setDuration(event.target.getDuration());
+            }
+          },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          onError: (e: any) => {
+              console.error("YouTube Player Error:", e);
+              setHasError(true);
+          }
+        },
+      });
+    } catch (e) {
+      console.error("Error initializing YT Player", e);
+      setHasError(true);
+    }
+  }, [videoId, onReady, duration, volume]);
+
   useEffect(() => {
     if (!videoId) return;
 
@@ -39,65 +99,9 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoId, className, onTim
     setIsReady(false);
     setHasError(false);
 
-    const loadVideo = () => {
-      if (!containerRef.current) return;
-
-      try {
-        // Cleanup existing instance if any
-        if (playerRef.current) {
-            playerRef.current.destroy();
-        }
-
-        playerRef.current = new window.YT.Player(containerRef.current, {
-          videoId: videoId,
-          height: '100%',
-          width: '100%',
-          playerVars: {
-            autoplay: 0,
-            controls: 0,
-            disablekb: 1,
-            fs: 0,
-            iv_load_policy: 3,
-            modestbranding: 1,
-            rel: 0,
-            showinfo: 0,
-            playsinline: 1,
-            origin: window.location.origin
-          },
-          events: {
-            onReady: (event: any) => {
-              if (isMounted) {
-                setIsReady(true);
-                setDuration(event.target.getDuration());
-                event.target.setVolume(volume);
-                if (onReady) onReady();
-              }
-            },
-            onStateChange: (event: any) => {
-              if (!isMounted) return;
-              const playing = event.data === window.YT.PlayerState.PLAYING;
-              setIsPlaying(playing);
-              
-              // Ensure duration is captured if it wasn't ready earlier
-              if (playing && !duration) {
-                 setDuration(event.target.getDuration());
-              }
-            },
-            onError: (e: any) => {
-                console.error("YouTube Player Error:", e);
-                if (isMounted) setHasError(true);
-            }
-          },
-        });
-      } catch (e) {
-        console.error("Error initializing YT Player", e);
-        setHasError(true);
-      }
-    };
-
     // CRITICAL FIX: Check if API is ALREADY ready
     if (window.YT && window.YT.Player) {
-      loadVideo();
+      if(isMounted) loadVideo();
     } else {
       // If not, check if script tag exists
       const existingScript = document.querySelector('script[src="https://www.youtube.com/iframe_api"]');
@@ -112,13 +116,13 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoId, className, onTim
       const previousCallback = window.onYouTubeIframeAPIReady;
       window.onYouTubeIframeAPIReady = () => {
         if (previousCallback) previousCallback();
-        loadVideo();
+        if(isMounted) loadVideo();
       };
     }
 
     // Fallback: If YouTube API hangs, show error state after 5 seconds so UI isn't stuck
     const fallbackTimer = setTimeout(() => {
-        if (!isReady && !playerRef.current) {
+        if (!isReady && !playerRef.current && isMounted) {
             setHasError(true);
         }
     }, 5000);
@@ -130,12 +134,13 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoId, className, onTim
       if (playerRef.current && typeof playerRef.current.destroy === 'function') {
         try {
             playerRef.current.destroy();
-        } catch (e) {
+        } catch {
             // Ignore destroy errors on unmount
         }
       }
     };
-  }, [videoId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [videoId, loadVideo]); // Removed isReady from deps to break cycle
 
   // --- 2. Performance Optimized Loop (Fixes Lag) ---
   useEffect(() => {

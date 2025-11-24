@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Music, Github, Twitter, Instagram, Mail, Heart, Zap, ArrowRight, Facebook, Linkedin } from 'lucide-react';
-import { cn } from '../lib/utils';
 import { supabase } from '../lib/supabase';
 
 interface FooterLink {
@@ -68,7 +67,7 @@ const Footer: React.FC = () => {
             // Merge defaults ensures structure exists even if DB partial
             setData({ ...DEFAULT_FOOTER, ...dbData.content });
         }
-      } catch (e) {
+      } catch {
         // Fallback silently to default
       }
     };

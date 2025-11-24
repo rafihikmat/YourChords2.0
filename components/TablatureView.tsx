@@ -5,6 +5,7 @@ import { Copy, Music2, Terminal } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface TablatureViewProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   tabs: Record<string, any> | null;
   className?: string;
 }

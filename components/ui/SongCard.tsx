@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Play, Eye, Star, Activity, Heart } from 'lucide-react';
 import { Song } from '../../types';
@@ -44,10 +44,12 @@ const SongCard: React.FC<SongCardProps> = ({ song, className }) => {
 
   useEffect(() => {
     if (user) {
+      // Fire and forget
       checkFavoriteStatus();
       fetchRating();
     }
-  }, [user, song.id, checkFavoriteStatus, fetchRating]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, song.id]); // Removed functions from deps to prevent loop if they were unstable
 
   const toggleFavorite = async (e: React.MouseEvent) => {
     e.stopPropagation();

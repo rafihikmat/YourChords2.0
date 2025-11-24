@@ -73,9 +73,13 @@ const SongUploader: React.FC = () => {
           navigate(`/song/${songData.id}`);
       }, 1500);
 
-    } catch (err: any) {
-      console.error('Upload failed:', err);
-      setError(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        console.error('Upload failed:', err);
+        setError(err.message);
+      } else {
+        setError('Unknown error occurred.');
+      }
     } finally {
       setUploading(false);
     }

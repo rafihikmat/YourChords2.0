@@ -1,9 +1,8 @@
 
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, X, FileJson, Check, AlertCircle, Loader2, Save, FileText } from 'lucide-react';
+import { Upload, X, FileJson, Check, Loader2, Save, FileText } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { Song } from '../../types';
 import { cn } from '../../lib/utils';
 
 interface BulkImportModalProps {
@@ -33,15 +32,17 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
       
       if (!Array.isArray(json)) throw new Error("File must contain a JSON array.");
       
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const validItems: ImportItem[] = json.map((item: any) => ({
         title: item.title || "Unknown Title",
         artist: item.artist || "Unknown Artist",
         content: item.content || item.body || item.lyrics || "",
         status: 'pending' as const
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       })).filter((i: any) => i.content.length > 0);
 
       setItems(validItems);
-    } catch (e: any) {
+    } catch {
       alert("Invalid JSON Format. Expected array of { title, artist, content }.");
     }
   };
@@ -76,8 +77,12 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
 
         if (error) throw error;
         newItems[i] = { ...item, status: 'success' };
-      } catch (e: any) {
-        newItems[i] = { ...item, status: 'error', message: e.message };
+      } catch (e: unknown) {
+        if (e instanceof Error) {
+            newItems[i] = { ...item, status: 'error', message: e.message };
+        } else {
+            newItems[i] = { ...item, status: 'error', message: "Unknown error" };
+        }
       }
       
       // Update UI every item to show progress

@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Send, User, Bot, Sparkles, BrainCircuit, Zap, Globe, Loader2 } from 'lucide-react';
 import { Chat, GenerateContentResponse } from "@google/genai";
 import { ai } from '../lib/gemini';

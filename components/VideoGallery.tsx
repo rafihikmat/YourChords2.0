@@ -23,7 +23,11 @@ export const VideoGallery: React.FC = () => {
 
   useEffect(() => {
     fetchVideos();
+  }, []);
+
+  useEffect(() => {
     if (user) fetchFavorites();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const fetchVideos = async () => {
@@ -46,6 +50,7 @@ export const VideoGallery: React.FC = () => {
       if (!user) return;
       const { data } = await supabase.from('video_favorites').select('video_id').eq('user_id', user.id);
       if (data) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           setFavoriteIds(data.map((item: any) => item.video_id));
       }
   };

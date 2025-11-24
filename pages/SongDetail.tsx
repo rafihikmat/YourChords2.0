@@ -98,7 +98,7 @@ export default function SongDetail() {
         if (error || !data) throw new Error("Song not found");
         setSong(data as unknown as Song);
         // Fire & Forget View Count
-        supabase.rpc('increment_view_count', { row_id: id });
+        await supabase.rpc('increment_view_count', { row_id: id });
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (err) {
         setError("Could not retrieve song data.");
