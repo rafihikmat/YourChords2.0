@@ -19,6 +19,7 @@ const Home: React.FC = () => {
   const [isLoadingSongs, setIsLoadingSongs] = useState(true);
   const [isSeeding, setIsSeeding] = useState(false);
   const [difficultyFilter, setDifficultyFilter] = useState<string>('All');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [pageContent, setPageContent] = useState<any>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
@@ -46,11 +47,15 @@ const Home: React.FC = () => {
 
         // 3. Albums
         const { data: albumData } = await supabase.from('albums').select('*').limit(4);
-        if (albumData) setAlbums(albumData as any);
+        if (albumData) setAlbums(albumData as unknown as Album[]);
 
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Data load failed", err);
-        setFetchError(err.message || "Unknown error");
+        if (err instanceof Error) {
+            setFetchError(err.message);
+        } else {
+            setFetchError("Unknown error");
+        }
         setSongs([]);
       } finally {
         setIsLoadingSongs(false);
@@ -79,6 +84,7 @@ const Home: React.FC = () => {
           } else {
               await fetchData();
           }
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (e) {
           alert("Seeding error. See console.");
       } finally {

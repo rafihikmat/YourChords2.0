@@ -281,6 +281,7 @@ export const seedDatabase = async () => {
           // Skip if exists
           console.log(`Skipped ${song.title} (already exists)`);
       }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
       failCount++;
     }

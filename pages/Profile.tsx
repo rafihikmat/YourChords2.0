@@ -40,8 +40,12 @@ const ProfilePage: React.FC = () => {
 
       if (error) throw error;
       setMessage({ type: 'success', text: 'Profile updated successfully' });
-    } catch (error: any) {
-      setMessage({ type: 'error', text: error.message });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        setMessage({ type: 'error', text: error.message });
+      } else {
+        setMessage({ type: 'error', text: 'An unknown error occurred' });
+      }
     } finally {
       setLoading(false);
     }

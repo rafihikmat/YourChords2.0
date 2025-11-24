@@ -11,9 +11,18 @@ import { useAuth } from '../contexts/AuthContext';
 import { ai } from '../lib/gemini';
 import { useMetronome } from '../lib/hooks';
 
+// Augment window type for older browser AudioContext
+declare global {
+  interface Window {
+    webkitAudioContext: typeof AudioContext;
+  }
+}
+
+type TabId = 'ai' | 'upload' | 'tuner' | 'library' | 'metronome' | 'assistant';
+
 const ToolsPage: React.FC = () => {
   const { isAdmin } = useAuth();
-  const [activeTab, setActiveTab] = useState<'ai' | 'upload' | 'tuner' | 'library' | 'metronome' | 'assistant'>('tuner');
+  const [activeTab, setActiveTab] = useState<TabId>('tuner');
   
   // Tuner State
   const tunerCtx = useRef<AudioContext | null>(null);
@@ -40,7 +49,8 @@ const ToolsPage: React.FC = () => {
       stopNote();
       setActiveNote(note);
       
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      const ctx = new AudioContextClass();
       tunerCtx.current = ctx;
       
       const osc = ctx.createOscillator();
@@ -87,11 +97,14 @@ const ToolsPage: React.FC = () => {
           `;
 
           const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt
+            model: 'gemini-1.5-pro',
+            contents: [{
+                role: 'user',
+                parts: [{ text: prompt }]
+            }]
           });
-          setAssistantResponse(response.text || "I couldn't analyze that musical concept right now.");
-      } catch (error) {
+          setAssistantResponse(response.response.text() || "I couldn't analyze that musical concept right now.");
+      } catch {
           setAssistantResponse("Neural Link Interrupted. Please check your connection.");
       } finally {
           setIsAssistantLoading(false);
@@ -133,7 +146,7 @@ const ToolsPage: React.FC = () => {
         <div className="flex justify-center mb-8 overflow-x-auto">
             <div className="flex bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-white/10 shadow-sm min-w-max">
                 {tabs.filter(t => t.show).map((tab) => (
-                    <button key={tab.id} onClick={() => { setActiveTab(tab.id as any); stopNote(); setIsMetroPlaying(false); }} className={cn("flex items-center gap-2 px-6 py-2 rounded-lg text-sm font-bold transition-all", activeTab === tab.id ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white" : "text-slate-500 hover:text-slate-900 dark:hover:text-white")}>
+                    <button key={tab.id} onClick={() => { setActiveTab(tab.id as TabId); stopNote(); setIsMetroPlaying(false); }} className={cn("flex items-center gap-2 px-6 py-2 rounded-lg text-sm font-bold transition-all", activeTab === tab.id ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white" : "text-slate-500 hover:text-slate-900 dark:hover:text-white")}>
                         <tab.icon className="w-4 h-4" /> {tab.label}
                     </button>
                 ))}
@@ -157,7 +170,7 @@ const ToolsPage: React.FC = () => {
                 <h2 className="text-2xl font-bold dark:text-white mb-6 flex items-center justify-center gap-2"><Activity className="w-6 h-6 text-primary" /> Standard Tuning</h2>
                 <div className="grid grid-cols-3 sm:grid-cols-6 gap-4">
                     {GUITAR_STRINGS.map((s) => (
-                        <button key={s.note} onClick={() => playNote(s.freq, s.note)} className={cn("flex flex-col items-center justify-center p-4 rounded-xl border transition-all h-32 relative overflow-hidden", activeNote === s.note ? "bg-primary text-white border-primary" : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-white/10")}>
+                        <button key={s.note} onClick={() => playNote(s.freq, s.note)} className={cn("flex flex-col items-center justify-center p-4 rounded-xl border transition-all h-32 relative overflow-hidden", activeNote === s.note ? "bg-primary text-white border-primary" : "bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-white/10")}>
                             <span className="text-2xl font-black mb-2">{s.note.charAt(0)}</span>
                             <span className="text-xs opacity-70">{s.freq}Hz</span>
                             {activeNote === s.note && <div className="absolute inset-0 bg-white/20 animate-pulse"></div>}

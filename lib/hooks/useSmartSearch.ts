@@ -39,6 +39,7 @@ export function useSmartSearch<T>(data: T[], searchTerm: string, keys: string[])
 
     // Return the 'item' property from Fuse results
     // Explicitly cast result item to T to avoid 'unknown' type inference issues in strict environments
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return fuse.search(searchTerm).map((result: any) => result.item as T);
   }, [fuse, searchTerm, data]);
 

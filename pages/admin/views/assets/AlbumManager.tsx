@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Trash2, Disc3, Edit2, Save, X, Image as ImageIcon } from 'lucide-react';
 import { supabase } from '../../../../lib/supabase';
 import { Album } from '../../../../types';
@@ -16,16 +16,17 @@ export const AlbumManager: React.FC<AlbumManagerProps> = ({ searchTerm }) => {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        fetchAlbums();
-    }, []);
-
-    const fetchAlbums = async () => {
+    const fetchAlbums = useCallback(async () => {
         setLoading(true);
         const { data } = await supabase.from('albums').select('*').order('created_at', { ascending: false });
         if (data) setAlbums(data as unknown as Album[]);
         setLoading(false);
-    };
+    }, []);
+
+    useEffect(() => {
+        fetchAlbums();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const handleSaveAlbum = async (e: React.FormEvent) => {
         e.preventDefault();

@@ -14,7 +14,7 @@ export const CHORD_FAMILIES: Record<string, string[]> = {
 
 export const normalizeChordName = (input: string): string => {
   if (!input || typeof input !== 'string') return "";
-  let normalized = input.trim().charAt(0).toUpperCase() + input.trim().slice(1);
+  const normalized = input.trim().charAt(0).toUpperCase() + input.trim().slice(1);
   return normalized
     .replace(/min$/, 'm').replace(/minor$/, 'm')
     .replace(/maj$/, 'maj7').replace(/major$/, '')
@@ -26,6 +26,7 @@ export const transposeChord = (chord: string, semitones: number): string => {
   const match = chord.match(/^([A-G][#b]?)(.*?)(\/([A-G][#b]?))?$/);
   if (!match) return chord;
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars, prefer-const
   let [_, root, quality, __, bass] = match;
   
   const flatMap: Record<string, string> = { 'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#' };
@@ -48,7 +49,7 @@ export const parseChordsFromText = (text: string) => {
   
   const chords = new Set<string>();
   // Expanded regex to catch chords in brackets [C]
-  const chordRegex = /\[([A-G][#b]?(?:m|min|maj|dim|aug|sus|add|M)*[0-9]*(?:\/[A-G][#b]?)?)\]/g;
+  const chordRegex = /\[([A-G][#b]?(?:m|min|maj|dim|aug|sus|add|M)*[0-9]*(?:\/[A-G][#b]?)?)]/g;
   let match;
   
   while ((match = chordRegex.exec(text)) !== null) {

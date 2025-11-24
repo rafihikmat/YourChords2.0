@@ -13,6 +13,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 
 // --- PDF WORKER INITIALIZATION ---
 // We use CDNJS because esm.sh often has strict CORS on Web Workers or version mismatch issues.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const pdfApi = (pdfjsLib as any).default || pdfjsLib;
 if (typeof window !== 'undefined' && pdfApi) {
     // Manually set worker source to a stable CDN that matches the imported version (3.11.174)
@@ -64,10 +65,11 @@ const ManualEntry: React.FC = () => {
                          raw = (s.chords as unknown as string[]).join('\n');
                     } else {
                         // ChordLine object from new parser
-                        raw = s.chords.map((line: any) => {
+                        interface ChordLine { line: string; chords: string[] }
+                        raw = (s.chords as unknown as ChordLine[]).map((line) => {
                              if (line.chords && line.chords.length > 0) {
                                  // Reconstruct brackets for editing consistency
-                                 const chordStr = line.chords.map((c:string) => `[${c}]`).join('');
+                                 const chordStr = line.chords.map((c) => `[${c}]`).join('');
                                  return `${chordStr}${line.line}`;
                              }
                              return line.line;
@@ -90,16 +92,6 @@ const ManualEntry: React.FC = () => {
 
     /**
      * PDF Text Extractor with Layout Preservation (Spatial Analysis)
-     * 
-     * Problem: Standard PDF extraction dumps text linearly, often losing the visual alignment
-     * required for "Chords over Lyrics" (e.g., an 'A' chord floating far right over the word 'love').
-     * 
-     * Solution: This algorithm:
-     * 1. Extracts every text item with its (x, y) coordinates.
-     * 2. Groups items into "Lines" based on Y-coordinate (with a tolerance for imperfect alignment).
-     * 3. Sorts items inside a line by X-coordinate.
-     * 4. Calculates the horizontal gap between items.
-     * 5. Inserts synthetic spaces based on gap size to mimic the visual layout in a monospace font.
      */
     const extractTextFromPdf = async (arrayBuffer: ArrayBuffer): Promise<string> => {
         try {
@@ -116,6 +108,7 @@ const ManualEntry: React.FC = () => {
                 const textContent = await page.getTextContent();
                 
                 // Map items to include coordinate data
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const items = textContent.items.map((item: any) => ({
                     str: item.str,
                     x: item.transform[4], // x coordinate
@@ -174,9 +167,13 @@ const ManualEntry: React.FC = () => {
             }
 
             return fullText;
-        } catch (e: any) {
+        } catch (e: unknown) {
             console.error("PDF Extraction Error:", e);
-            throw new Error("Could not read PDF. " + (e.message || "Worker failed."));
+            if (e instanceof Error) {
+                 throw new Error("Could not read PDF. " + (e.message || "Worker failed."));
+            } else {
+                 throw new Error("Could not read PDF. Unknown error.");
+            }
         }
     };
 
@@ -227,9 +224,13 @@ const ManualEntry: React.FC = () => {
 
             setImportStatus({ type: 'success', msg: `Processed "${file.name}" successfully. Layout preserved & converted to ChordPro.` });
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error(error);
-            setImportStatus({ type: 'error', msg: "Failed to process file. " + error.message });
+             if (error instanceof Error) {
+                setImportStatus({ type: 'error', msg: "Failed to process file. " + error.message });
+            } else {
+                 setImportStatus({ type: 'error', msg: "Failed to process file. Unknown error." });
+            }
         } finally {
             setIsProcessingFile(false);
             if (fileInputRef.current) fileInputRef.current.value = '';
@@ -261,8 +262,12 @@ const ManualEntry: React.FC = () => {
 
             setImportStatus({ type: 'success', msg: `Successfully scraped "${data.title}" from ${new URL(urlInput).hostname}` });
             setUrlInput('');
-        } catch (err: any) {
-            setImportStatus({ type: 'error', msg: "Scrape failed: " + err.message });
+        } catch (err: unknown) {
+             if (err instanceof Error) {
+                setImportStatus({ type: 'error', msg: "Scrape failed: " + err.message });
+            } else {
+                 setImportStatus({ type: 'error', msg: "Scrape failed. Unknown error." });
+            }
         } finally {
             setIsScraping(false);
         }

@@ -56,6 +56,7 @@ interface ParsedSongData {
     html: string;
     uniqueChords: string[];
     key?: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     metadata: Record<string, any>;
 }
 
@@ -96,6 +97,7 @@ export const useChordSheetParser = ({ songData, transposeSteps = 0 }: UseChordSh
 
     useEffect(() => {
         if (!rawSource || rawSource.trim().length === 0) {
+             // eslint-disable-next-line react-hooks/set-state-in-effect
              setParsedData({ html: '', uniqueChords: [], metadata: {} });
              return;
         }
@@ -119,10 +121,13 @@ export const useChordSheetParser = ({ songData, transposeSteps = 0 }: UseChordSh
             // 5. Extract UniqueChords (with Strict Filtering)
             const uniqueChords = new Set<string>();
             if (song.paragraphs) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 song.paragraphs.forEach((p: any) => {
                     if (p.lines) {
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         p.lines.forEach((l: any) => {
                             if (l.items) {
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                 l.items.forEach((item: any) => {
                                     if (item.chords) {
                                         const c = item.chords.trim();

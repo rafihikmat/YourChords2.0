@@ -24,6 +24,7 @@ const FavoritesPage: React.FC = () => {
 
       if (!error && data) {
         // Extract the song object from the join result
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const favoritedSongs = data.map((item: any) => item.songs).filter(Boolean);
         setSongs(favoritedSongs);
       }

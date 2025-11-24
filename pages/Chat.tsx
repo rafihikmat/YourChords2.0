@@ -10,10 +10,10 @@ type ChatMode = 'turbo' | 'guru' | 'thinking' | 'researcher';
 interface Message { id: string; role: 'user' | 'model'; text: string; groundingUrls?: {uri: string, title: string}[] }
 
 const MODES: Record<ChatMode, { name: string; icon: React.ReactNode; description: string; model: string; systemInstruction: string }> = {
-  turbo: { name: 'Turbo', icon: <Zap className="w-4 h-4 text-yellow-400" />, description: 'Fast (Flash Lite)', model: 'gemini-2.5-flash-lite-latest', systemInstruction: 'You are a helpful music assistant. Concise answers.' },
-  guru: { name: 'Guru', icon: <Bot className="w-4 h-4 text-primary" />, description: 'Theory Expert', model: 'gemini-3-pro-preview', systemInstruction: 'You are a Music Theory Expert. Explain harmony, scales, and composition.' },
-  thinking: { name: 'Deep Thought', icon: <BrainCircuit className="w-4 h-4 text-purple-400" />, description: 'Reasoning', model: 'gemini-3-pro-preview', systemInstruction: 'You are a deep reasoning engine for complex analysis.' },
-  researcher: { name: 'Researcher', icon: <Globe className="w-4 h-4 text-green-400" />, description: 'Live Web Data', model: 'gemini-2.5-flash', systemInstruction: 'You are a music researcher with web access.' }
+  turbo: { name: 'Turbo', icon: <Zap className="w-4 h-4 text-yellow-400" />, description: 'Fast (Flash 1.5)', model: 'gemini-1.5-flash', systemInstruction: 'You are a helpful music assistant. Concise answers.' },
+  guru: { name: 'Guru', icon: <Bot className="w-4 h-4 text-primary" />, description: 'Theory Expert', model: 'gemini-1.5-pro', systemInstruction: 'You are a Music Theory Expert. Explain harmony, scales, and composition.' },
+  thinking: { name: 'Deep Thought', icon: <BrainCircuit className="w-4 h-4 text-purple-400" />, description: 'Reasoning', model: 'gemini-1.5-pro', systemInstruction: 'You are a deep reasoning engine for complex analysis.' },
+  researcher: { name: 'Researcher', icon: <Globe className="w-4 h-4 text-green-400" />, description: 'Live Web Data', model: 'gemini-1.5-flash', systemInstruction: 'You are a music researcher with web access.' }
 };
 
 const ChatPage: React.FC = () => {
@@ -38,6 +38,7 @@ const ChatPage: React.FC = () => {
 
     try {
       const { model, systemInstruction } = MODES[mode];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const config: any = { systemInstruction };
       if (mode === 'thinking') config.thinkingConfig = { thinkingBudget: 32768 };
       if (mode === 'researcher') config.tools = [{ googleSearch: {} }];
@@ -56,14 +57,16 @@ const ChatPage: React.FC = () => {
           fullText += c.text;
           setMessages(p => p.map(m => m.id === aiId ? { ...m, text: fullText } : m));
         }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const urls = c.candidates?.[0]?.groundingMetadata?.groundingChunks
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             ?.filter((x: any) => x.web?.uri).map((x: any) => ({ uri: x.web.uri, title: x.web.title }));
         
         if (urls?.length) {
              setMessages(p => p.map(m => m.id === aiId ? { ...m, groundingUrls: urls } : m));
         }
       }
-    } catch (err) {
+    } catch {
       setMessages(p => [...p, { id: Date.now().toString(), role: 'model', text: "Connection interrupted." }]);
     } finally {
       setIsStreaming(false);

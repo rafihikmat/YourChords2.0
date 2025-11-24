@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Play, Eye, Star, Activity, Heart } from 'lucide-react';
 import { Song } from '../../types';
@@ -20,32 +20,34 @@ const SongCard: React.FC<SongCardProps> = ({ song, className }) => {
   const [userRating, setUserRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
 
+  const checkFavoriteStatus = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('song_favorites')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('song_id', song.id)
+      .single();
+    if (data) setIsFavorite(true);
+  }, [user, song.id]);
+
+  const fetchRating = useCallback(async () => {
+      if (!user) return;
+      const { data } = await supabase
+        .from('song_ratings')
+        .select('rating')
+        .eq('user_id', user.id)
+        .eq('song_id', song.id)
+        .single();
+      if (data) setUserRating(data.rating);
+  }, [user, song.id]);
+
   useEffect(() => {
     if (user) {
       checkFavoriteStatus();
       fetchRating();
     }
-  }, [user, song.id]);
-
-  const checkFavoriteStatus = async () => {
-    const { data } = await supabase
-      .from('song_favorites')
-      .select('*')
-      .eq('user_id', user?.id)
-      .eq('song_id', song.id)
-      .single();
-    if (data) setIsFavorite(true);
-  };
-
-  const fetchRating = async () => {
-      const { data } = await supabase
-        .from('song_ratings')
-        .select('rating')
-        .eq('user_id', user?.id)
-        .eq('song_id', song.id)
-        .single();
-      if (data) setUserRating(data.rating);
-  };
+  }, [user, song.id, checkFavoriteStatus, fetchRating]);
 
   const toggleFavorite = async (e: React.MouseEvent) => {
     e.stopPropagation();

@@ -35,7 +35,9 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onTranscriptionComplete }
 
       mediaRecorder.start();
       setIsRecording(true);
-    } catch (err) {}
+    } catch {
+      // Ignore error
+    }
   };
 
   const stopRecording = () => {
@@ -50,24 +52,28 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onTranscriptionComplete }
     try {
       const base64Audio = await blobToBase64(audioBlob);
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: {
-            parts: [
-                { 
-                    inlineData: { 
-                        mimeType: 'audio/webm', 
-                        data: base64Audio 
-                    } 
-                },
-                { text: "Transcribe the lyrics from this audio accurately. Return only the lyrics." }
-            ]
-        }
+        model: 'gemini-1.5-flash',
+        contents: [
+            {
+                role: 'user',
+                parts: [
+                    {
+                        inlineData: {
+                            mimeType: 'audio/webm',
+                            data: base64Audio
+                        }
+                    },
+                    { text: "Transcribe the lyrics from this audio accurately. Return only the lyrics." }
+                ]
+            }
+        ]
       });
 
-      if (response.text) {
-        onTranscriptionComplete(response.text);
+      if (response.response.text()) {
+        onTranscriptionComplete(response.response.text());
       }
-    } catch (error) {
+    } catch {
+      // Ignore error
     } finally {
       setIsProcessing(false);
     }

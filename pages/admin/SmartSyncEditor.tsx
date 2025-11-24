@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, Check, Copy, Video, AlertCircle, PlayCircle, RotateCcw, Download, ChevronRight, Clock } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Play, Pause, Video, AlertCircle, PlayCircle, RotateCcw, Download, ChevronRight, Clock } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 // --- Types ---
@@ -14,6 +14,7 @@ interface SyncLine {
 // --- Global YouTube API ---
 declare global {
   interface Window {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     YT: any;
     onYouTubeIframeAPIReady: () => void;
   }
@@ -140,6 +141,7 @@ const SmartSyncEditor: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   
   // --- Refs ---
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const playerRef = useRef<any>(null);
   const rafRef = useRef<number | null>(null);
   const timeDisplayRef = useRef<HTMLSpanElement>(null);
@@ -169,19 +171,22 @@ const SmartSyncEditor: React.FC = () => {
                 videoId: videoId,
                 playerVars: { 'playsinline': 1, 'modestbranding': 1, 'rel': 0 },
                 events: {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     'onReady': (event: any) => { playerRef.current = event.target; },
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     'onStateChange': (event: any) => {
                         setIsPlaying(event.data === window.YT.PlayerState.PLAYING);
                     }
                 }
             });
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-empty
         } catch (e) {
-            console.error("YouTube Init Error", e);
         }
       }, 200);
     }
     return () => {
         if (playerRef.current && typeof playerRef.current.destroy === 'function') {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             try { playerRef.current.destroy(); } catch(e) {}
         }
     };

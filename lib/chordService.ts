@@ -46,8 +46,8 @@ export class ChordAdapter {
         const match = cleanName.match(/^([A-G][#b]?)(.*)$/);
         if (!match) return null;
 
-        let root = match[1];
-        let suffixRaw = match[2];
+        const root = match[1];
+        const suffixRaw = match[2];
 
         const ENHARMONIC_MAP: Record<string, string> = {
             'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#',

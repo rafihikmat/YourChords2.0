@@ -3,8 +3,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Lock, ArrowRight, Loader2, AlertCircle, ArrowLeft, CheckCircle2, ShieldCheck, UserPlus, LogIn, Fingerprint, XCircle, Globe } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Mail, Lock, Loader2, ArrowLeft, CheckCircle2, ShieldCheck, UserPlus, LogIn, Fingerprint, XCircle, Globe } from 'lucide-react';
 import { DOT_GRID_SVG, cn, calculateStrength } from '../lib/utils';
 import { Spotlight } from '../components/ui/Spotlight';
 
@@ -17,6 +17,7 @@ const Auth: React.FC = () => {
   
   // Security
   const [isHuman, setIsHuman] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isVerifying, setIsVerifying] = useState(false);
   const [verifyProgress, setVerifyProgress] = useState(0);
   const verifyTimer = useRef<number | null>(null);
@@ -75,8 +76,12 @@ const Auth: React.FC = () => {
              if (error) throw error;
              setSuccessMsg("Reset link sent.");
         }
-    } catch (err: any) {
-        setError(err.message || "Authentication failed.");
+    } catch (err: unknown) {
+        if (err instanceof Error) {
+            setError(err.message || "Authentication failed.");
+        } else {
+            setError("Authentication failed.");
+        }
     } finally {
         setLoading(false);
     }

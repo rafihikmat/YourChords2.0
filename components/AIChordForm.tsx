@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Music, PenTool, AlertCircle, Save, Link as LinkIcon, BarChart, Cpu, X, Play, Eye } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Sparkles, Music, PenTool, AlertCircle, Save, Link as LinkIcon, BarChart, Cpu, Eye } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { AIChordFormData } from '../types';
 import AudioRecorder from './AudioRecorder';
@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useChordSheetParser } from '../lib/hooks/useChordSheetParser';
 import SongLyricsDisplay from './SongLyricsDisplay';
+import { ai } from '../lib/gemini';
 
 interface ExtendedFormData extends AIChordFormData {
     spotifyUrl?: string;
@@ -35,6 +36,7 @@ const AIChordForm: React.FC = () => {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
   // State for User-Only Preview (Non-saving mode)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [generatedResult, setGeneratedResult] = useState<any>(null);
 
   // Parse the generated result in real-time for the preview view
@@ -49,7 +51,9 @@ const AIChordForm: React.FC = () => {
       try {
         const parsed = JSON.parse(savedDraft);
         if (parsed.lyrics) setFormData(prev => ({ ...prev, ...parsed }));
-      } catch (e) {}
+      } catch {
+        // Ignore error
+      }
     }
   }, []);
 
@@ -71,58 +75,88 @@ const AIChordForm: React.FC = () => {
     setGeneratedResult(null);
 
     try {
-      const { data: chordData, error: fnError } = await supabase.functions.invoke('generate-chords', {
-          body: {
-              title: formData.title,
-              artist: formData.artist,
-              lyrics: formData.lyrics
-          }
-      });
+        const prompt = `
+            Generate a song chord sheet in strict JSON format.
+            Song Title: ${formData.title}
+            Artist: ${formData.artist}
+            Difficulty: ${formData.difficulty}
+            Lyrics/Context: ${formData.lyrics}
 
-      if (fnError) throw new Error(fnError.message || "Neural Uplink Failed");
-      if (!chordData || !chordData.chords) throw new Error("AI returned invalid structure.");
+            The Output MUST be a valid JSON object with this exact structure:
+            {
+                "title": "Song Title",
+                "artist": "Artist Name",
+                "difficulty": "Easy/Medium/Hard",
+                "chords": [
+                    { "line": "Lyric line 1", "chords": ["Am", "C"] },
+                    { "line": "Lyric line 2", "chords": ["G", "D"] }
+                ]
+            }
+            Ensure chords are placed correctly relative to the lyrics.
+            Do not include any markdown formatting (like \`\`\`json). Just the raw JSON string.
+        `;
 
-      // --- BRANCHING LOGIC ---
-      if (isAdmin) {
-          // ADMIN: Save to Database
-          const spotifyId = formData.spotifyUrl ? (formData.spotifyUrl.split('track/')[1]?.split('?')[0] || null) : null;
-          const youtubeId = formData.youtubeUrl ? (formData.youtubeUrl.split('v=')[1]?.split('&')[0] || null) : null;
+        const result = await ai.models.generateContent({
+            model: 'gemini-1.5-pro',
+            contents: [{
+                role: 'user',
+                parts: [{ text: prompt }]
+            }]
+        });
 
-          const { data: insertedSong, error: dbError } = await supabase.from('songs').insert([{
-              title: chordData.title || formData.title,
-              artist: chordData.artist || formData.artist,
-              difficulty: chordData.difficulty || formData.difficulty, 
-              chords: chordData.chords,
-              spotify_track_id: spotifyId,
-              youtube_video_id: youtubeId,
-              view_count: 0
-          }]).select().single();
+        const responseText = result.response.text();
+        // Clean up markdown if present
+        const cleanJson = responseText.replace(/```json|```/g, '').trim();
 
-          if (dbError) throw dbError;
+        const chordData = JSON.parse(cleanJson);
 
-          setStatus('success');
-          setStatusMessage('Song generated and indexed successfully.');
-          localStorage.removeItem('chordFormDraft');
-          
-          if (insertedSong) {
-              setTimeout(() => navigate(`/song/${insertedSong.id}`), 1500);
-          }
-          setFormData({ title: '', artist: '', lyrics: '', spotifyUrl: '', youtubeUrl: '', difficulty: 'Medium' });
+        if (!chordData || !chordData.chords) throw new Error("AI returned invalid structure.");
 
-      } else {
-          // USER: Show Local Preview Only
-          setGeneratedResult({
-              title: chordData.title || formData.title,
-              artist: chordData.artist || formData.artist,
-              chords: chordData.chords
-          });
-          setStatus('success');
-          setStatusMessage('Song generated! Scroll down to play.');
-      }
+        // --- BRANCHING LOGIC ---
+        if (isAdmin) {
+            // ADMIN: Save to Database
+            const spotifyId = formData.spotifyUrl ? (formData.spotifyUrl.split('track/')[1]?.split('?')[0] || null) : null;
+            const youtubeId = formData.youtubeUrl ? (formData.youtubeUrl.split('v=')[1]?.split('&')[0] || null) : null;
 
-    } catch (error: any) {
+            const { data: insertedSong, error: dbError } = await supabase.from('songs').insert([{
+                title: chordData.title || formData.title,
+                artist: chordData.artist || formData.artist,
+                difficulty: chordData.difficulty || formData.difficulty,
+                chords: chordData.chords,
+                spotify_track_id: spotifyId,
+                youtube_video_id: youtubeId,
+                view_count: 0
+            }]).select().single();
+
+            if (dbError) throw dbError;
+
+            setStatus('success');
+            setStatusMessage('Song generated and indexed successfully.');
+            localStorage.removeItem('chordFormDraft');
+
+            if (insertedSong) {
+                setTimeout(() => navigate(`/song/${insertedSong.id}`), 1500);
+            }
+            setFormData({ title: '', artist: '', lyrics: '', spotifyUrl: '', youtubeUrl: '', difficulty: 'Medium' });
+
+        } else {
+            // USER: Show Local Preview Only
+            setGeneratedResult({
+                title: chordData.title || formData.title,
+                artist: chordData.artist || formData.artist,
+                chords: chordData.chords
+            });
+            setStatus('success');
+            setStatusMessage('Song generated! Scroll down to play.');
+        }
+
+    } catch (error: unknown) {
       setStatus('error');
-      setStatusMessage(error.message || "Processing failed. Please check your connection.");
+      if (error instanceof Error) {
+        setStatusMessage(error.message || "Processing failed. Please check your connection.");
+      } else {
+        setStatusMessage("Processing failed. Please check your connection.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -315,7 +349,7 @@ const AIChordForm: React.FC = () => {
                             {isLoading ? (
                                 <>
                                     <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                                    Processing via Edge Node...
+                                    Generating...
                                 </>
                             ) : (
                                 <>

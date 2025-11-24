@@ -33,7 +33,34 @@ export const useMetronome = (initialBpm = 120) => {
   const timerIDRef = useRef<number | null>(null);
 
   useEffect(() => {
+    // Define logic inside useEffect to avoid hoisting and dependency cycle issues
+    const scheduleNote = (time: number) => {
+        if (!audioContextRef.current) return;
+        const osc = audioContextRef.current.createOscillator();
+        const gain = audioContextRef.current.createGain();
+        osc.frequency.value = 1000;
+        osc.connect(gain);
+        gain.connect(audioContextRef.current.destination);
+        osc.start(time);
+        osc.stop(time + 0.05);
+    };
+
+    const scheduler = () => {
+        if (!audioContextRef.current) return;
+        while (nextNoteTimeRef.current < audioContextRef.current.currentTime + 0.1) {
+            scheduleNote(nextNoteTimeRef.current);
+            nextNoteTimeRef.current += 60.0 / bpm;
+        }
+        timerIDRef.current = window.setTimeout(scheduler, 25.0);
+    };
+
+    const cleanup = () => {
+        if (timerIDRef.current) window.clearTimeout(timerIDRef.current);
+        if (audioContextRef.current?.state !== 'closed') audioContextRef.current?.close();
+    };
+
     if (isPlaying) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
       nextNoteTimeRef.current = audioContextRef.current.currentTime;
       scheduler();
@@ -41,32 +68,7 @@ export const useMetronome = (initialBpm = 120) => {
       cleanup();
     }
     return cleanup;
-  }, [isPlaying]);
-
-  const cleanup = () => {
-    if (timerIDRef.current) window.clearTimeout(timerIDRef.current);
-    if (audioContextRef.current?.state !== 'closed') audioContextRef.current?.close();
-  };
-
-  const scheduler = () => {
-    if (!audioContextRef.current) return;
-    while (nextNoteTimeRef.current < audioContextRef.current.currentTime + 0.1) {
-      scheduleNote(nextNoteTimeRef.current);
-      nextNoteTimeRef.current += 60.0 / bpm;
-    }
-    timerIDRef.current = window.setTimeout(scheduler, 25.0);
-  };
-
-  const scheduleNote = (time: number) => {
-    if (!audioContextRef.current) return;
-    const osc = audioContextRef.current.createOscillator();
-    const gain = audioContextRef.current.createGain();
-    osc.frequency.value = 1000;
-    osc.connect(gain);
-    gain.connect(audioContextRef.current.destination);
-    osc.start(time);
-    osc.stop(time + 0.05);
-  };
+  }, [isPlaying, bpm]);
 
   return { isPlaying, setIsPlaying, bpm, setBpm };
 };

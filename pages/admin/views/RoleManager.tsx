@@ -4,8 +4,9 @@ import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../contexts/AuthContext';
 import { Profile } from '../../../types';
 import { cn } from '../../../lib/utils';
-import { Search, Shield, UserCog, AlertCircle } from 'lucide-react';
+import { Search, Shield, UserCog } from 'lucide-react';
 import { useSmartSearch } from '../../../lib/hooks/useSmartSearch';
+import { useCallback } from 'react';
 
 const RoleManager: React.FC = () => {
     const [users, setUsers] = useState<Profile[]>([]);
@@ -14,17 +15,18 @@ const RoleManager: React.FC = () => {
     const [roleFilter, setRoleFilter] = useState('all');
     const { user: currentUser } = useAuth();
 
-    useEffect(() => {
-        fetchUsers();
-    }, []);
-
-    const fetchUsers = async () => {
+    const fetchUsers = useCallback(async () => {
         setLoading(true);
         const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
         if (error) alert('Error fetching users: ' + error.message);
         else setUsers(data as Profile[]);
         setLoading(false);
-    };
+    }, []);
+
+    useEffect(() => {
+        fetchUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const handleRoleChange = async (targetId: string, newRole: string) => {
         // SECURITY: Prevent Self-Demotion
@@ -49,7 +51,7 @@ const RoleManager: React.FC = () => {
         if (error) {
             alert("Operation Failed: " + error.message);
         } else {
-            setUsers(users.map(u => u.id === targetId ? { ...u, role: safeRole as any } : u));
+            setUsers(users.map(u => u.id === targetId ? { ...u, role: safeRole as Profile['role'] } : u));
         }
     };
 

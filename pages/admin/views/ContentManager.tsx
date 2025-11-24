@@ -4,27 +4,30 @@ import { LayoutTemplate, FileText, Save, Info } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { cn } from '../../../lib/utils';
 
+import { useCallback } from 'react';
+
 const ContentManager: React.FC = () => {
-    const [pages, setPages] = useState<{id: string, content: any}[]>([]);
+    const [pages, setPages] = useState<{id: string, content: Record<string, string>}[]>([]);
     const [selectedPage, setSelectedPage] = useState<string>('home');
-    const [editContent, setEditContent] = useState<any>({});
+    const [editContent, setEditContent] = useState<Record<string, string>>({});
     const [viewMode, setViewMode] = useState<'visual' | 'json'>('visual');
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [loading, setLoading] = useState(false);
 
-    useEffect(() => {
-        fetchContent();
-    }, []);
-
-    const fetchContent = async () => {
+    const fetchContent = useCallback(async () => {
         setLoading(true);
         const { data } = await supabase.from('page_content').select('*');
         if (data) {
-            setPages(data);
+            setPages(data as {id: string, content: Record<string, string>}[]);
             const current = data.find(p => p.id === selectedPage);
-            if (current) setEditContent(current.content);
+            if (current) setEditContent(current.content as Record<string, string>);
         }
         setLoading(false);
-    };
+    }, [selectedPage]);
+
+    useEffect(() => {
+        fetchContent();
+    }, [fetchContent]);
 
     const handlePageSelect = (pageId: string) => {
         setSelectedPage(pageId);
@@ -42,13 +45,17 @@ const ContentManager: React.FC = () => {
             if (error) throw error;
             alert('Content updated successfully! Changes are live.');
             fetchContent();
-        } catch (e: any) {
-            alert('Error saving: ' + e.message);
+        } catch (e: unknown) {
+            if (e instanceof Error) {
+                alert('Error saving: ' + e.message);
+            } else {
+                alert('Error saving content');
+            }
         }
     };
 
     const updateField = (key: string, value: string) => {
-        setEditContent((prev: any) => ({ ...prev, [key]: value }));
+        setEditContent((prev) => ({ ...prev, [key]: value }));
     };
 
     return (
@@ -227,7 +234,7 @@ const ContentManager: React.FC = () => {
                                 try {
                                     const parsed = JSON.parse(e.target.value);
                                     setEditContent(parsed);
-                                } catch(err) {
+                                } catch {
                                     // keep typing
                                 }
                             }}
