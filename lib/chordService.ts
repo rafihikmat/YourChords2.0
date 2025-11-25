@@ -1,50 +1,70 @@
 
-// lib/chordService.ts
+import chordDbData from './data/guitar.json';
 
-/**
- * Represents the position of a chord on the fretboard.
- */
-interface ExternalPosition {
-    frets: string | number[];
-    fingers?: string | number[];
-    barres?: number | number[];
-    capo?: boolean;
+// TYPES based on chords-db structure
+interface ChordDB {
+    main: Record<string, unknown>;
+    tunings: Record<string, unknown>;
+    keys: string[];
+    suffixes: string[];
+    chords: Record<string, ChordEntry[]>;
 }
 
-// Helper: Map Suffix standar
+interface ChordEntry {
+    key: string;
+    suffix: string;
+    positions: Position[];
+}
+
+interface Position {
+    frets: number[];
+    fingers: number[];
+    baseFret: number;
+    barres: number[];
+    capo?: boolean;
+    midi: number[];
+}
+
+const CHORD_DB = chordDbData as unknown as ChordDB;
+
+// MAPPING for Suffixes to match DB expectations
 const SUFFIX_MAP: Record<string, string> = {
-    '': 'major', 'm': 'minor', 'min': 'minor', 'maj': 'major',
-    'dim': 'dim', 'aug': 'aug', '7': '7', 'm7': 'm7', 'maj7': 'maj7',
-    '9': '9', 'm9': 'm9', 'maj9': 'maj9', 'sus4': 'sus4', 'sus2': 'sus2',
-    '7sus4': '7sus4', '5': '5', '6': '6', 'm6': 'm6', 'add9': 'add9',
+    '': 'major',
+    'maj': 'major',
+    'M': 'major',
+    'm': 'minor',
+    'min': 'minor',
+    '-': 'minor',
+    '+': 'aug',
+    'dim': 'dim',
+    'aug': 'aug',
+    '7': '7',
+    'm7': 'm7',
+    'maj7': 'maj7',
+    'M7': 'maj7',
+    '9': '9',
+    'm9': 'm9',
+    'maj9': 'maj9',
+    'sus': 'sus4',
+    'sus4': 'sus4',
+    'sus2': 'sus2',
+    '7sus4': '7sus4',
+    '5': '5',
+    '6': '6',
+    'm6': 'm6',
+    'add9': 'add9',
+    'madd9': 'madd9',
+    '11': '11',
+    '13': '13',
+    'm11': 'm11'
 };
 
-/**
- * Converts a fret notation string or array to an array of numbers.
- * 'x' is converted to -1.
- *
- * @param {string | number[]} frets - The fret data (e.g., "x32010" or [ -1, 3, 2, 0, 1, 0 ]).
- * @returns {number[]} Array of fret numbers.
- */
-const convertFrets = (frets: string | number[]): number[] => {
-    if (Array.isArray(frets)) return frets;
-    return frets.split('').map(char => (char.toLowerCase() === 'x' ? -1 : parseInt(char, 16)));
-};
-
-// Database Lengkap (12 Nada)
-const EXTERNAL_GUITAR_DB: Record<string, Record<string, ExternalPosition[]>> = {
-    'C': { 'major': [{ frets: 'x32010' }], 'minor': [{ frets: 'x35543' }], '7': [{ frets: 'x32310' }], 'maj7': [{ frets: 'x32000' }], 'm7': [{ frets: 'x3134x' }], 'sus4': [{ frets: 'x33011' }] },
-    'C#': { 'major': [{ frets: 'x46664' }], 'minor': [{ frets: 'x46654' }], '7': [{ frets: 'x46464' }], 'maj7': [{ frets: 'x46564' }], 'm7': [{ frets: 'x46454' }] },
-    'D': { 'major': [{ frets: 'xx0232' }], 'minor': [{ frets: 'xx0231' }], '7': [{ frets: 'xx0212' }], 'maj7': [{ frets: 'xx0222' }], 'm7': [{ frets: 'xx0211' }], 'sus4': [{ frets: 'xx0233' }] },
-    'D#': { 'major': [{ frets: 'x68886' }], 'minor': [{ frets: 'x68876' }], '7': [{ frets: 'x68686' }], 'maj7': [{ frets: 'x68786' }], 'm7': [{ frets: 'x68676' }] },
-    'E': { 'major': [{ frets: '022100' }], 'minor': [{ frets: '022000' }], '7': [{ frets: '020100' }], 'maj7': [{ frets: '021100' }], 'm7': [{ frets: '022030' }], 'sus4': [{ frets: '022200' }] },
-    'F': { 'major': [{ frets: '133211' }], 'minor': [{ frets: '133111' }], '7': [{ frets: '131211' }], 'maj7': [{ frets: '132211' }], 'm7': [{ frets: '131111' }] },
-    'F#': { 'major': [{ frets: '244322' }], 'minor': [{ frets: '244222' }], '7': [{ frets: '242322' }], 'maj7': [{ frets: '243322' }], 'm7': [{ frets: '242222' }] },
-    'G': { 'major': [{ frets: '320003' }], 'minor': [{ frets: '355333' }], '7': [{ frets: '320001' }], 'maj7': [{ frets: '320002' }], 'm7': [{ frets: '353333' }], 'sus4': [{ frets: '330013' }] },
-    'G#': { 'major': [{ frets: '466544' }], 'minor': [{ frets: '466444' }], '7': [{ frets: '464544' }], 'maj7': [{ frets: '465544' }], 'm7': [{ frets: '464444' }] },
-    'A': { 'major': [{ frets: 'x02220' }], 'minor': [{ frets: 'x02210' }], '7': [{ frets: 'x02020' }], 'maj7': [{ frets: 'x02120' }], 'm7': [{ frets: 'x02010' }], 'sus4': [{ frets: 'x02230' }] },
-    'A#': { 'major': [{ frets: 'x13331' }], 'minor': [{ frets: 'x13321' }], '7': [{ frets: 'x13131' }], 'maj7': [{ frets: 'x13231' }], 'm7': [{ frets: 'x13121' }] },
-    'B': { 'major': [{ frets: 'x24442' }], 'minor': [{ frets: 'x24432' }], '7': [{ frets: 'x21202' }], 'maj7': [{ frets: 'x24342' }], 'm7': [{ frets: 'x20202' }] }
+const ENHARMONIC_MAP: Record<string, string> = {
+    'C#': 'Csharp', 'Db': 'Csharp',
+    'D#': 'Eb', 'Eb': 'Eb',
+    'F#': 'Fsharp', 'Gb': 'Fsharp',
+    'G#': 'Ab', 'Ab': 'Ab',
+    'A#': 'Bb', 'Bb': 'Bb'
 };
 
 /**
@@ -53,41 +73,103 @@ const EXTERNAL_GUITAR_DB: Record<string, Record<string, ExternalPosition[]>> = {
 export class ChordAdapter {
     /**
      * Retrieves the finger positions for a given chord from the internal database.
-     * Handles slash chords by taking the root.
+     * Handles slash chords (lookup directly if possible, else fallback to root).
      * Handles enharmonic equivalents (e.g., Db = C#).
+     * Returns ABSOLUTE fret positions (calculating from baseFret).
      *
-     * @param {string} chordName - The name of the chord (e.g., "Am", "C#m7").
+     * @param {string} chordName - The name of the chord (e.g., "Am", "C#m7", "G/B").
      * @returns {number[] | null} Array of fret positions or null if the chord is not found.
      */
     static getExternalChord(chordName: string): number[] | null {
         if (!chordName || typeof chordName !== 'string') return null;
-        let cleanName = chordName.trim();
-        if (cleanName.includes('/')) cleanName = cleanName.split('/')[0]; // Handle Slash Chords (G/A -> G)
 
-        const match = cleanName.match(/^([A-G][#b]?)(.*)$/);
+        const cleanName = chordName.trim();
+
+        // 1. Parse Root and Suffix (handling slash chords)
+        const match = cleanName.match(/^([A-G][#b]?)(.*?)(?:\/([A-G][#b]?))?$/);
+
         if (!match) return null;
 
-        const root = match[1];
-        const suffixRaw = match[2];
+        let root = match[1]; // e.g., "C"
+        let suffixRaw = match[2]; // e.g., "m7" or ""
+        let bass = match[3]; // e.g., "G" or undefined
 
-        const ENHARMONIC_MAP: Record<string, string> = {
-            'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#',
-            'C#': 'Db', 'D#': 'Eb', 'F#': 'Gb', 'G#': 'Ab', 'A#': 'Bb'
-        };
-
-        let rootData = EXTERNAL_GUITAR_DB[root];
-        if (!rootData && ENHARMONIC_MAP[root]) rootData = EXTERNAL_GUITAR_DB[ENHARMONIC_MAP[root]];
-        if (!rootData) return null;
-
-        const mappedSuffix = SUFFIX_MAP[suffixRaw] || suffixRaw;
-        const chordPositions = rootData[mappedSuffix];
-
-        if (!chordPositions || chordPositions.length === 0) {
-             // Fallback Logic: Try generic major/minor if extension not found
-             if (mappedSuffix.startsWith('m') && rootData['minor']) return convertFrets(rootData['minor'][0].frets);
-             if (rootData['major']) return convertFrets(rootData['major'][0].frets);
-             return null;
+        // 2. Normalize Root
+        // We map standard roots to the specific keys used in chords-db
+        if (ENHARMONIC_MAP[root]) {
+            root = ENHARMONIC_MAP[root];
         }
-        return convertFrets(chordPositions[0].frets);
+
+        // Also normalize bass if present
+        if (bass && ENHARMONIC_MAP[bass]) {
+             bass = ENHARMONIC_MAP[bass];
+        }
+
+        // Re-map back from "Csharp" to "C#" ONLY for the suffix part construction
+        if (bass) {
+             if (bass === 'Csharp') bass = 'C#';
+             if (bass === 'Fsharp') bass = 'F#';
+        }
+
+        // 3. Normalize Suffix
+        let suffix = SUFFIX_MAP[suffixRaw] || suffixRaw;
+
+        // 4. Construct Query Suffix
+        let querySuffix = suffix;
+        if (bass) {
+            // SPECIAL CASE: chords-db uses 'm' for minor in slash chords, not 'minor'
+            if (suffix === 'minor') {
+                querySuffix = `m/${bass}`;
+            } else if (suffix === 'major') {
+                querySuffix = `/${bass}`;
+            } else {
+                querySuffix = `${suffix}/${bass}`;
+            }
+        }
+
+        // 5. Lookup in DB
+        const rootChords = CHORD_DB.chords[root];
+
+        if (!rootChords) {
+            return null;
+        }
+
+        // Search for exact suffix match
+        let entry = rootChords.find(c => c.suffix === querySuffix);
+
+        // Retry logic for Slash Chords:
+        // If exact slash chord not found, fallback to root chord.
+        if (!entry && bass) {
+             querySuffix = suffix;
+             entry = rootChords.find(c => c.suffix === querySuffix);
+        }
+
+        if (!entry) {
+            if (querySuffix === 'major') {
+                entry = rootChords.find(c => c.suffix === 'major');
+            }
+        }
+
+        if (!entry) {
+             if (suffix.startsWith('m') || suffix.includes('min')) {
+                 entry = rootChords.find(c => c.suffix === 'minor');
+             } else {
+                 entry = rootChords.find(c => c.suffix === 'major');
+             }
+        }
+
+        if (!entry || !entry.positions || entry.positions.length === 0) {
+            return null;
+        }
+
+        // 6. Return first position with ABSOLUTE frets
+        const bestPosition = entry.positions[0];
+        const baseOffset = (bestPosition.baseFret || 1) - 1;
+
+        if (baseOffset === 0) {
+            return bestPosition.frets;
+        }
+
+        return bestPosition.frets.map(f => (f >= 0 ? f + baseOffset : f));
     }
 }
