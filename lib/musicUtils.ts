@@ -173,10 +173,20 @@ export const convertToChordPro = (rawText: string): string => {
 
             // Append lyrics up to this chord's position
             if (chordIndex > lastLyricIndex) {
-                if (lastLyricIndex < nextLine.length) {
-                    finalLine += nextLine.substring(lastLyricIndex, Math.min(chordIndex, nextLine.length));
+                const endOfLyrics = nextLine.length;
+
+                // If we have lyrics to cover the gap
+                if (lastLyricIndex < endOfLyrics) {
+                    const takeUntil = Math.min(chordIndex, endOfLyrics);
+                    finalLine += nextLine.substring(lastLyricIndex, takeUntil);
+
+                    // If we still haven't reached chordIndex (because lyrics ran out)
+                    if (takeUntil < chordIndex) {
+                        finalLine += " ".repeat(chordIndex - takeUntil);
+                    }
                 } else {
-                    finalLine += " ";
+                    // Lyrics already exhausted, just pad spaces
+                    finalLine += " ".repeat(chordIndex - lastLyricIndex);
                 }
             }
 
