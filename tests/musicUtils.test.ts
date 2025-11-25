@@ -1,5 +1,5 @@
 
-import { convertToChordPro } from '../lib/musicUtils';
+import { convertToChordPro, normalizeChordName, transposeChord, parseChordsFromText } from '../lib/musicUtils';
 import assert from 'assert';
 
 console.log("Running tests for musicUtils...");
@@ -12,48 +12,10 @@ Love`;
     // C at 0, D at 8, E at 16
     // Love at 0 (length 4)
     // Expect: [C]Love    [D]       [E]
-    // Explanation:
-    // C at 0. 'Love' consumes 0-4.
-    // D at 8. We need to reach 8 from 4. 4 spaces.
-    // E at 16. We need to reach 16 from 8 + length of D (which is 1 char visually?).
-    // Actually, convertToChordPro constructs the string.
-    // The original logic assumes fixed width font for input.
-    // D starts at 8. E starts at 16. Gap is 8 chars.
-    // So between [D] and [E] there should be spaces representing that gap.
-    // [D] takes up characters in the output string, but visually it replaces the D in the input line.
-
-    // Let's look at what we expect.
-    // Original:
-    // C       D       E
-    // Love
-
-    // We want the resulting ChordPro to represent this timing/spacing.
-    // [C]Love    [D]       [E]
-
-    // Wait, let's trace my manual calculation again.
-    // [C] (len 3)
-    // Love (len 4). Total len 7.
-    // Spaces needed to reach D at 8?
-    // In original text, D is at 8.
-    // Love ends at 4.
-    // Gap is 4 spaces (indices 4, 5, 6, 7).
-    // So we need 4 spaces after Love.
-    // [C]Love    [D]
-
-    // Now we are at index 8 (visually).
-    // E is at 16.
-    // Gap is 16 - 8 = 8 spaces.
-    // [C]Love    [D]        [E]
-
-    // Note: The previous logic produced [C]Love[D] [E] (1 space).
 
     const output = convertToChordPro(input);
-    const expectedSubstr = "[C]Love    [D]        [E]"; // Check exact spacing
-
-    // We trim the output for comparison to ignore surrounding newlines if any
     const trimmedOutput = output.trim();
 
-    // Allow for some flexibility if my manual count is off by one, but [D] [E] is definitely wrong.
     if (!trimmedOutput.includes("        [E]")) {
         throw new Error(`Expected significant spacing before [E]. Got: '${trimmedOutput}'`);
     }
@@ -75,7 +37,6 @@ Love You
     // Expect: [C]Love [G]You
 
     const output = convertToChordPro(input);
-    // [C]Love [G]You
     if (!output.includes("[C]Love [G]You")) {
         throw new Error(`Expected '[C]Love [G]You'. Got: '${output}'`);
     }
@@ -103,4 +64,69 @@ Hi`;
 } catch (e: any) {
      console.error("Test 3 Failed:", e.message);
      process.exit(1);
+}
+
+// Test 4: normalizeChordName
+try {
+    assert.strictEqual(normalizeChordName('Cmin'), 'Cm', 'Cmin -> Cm');
+    assert.strictEqual(normalizeChordName('Cminor'), 'Cm', 'Cminor -> Cm');
+    assert.strictEqual(normalizeChordName('Dmajor'), 'D', 'Dmajor -> D');
+    assert.strictEqual(normalizeChordName('Emaj'), 'Emaj7', 'Emaj -> Emaj7');
+    assert.strictEqual(normalizeChordName('Fsus'), 'Fsus4', 'Fsus -> Fsus4');
+    assert.strictEqual(normalizeChordName(''), '', 'Empty string -> Empty string');
+
+    console.log("Test 4 Passed: normalizeChordName.");
+} catch (e: any) {
+    console.error("Test 4 Failed:", e.message);
+    process.exit(1);
+}
+
+// Test 5: transposeChord
+try {
+    assert.strictEqual(transposeChord('C', 2), 'D', 'C + 2 -> D');
+    assert.strictEqual(transposeChord('C', -1), 'B', 'C - 1 -> B');
+    assert.strictEqual(transposeChord('G', 5), 'C', 'G + 5 -> C');
+
+    // Slash Chords
+    assert.strictEqual(transposeChord('C/G', 2), 'D/A', 'C/G + 2 -> D/A');
+    assert.strictEqual(transposeChord('Am/G', -2), 'Gm/F', 'Am/G - 2 -> Gm/F');
+
+    // Flat/Sharp handling
+    assert.strictEqual(transposeChord('Db', 1), 'D', 'Db + 1 -> D');
+    assert.strictEqual(transposeChord('C#', 1), 'D', 'C# + 1 -> D');
+
+    // Invalid/Ignored
+    assert.strictEqual(transposeChord('Hello', 2), 'Hello', 'Invalid chord returned as is');
+
+    console.log("Test 5 Passed: transposeChord.");
+} catch (e: any) {
+    console.error("Test 5 Failed:", e.message);
+    process.exit(1);
+}
+
+// Test 6: parseChordsFromText
+try {
+    const text = `
+    This is a song.
+    [C]Hello world [G]
+    [Am]How are you? [Fmaj7]
+    `;
+    const chords = parseChordsFromText(text);
+
+    // Check existence
+    assert.ok(chords.includes('C'), 'Should extract C');
+    assert.ok(chords.includes('G'), 'Should extract G');
+    assert.ok(chords.includes('Am'), 'Should extract Am');
+    assert.ok(chords.includes('Fmaj7'), 'Should extract Fmaj7');
+    assert.strictEqual(chords.length, 4, 'Should extract exactly 4 unique chords');
+
+    // Duplicates
+    const textWithDupes = '[C] [G] [C]';
+    const dupes = parseChordsFromText(textWithDupes);
+    assert.strictEqual(dupes.length, 2, 'Should ignore duplicates');
+
+    console.log("Test 6 Passed: parseChordsFromText.");
+} catch (e: any) {
+    console.error("Test 6 Failed:", e.message);
+    process.exit(1);
 }
