@@ -1,6 +1,9 @@
 
 // lib/chordService.ts
 
+/**
+ * Represents the position of a chord on the fretboard.
+ */
 interface ExternalPosition {
     frets: string | number[];
     fingers?: string | number[];
@@ -16,6 +19,13 @@ const SUFFIX_MAP: Record<string, string> = {
     '7sus4': '7sus4', '5': '5', '6': '6', 'm6': 'm6', 'add9': 'add9',
 };
 
+/**
+ * Converts a fret notation string or array to an array of numbers.
+ * 'x' is converted to -1.
+ *
+ * @param {string | number[]} frets - The fret data (e.g., "x32010" or [ -1, 3, 2, 0, 1, 0 ]).
+ * @returns {number[]} Array of fret numbers.
+ */
 const convertFrets = (frets: string | number[]): number[] => {
     if (Array.isArray(frets)) return frets;
     return frets.split('').map(char => (char.toLowerCase() === 'x' ? -1 : parseInt(char, 16)));
@@ -37,7 +47,18 @@ const EXTERNAL_GUITAR_DB: Record<string, Record<string, ExternalPosition[]>> = {
     'B': { 'major': [{ frets: 'x24442' }], 'minor': [{ frets: 'x24432' }], '7': [{ frets: 'x21202' }], 'maj7': [{ frets: 'x24342' }], 'm7': [{ frets: 'x20202' }] }
 };
 
+/**
+ * Adapter class to interface with the external guitar chord database.
+ */
 export class ChordAdapter {
+    /**
+     * Retrieves the finger positions for a given chord from the internal database.
+     * Handles slash chords by taking the root.
+     * Handles enharmonic equivalents (e.g., Db = C#).
+     *
+     * @param {string} chordName - The name of the chord (e.g., "Am", "C#m7").
+     * @returns {number[] | null} Array of fret positions or null if the chord is not found.
+     */
     static getExternalChord(chordName: string): number[] | null {
         if (!chordName || typeof chordName !== 'string') return null;
         let cleanName = chordName.trim();

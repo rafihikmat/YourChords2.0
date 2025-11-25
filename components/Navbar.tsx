@@ -7,6 +7,13 @@ import SearchBar from './SearchBar';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../lib/hooks';
 
+/**
+ * The main navigation bar component.
+ * Handles responsive layout, theme toggling, user authentication status, and navigation links.
+ * Adapts appearance based on scroll position.
+ *
+ * @returns {JSX.Element | null} The Navbar component, or null on admin/auth pages.
+ */
 const Navbar: React.FC = () => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);

@@ -1,6 +1,10 @@
 
 import { supabase } from './supabase';
 
+/**
+ * A collection of song data used to seed the database.
+ * Each song object contains metadata, chords, and tablature in ChordPro format.
+ */
 const songs = [
   {
     title: "Kangen",
@@ -255,6 +259,12 @@ Reff:
   }
 ];
 
+/**
+ * Seeds the database with the predefined list of songs.
+ * Checks for existing songs by title and artist to avoid duplicates.
+ *
+ * @returns {Promise<{success: number, failed: number}>} An object containing the count of successfully seeded songs and failures.
+ */
 export const seedDatabase = async () => {
   let successCount = 0;
   let failCount = 0;

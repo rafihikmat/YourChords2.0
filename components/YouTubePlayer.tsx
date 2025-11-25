@@ -3,21 +3,37 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Loader2, AlertTriangle } from "lucide-react";
 import { cn, formatTime } from "../lib/utils";
 
+/**
+ * Props for the YouTubePlayer component.
+ */
 interface YouTubePlayerProps {
+  /** The YouTube video ID to play. */
   videoId: string;
+  /** Optional class names for styling the container. */
   className?: string;
+  /** Callback triggered when playback time updates. */
   onTimeUpdate?: (currentTime: number) => void;
+  /** Callback triggered when the player is ready. */
   onReady?: () => void;
 }
 
 declare global {
   interface Window {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     YT: any;
     onYouTubeIframeAPIReady: () => void;
   }
 }
 
+/**
+ * A custom YouTube player component wrapping the YouTube IFrame API.
+ * Provides custom controls, optimized state updates, and error handling.
+ *
+ * @param {YouTubePlayerProps} props - The component props.
+ * @returns {JSX.Element} The YouTubePlayer component.
+ */
 const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoId, className, onTimeUpdate, onReady }) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const playerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   
@@ -65,6 +81,7 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoId, className, onTim
             origin: window.location.origin
           },
           events: {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             onReady: (event: any) => {
               if (isMounted) {
                 setIsReady(true);
@@ -73,6 +90,7 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoId, className, onTim
                 if (onReady) onReady();
               }
             },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             onStateChange: (event: any) => {
               if (!isMounted) return;
               const playing = event.data === window.YT.PlayerState.PLAYING;
@@ -83,6 +101,7 @@ const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoId, className, onTim
                  setDuration(event.target.getDuration());
               }
             },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             onError: (e: any) => {
                 console.error("YouTube Player Error:", e);
                 if (isMounted) setHasError(true);

@@ -3,6 +3,12 @@ import React, { useState } from 'react';
 import { Copy, AlertTriangle, Database, Terminal, Server, Key, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
+/**
+ * A setup screen displayed when the application detects database connection issues (e.g., missing tables).
+ * Provides instructions and SQL scripts for setting up the Supabase database and deploying Edge Functions.
+ *
+ * @returns {JSX.Element} The DatabaseSetupScreen component.
+ */
 export const DatabaseSetupScreen: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'database' | 'backend'>('database');
 

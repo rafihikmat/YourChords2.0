@@ -15,6 +15,12 @@ import ManualEntry from './views/ManualEntry';
 import SmartSyncEditor from './SmartSyncEditor';
 import { useTheme } from '../../lib/hooks';
 
+/**
+ * The main layout component for the Admin Dashboard.
+ * Features a collapsible sidebar, a top header with theme toggling, and nested routing for admin modules.
+ *
+ * @returns {JSX.Element} The AdminDashboard component.
+ */
 const AdminDashboard: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const { isDark, toggleTheme } = useTheme();

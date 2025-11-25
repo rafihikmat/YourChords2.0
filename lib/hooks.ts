@@ -2,6 +2,14 @@
 import { useState, useEffect, useRef } from 'react';
 
 // --- Merged Logic: Theme Management ---
+/**
+ * Custom hook to manage the application theme (light/dark mode).
+ * Persists preference to local storage and respects system preferences.
+ *
+ * @returns {{ isDark: boolean, toggleTheme: () => void }}
+ *   - isDark: Boolean indicating if dark mode is active.
+ *   - toggleTheme: Function to toggle between light and dark modes.
+ */
 export const useTheme = () => {
   const [isDark, setIsDark] = useState(true);
 
@@ -25,6 +33,17 @@ export const useTheme = () => {
 };
 
 // --- Merged Logic: Metronome Engine ---
+/**
+ * Custom hook to provide metronome functionality.
+ * Uses the Web Audio API for precise timing.
+ *
+ * @param {number} [initialBpm=120] - The initial beats per minute.
+ * @returns {{ isPlaying: boolean, setIsPlaying: (val: boolean) => void, bpm: number, setBpm: (val: number) => void }}
+ *   - isPlaying: Boolean indicating if the metronome is running.
+ *   - setIsPlaying: Function to start/stop the metronome.
+ *   - bpm: Current beats per minute.
+ *   - setBpm: Function to update the tempo.
+ */
 export const useMetronome = (initialBpm = 120) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [bpm, setBpm] = useState(initialBpm);

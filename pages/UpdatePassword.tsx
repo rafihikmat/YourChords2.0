@@ -7,6 +7,13 @@ import { Lock, Loader2, AlertCircle, CheckCircle2, ShieldCheck } from 'lucide-re
 import { DOT_GRID_SVG } from '../lib/utils';
 import { Spotlight } from '../components/ui/Spotlight';
 
+/**
+ * The Update Password page component.
+ * Used in the password reset flow. Users are redirected here from the email link.
+ * Allows the user to set a new password for their account.
+ *
+ * @returns {JSX.Element} The UpdatePassword component.
+ */
 const UpdatePassword: React.FC = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);

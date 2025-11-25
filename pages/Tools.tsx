@@ -18,8 +18,24 @@ declare global {
   }
 }
 
+/**
+ * Available tool tabs.
+ */
 type TabId = 'ai' | 'upload' | 'tuner' | 'library' | 'metronome' | 'assistant';
 
+/**
+ * The Tools page component.
+ * Aggregates various music utilities into a single interface with tabs.
+ * Tools include:
+ * - Guitar Tuner (Web Audio API)
+ * - Metronome (Custom Hook)
+ * - Chord Visualizer (Library)
+ * - Professor AI Assistant (Gemini)
+ * - AI Chord Generator (Component)
+ * - Song Uploader (Admin only)
+ *
+ * @returns {JSX.Element} The ToolsPage component.
+ */
 const ToolsPage: React.FC = () => {
   const { isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState<TabId>('tuner');

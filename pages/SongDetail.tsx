@@ -14,6 +14,19 @@ import { useChordSheetParser } from '../lib/hooks/useChordSheetParser';
 import SongLyricsDisplay from '../components/SongLyricsDisplay';
 import { getChordFingering } from '../lib/musicUtils';
 
+/**
+ * The Song Detail page component.
+ * Displays the full chord sheet, lyrics, tablature, and media integration for a specific song.
+ * Features:
+ * - Transposition
+ * - Auto-scrolling
+ * - Chord diagrams (hover/click)
+ * - Metronome
+ * - PDF Export
+ * - Spotify/YouTube embedding
+ *
+ * @returns {JSX.Element} The SongDetail component.
+ */
 export default function SongDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();

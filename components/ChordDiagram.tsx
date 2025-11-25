@@ -2,11 +2,24 @@
 import React, { memo } from 'react';
 import { getChordFingering } from '../lib/musicUtils';
 
+/**
+ * Props for the ChordDiagram component.
+ */
 interface ChordDiagramProps {
+  /** The name of the chord to display (e.g., "Am", "C#7"). */
   name: string;
+  /** Optional CSS class names to apply to the container. */
   className?: string;
 }
 
+/**
+ * Renders a visual diagram of a guitar chord.
+ * Displays strings, frets, finger positions, open strings, and muted strings.
+ * Automatically handles barre chords and higher fret positions.
+ *
+ * @param {ChordDiagramProps} props - The component props.
+ * @returns {JSX.Element | null} The SVG chord diagram, or null if the chord data is invalid.
+ */
 const ChordDiagram: React.FC<ChordDiagramProps> = ({ name, className }) => {
   const frets = getChordFingering(name);
 

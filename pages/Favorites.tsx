@@ -7,6 +7,12 @@ import SongCard from '../components/ui/SongCard';
 import { Heart, Loader2 } from 'lucide-react';
 import { DOT_GRID_SVG } from '../lib/utils';
 
+/**
+ * The Favorites page component.
+ * Displays a list of songs that the current user has marked as favorite.
+ *
+ * @returns {JSX.Element} The FavoritesPage component.
+ */
 const FavoritesPage: React.FC = () => {
   const { user } = useAuth();
   const [songs, setSongs] = useState<Song[]>([]);

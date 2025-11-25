@@ -6,9 +6,28 @@ import { ai } from '../lib/gemini';
 import { cn, DOT_GRID_SVG } from '../lib/utils';
 import { Spotlight } from '../components/ui/Spotlight';
 
+/**
+ * Defines the available chat modes and their configurations.
+ */
 type ChatMode = 'turbo' | 'guru' | 'thinking' | 'researcher';
-interface Message { id: string; role: 'user' | 'model'; text: string; groundingUrls?: {uri: string, title: string}[] }
 
+/**
+ * Structure of a chat message.
+ */
+interface Message {
+    /** Unique identifier for the message. */
+    id: string;
+    /** Role of the sender (user or model). */
+    role: 'user' | 'model';
+    /** The content of the message. */
+    text: string;
+    /** Optional web sources for citation (Researcher mode). */
+    groundingUrls?: {uri: string, title: string}[]
+}
+
+/**
+ * Configuration for each chat mode.
+ */
 const MODES: Record<ChatMode, { name: string; icon: React.ReactNode; description: string; model: string; systemInstruction: string }> = {
   turbo: { name: 'Turbo', icon: <Zap className="w-4 h-4 text-yellow-400" />, description: 'Fast (Flash 1.5)', model: 'gemini-1.5-flash', systemInstruction: 'You are a helpful music assistant. Concise answers.' },
   guru: { name: 'Guru', icon: <Bot className="w-4 h-4 text-primary" />, description: 'Theory Expert', model: 'gemini-1.5-pro', systemInstruction: 'You are a Music Theory Expert. Explain harmony, scales, and composition.' },
@@ -16,6 +35,12 @@ const MODES: Record<ChatMode, { name: string; icon: React.ReactNode; description
   researcher: { name: 'Researcher', icon: <Globe className="w-4 h-4 text-green-400" />, description: 'Live Web Data', model: 'gemini-1.5-flash', systemInstruction: 'You are a music researcher with web access.' }
 };
 
+/**
+ * The ChatPage component providing an AI chat interface.
+ * Supports multiple personas (modes), streaming responses, and real-time grounding citations.
+ *
+ * @returns {JSX.Element} The ChatPage component.
+ */
 const ChatPage: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([{ id: '1', role: 'model', text: "Greetings. Select a persona to begin." }]);
   const [input, setInput] = useState('');

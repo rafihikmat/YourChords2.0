@@ -4,11 +4,27 @@ import { motion } from 'framer-motion';
 import { Copy, Music2, Terminal } from 'lucide-react';
 import { cn } from '../lib/utils';
 
+/**
+ * Props for the TablatureView component.
+ */
 interface TablatureViewProps {
+  /**
+   * A key-value object where keys are section names (e.g., "Intro", "Solo")
+   * and values are the tablature content (usually strings).
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   tabs: Record<string, any> | null;
+  /** Optional class names for the container. */
   className?: string;
 }
 
+/**
+ * Renders guitar tablature in a code-block style view with syntax highlighting aesthetics.
+ * Includes copy functionality and supports multiple sections.
+ *
+ * @param {TablatureViewProps} props - The component props.
+ * @returns {JSX.Element | null} The TablatureView component.
+ */
 const TablatureView: React.FC<TablatureViewProps> = ({ tabs, className }) => {
   if (!tabs || Object.keys(tabs).length === 0) return null;
 

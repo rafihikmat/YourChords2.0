@@ -2,27 +2,48 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Music, Github, Twitter, Instagram, Mail, Heart, Zap, ArrowRight, Facebook, Linkedin } from 'lucide-react';
-import { cn } from '../lib/utils';
 import { supabase } from '../lib/supabase';
 
+/**
+ * Represents a single link in the footer column.
+ */
 interface FooterLink {
+  /** The text label for the link. */
   label: string;
+  /** The destination path or URL for the link. */
   path: string;
 }
 
+/**
+ * Represents a column of links in the footer.
+ */
 interface FooterColumn {
+  /** The title of the column. */
   title: string;
+  /** The list of links within this column. */
   links: FooterLink[];
 }
 
+/**
+ * Configuration data for the Footer component.
+ * Can be populated from a database or defaults.
+ */
 interface FooterData {
+  /** Description text for the brand section. */
   brand_description: string;
+  /** Array of columns containing links. */
   columns: FooterColumn[];
+  /** Map of social media platforms to their URLs. */
   socials: Record<string, string>;
+  /** Text for the copyright notice. */
   copyright_text: string;
+  /** "Made by" text for credit. */
   made_by_text?: string;
 }
 
+/**
+ * Default footer configuration used as a fallback or initial state.
+ */
 const DEFAULT_FOOTER: FooterData = {
   brand_description: "The next-generation platform for musicians. Powered by Neural Networks to bring you accurate chords, immersive tablature, and real-time tools.",
   columns: [
@@ -57,6 +78,13 @@ const DEFAULT_FOOTER: FooterData = {
   made_by_text: "Neural Architects"
 };
 
+/**
+ * Site-wide footer component.
+ * Fetches dynamic content from the database ('page_content' table) if available,
+ * otherwise falls back to defaults.
+ *
+ * @returns {JSX.Element} The Footer component.
+ */
 const Footer: React.FC = () => {
   const [data, setData] = useState<FooterData>(DEFAULT_FOOTER);
 

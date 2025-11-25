@@ -17,6 +17,12 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { DatabaseSetupScreen } from './components/setup/DatabaseSetupScreen';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
+/**
+ * The main content wrapper component.
+ * Handles global layouts, routing, and connection error states.
+ *
+ * @returns {JSX.Element} The AppContent component.
+ */
 const AppContent: React.FC = () => {
   const { dbConnectionError } = useAuth();
   const location = useLocation();
@@ -66,6 +72,12 @@ const AppContent: React.FC = () => {
   );
 };
 
+/**
+ * The root application component.
+ * Configures the Router, AuthProvider, and global theme settings.
+ *
+ * @returns {JSX.Element} The App component.
+ */
 const App: React.FC = () => {
   return (
     <Router>
