@@ -5,7 +5,7 @@ import { Music, Save, Grid, Eye, Edit3, Globe, Loader2, AlertTriangle, CheckCirc
 import { supabase } from '../../../lib/supabase';
 import { Song } from '../../../types';
 import { cn } from '../../../lib/utils';
-import { CHORD_FAMILIES, convertToChordPro } from '../../../lib/musicUtils';
+import { convertToChordPro } from '../../../lib/musicUtils';
 import SongLyricsDisplay from '../../../components/SongLyricsDisplay';
 import { useChordSheetParser } from '../../../lib/hooks/useChordSheetParser';
 import * as mammoth from 'mammoth';
@@ -16,13 +16,22 @@ import * as pdfjsLib from 'pdfjs-dist';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const pdfApi = (pdfjsLib as any).default || pdfjsLib;
 if (typeof window !== 'undefined' && pdfApi) {
-    // Manually set worker source to a stable CDN that matches the imported version (3.11.174)
-    // This fixes "Uncaught TypeError: Cannot set properties of undefined (setting 'workerSrc')"
-    // and "NetworkError" due to CORS.
     if (!pdfApi.GlobalWorkerOptions.workerSrc) {
         pdfApi.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     }
 }
+
+// CHORD BUILDER DATA
+const CHORD_QUALITIES = [
+    { label: 'MAJOR', suffix: '' },
+    { label: 'MINOR', suffix: 'm' },
+    { label: '7TH', suffix: '7' },
+    { label: 'MAJ7', suffix: 'maj7' },
+    { label: 'MIN7', suffix: 'm7' },
+    { label: 'SUS4', suffix: 'sus4' }
+];
+
+const ROOT_NOTES = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 
 const ManualEntry: React.FC = () => {
     const location = useLocation();
@@ -46,7 +55,7 @@ const ManualEntry: React.FC = () => {
         rawText: ''
     });
     const [loading, setLoading] = useState(false);
-    const [chordCategory, setChordCategory] = useState('Major');
+    const [selectedQuality, setSelectedQuality] = useState(CHORD_QUALITIES[0]); // Default to Major
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     // Live Parser for Preview Mode
@@ -57,19 +66,14 @@ const ManualEntry: React.FC = () => {
             const s = state.songToEdit;
             let raw = '';
             if (s.chords) {
-                // Convert existing JSON format back to text for editing if necessary
                 if (Array.isArray(s.chords) && s.chords.length > 0) {
-                    // Check if it's legacy string[] or ChordLine[]
                     if (typeof s.chords[0] === 'string') {
-                        // Legacy
                          raw = (s.chords as unknown as string[]).join('\n');
                     } else {
-                        // ChordLine object from new parser
-                        interface ChordLine { line: string; chords: string[] }
-                        raw = (s.chords as unknown as ChordLine[]).map((line) => {
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        raw = (s.chords as any[]).map((line: any) => {
                              if (line.chords && line.chords.length > 0) {
-                                 // Reconstruct brackets for editing consistency
-                                 const chordStr = line.chords.map((c) => `[${c}]`).join('');
+                                 const chordStr = line.chords.map((c: string) => `[${c}]`).join('');
                                  return `${chordStr}${line.line}`;
                              }
                              return line.line;
@@ -107,73 +111,51 @@ const ManualEntry: React.FC = () => {
                 const page = await pdf.getPage(i);
                 const textContent = await page.getTextContent();
                 
-                // Map items to include coordinate data
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const items = textContent.items.map((item: any) => ({
                     str: item.str,
-                    x: item.transform[4], // x coordinate
-                    y: item.transform[5], // y coordinate
+                    x: item.transform[4],
+                    y: item.transform[5],
                     width: item.width,
                     height: item.height || 10
                 }));
 
-                // 1. Group items into lines based on Y position (Row clustering)
                 const lines: Record<string, typeof items> = {};
-                const tolerance = 4; // Tolerance for slight Y misalignments (e.g. subscripts)
+                const tolerance = 4;
 
                 items.forEach(item => {
-                    // Find an existing line key that is close enough
                     const existingY = Object.keys(lines).find(y => Math.abs(Number(y) - item.y) < tolerance);
                     const key = existingY || item.y.toString();
-                    
                     if (!lines[key]) lines[key] = [];
                     lines[key].push(item);
                 });
 
-                // 2. Sort lines from Top to Bottom (PDF Y origin is bottom-left)
                 const sortedY = Object.keys(lines).sort((a, b) => Number(b) - Number(a));
 
                 sortedY.forEach(y => {
-                    // 3. Sort items in the line from Left to Right
                     const lineItems = lines[y].sort((a, b) => a.x - b.x);
                     let lineStr = '';
                     let lastX = 0; 
-                    
-                    // Normalize start x (margin)
                     if (lineItems.length > 0) lastX = lineItems[0].x;
 
                     lineItems.forEach(item => {
-                        // 4. Calculate gap from previous item
-                        // Only add spaces if we aren't at the absolute start
                         const gap = item.x - lastX;
-                        
-                        // Heuristic: Average font character width is roughly height * 0.4 or ~4-5 units
-                        // We insert spaces if the gap is significant.
-                        // This preserves the "Chord ...... Chord" spacing.
                         if (gap > 2) {
-                            // 3.5 is an arbitrary divisor to approximate space width in PDF units
                             const spaces = Math.max(0, Math.floor(gap / 3.5));
                             lineStr += ' '.repeat(spaces);
                         }
-                        
                         lineStr += item.str;
                         lastX = item.x + item.width;
                     });
-
                     fullText += lineStr + '\n';
                 });
-                
                 fullText += '\n';
             }
-
             return fullText;
         } catch (e: unknown) {
             console.error("PDF Extraction Error:", e);
-            if (e instanceof Error) {
-                 throw new Error("Could not read PDF. " + (e.message || "Worker failed."));
-            } else {
-                 throw new Error("Could not read PDF. Unknown error.");
-            }
+            if (e instanceof Error) throw new Error("Could not read PDF. " + (e.message || "Worker failed."));
+            else throw new Error("Could not read PDF. Unknown error.");
         }
     };
 
@@ -197,27 +179,22 @@ const ManualEntry: React.FC = () => {
                 rawContent = result.value;
             } 
             else {
-                // Text file
                 rawContent = await file.text();
             }
 
             if (!rawContent || rawContent.length < 10) throw new Error("File is empty or too short.");
 
             // CRITICAL: Convert Spatial/Text layout to ChordPro immediately.
-            // This ensures features like Transpose/Capo/Size work because they rely on
-            // identifying [Chord] syntax, not just raw text lines.
             const processedText = convertToChordPro(rawContent);
 
-            // 2. Metadata Extraction (Heuristics)
             const lines = rawContent.split('\n').filter(l => l.trim().length > 0);
             const detectedTitle = lines[0]?.replace(/\[.*?\]/g, '').trim() || "";
-            // Try to find artist in first few lines
             const artistLine = lines.slice(0, 5).find(l => l.toLowerCase().includes('by '));
             const detectedArtist = artistLine ? artistLine.replace(/^by\s+/i, '').trim() : "";
 
             setFormData(prev => ({
                 ...prev,
-                rawText: processedText, // Load the converted ChordPro text
+                rawText: processedText,
                 title: !prev.title && detectedTitle.length < 50 ? detectedTitle : prev.title,
                 artist: !prev.artist && detectedArtist.length < 50 ? detectedArtist : prev.artist
             }));
@@ -226,11 +203,8 @@ const ManualEntry: React.FC = () => {
 
         } catch (error: unknown) {
             console.error(error);
-             if (error instanceof Error) {
-                setImportStatus({ type: 'error', msg: "Failed to process file. " + error.message });
-            } else {
-                 setImportStatus({ type: 'error', msg: "Failed to process file. Unknown error." });
-            }
+             if (error instanceof Error) setImportStatus({ type: 'error', msg: "Failed to process file. " + error.message });
+             else setImportStatus({ type: 'error', msg: "Failed to process file. Unknown error." });
         } finally {
             setIsProcessingFile(false);
             if (fileInputRef.current) fileInputRef.current.value = '';
@@ -251,8 +225,6 @@ const ManualEntry: React.FC = () => {
             if (error) throw error;
             if (data.error) throw new Error(data.error);
 
-            // The Edge Function 'scrape-song' also runs convertToChordPro,
-            // so the data.rawText is already in [Chord]Lyrics format.
             setFormData(prev => ({
                 ...prev,
                 title: data.title || prev.title,
@@ -263,11 +235,8 @@ const ManualEntry: React.FC = () => {
             setImportStatus({ type: 'success', msg: `Successfully scraped "${data.title}" from ${new URL(urlInput).hostname}` });
             setUrlInput('');
         } catch (err: unknown) {
-             if (err instanceof Error) {
-                setImportStatus({ type: 'error', msg: "Scrape failed: " + err.message });
-            } else {
-                 setImportStatus({ type: 'error', msg: "Scrape failed. Unknown error." });
-            }
+             if (err instanceof Error) setImportStatus({ type: 'error', msg: "Scrape failed: " + err.message });
+             else setImportStatus({ type: 'error', msg: "Scrape failed. Unknown error." });
         } finally {
             setIsScraping(false);
         }
@@ -277,21 +246,17 @@ const ManualEntry: React.FC = () => {
         e.preventDefault();
         setLoading(true);
 
-        // Store strings array for DB compatibility (legacy format), 
-        // but content is fully ChordPro formatted text.
         const lines = formData.rawText.split('\n');
-
         const payload = {
             title: formData.title,
             artist: formData.artist,
             difficulty: formData.difficulty,
             spotify_track_id: formData.spotify_id,
             youtube_video_id: formData.youtube_id,
-            chords: lines, // Stored as array of ChordPro strings
+            chords: lines,
         };
 
         let error;
-        
         if (formData.id) {
             const { error: updateError } = await supabase.from('songs').update(payload).eq('id', formData.id);
             error = updateError;
@@ -308,7 +273,9 @@ const ManualEntry: React.FC = () => {
         }
     };
 
-    const insertAtCursor = (chord: string) => {
+    const insertAtCursor = (root: string) => {
+        const chord = `${root}${selectedQuality.suffix}`;
+
         if (textareaRef.current) {
             const start = textareaRef.current.selectionStart;
             const end = textareaRef.current.selectionEnd;
@@ -327,7 +294,6 @@ const ManualEntry: React.FC = () => {
     };
 
     const handleAutoConvert = () => {
-        // Manual trigger to convert current text to ChordPro
         const converted = convertToChordPro(formData.rawText);
         setFormData({ ...formData, rawText: converted });
         setImportStatus({ type: 'success', msg: 'Text structure converted to ChordPro format.' });
@@ -502,43 +468,41 @@ const ManualEntry: React.FC = () => {
                                 </button>
                              </div>
                             
-                            {/* Quick Insert Panel */}
+                            {/* Quick Insert Panel - REDESIGNED */}
                             <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-white/10 shadow-sm dark:shadow-inner">
-                                <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-4 mb-4">
                                      <h3 className="text-slate-900 dark:text-white font-bold text-sm flex items-center gap-2 shrink-0"><Grid className="w-4 h-4 text-primary" /> Quick Insert Chords</h3>
                                      
-                                     {/* Scrollable Tabs */}
-                                     <div className="overflow-x-auto pb-1 ml-4 w-full no-scrollbar">
-                                         <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg w-max min-w-full">
-                                             {Object.keys(CHORD_FAMILIES).map(fam => (
-                                                 <button 
-                                                    type="button"
-                                                    key={fam}
-                                                    onClick={() => setChordCategory(fam)}
-                                                    className={cn(
-                                                        "px-3 py-1.5 rounded-md text-[10px] font-bold uppercase transition-all whitespace-nowrap",
-                                                        chordCategory === fam 
-                                                            ? "bg-white dark:bg-slate-700 text-primary dark:text-white shadow-sm ring-1 ring-black/5 dark:ring-white/10" 
-                                                            : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-white/5"
-                                                    )}
-                                                 >
-                                                     {fam}
-                                                 </button>
-                                             ))}
-                                         </div>
+                                     {/* Quality Tabs */}
+                                     <div className="flex flex-wrap gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+                                         {CHORD_QUALITIES.map(q => (
+                                             <button
+                                                type="button"
+                                                key={q.label}
+                                                onClick={() => setSelectedQuality(q)}
+                                                className={cn(
+                                                    "px-3 py-1.5 rounded-md text-[10px] font-bold uppercase transition-all",
+                                                    selectedQuality.label === q.label
+                                                        ? "bg-white dark:bg-slate-700 text-primary dark:text-white shadow-sm ring-1 ring-black/5 dark:ring-white/10"
+                                                        : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-white/5"
+                                                )}
+                                             >
+                                                 {q.label}
+                                             </button>
+                                         ))}
                                      </div>
                                 </div>
                                 
-                                {/* Chord Buttons Grid */}
-                                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 max-h-48 overflow-y-auto custom-scrollbar p-1">
-                                     {CHORD_FAMILIES[chordCategory]?.map(chord => (
+                                {/* Root Note Buttons Grid */}
+                                <div className="flex gap-2 overflow-x-auto pb-1 custom-scrollbar">
+                                     {ROOT_NOTES.map(note => (
                                          <button
                                             type="button"
-                                            key={chord}
-                                            onClick={() => insertAtCursor(chord)}
-                                            className="bg-slate-50 dark:bg-slate-800 hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-white text-slate-700 dark:text-slate-200 text-xs font-bold py-2.5 rounded-lg border border-slate-200 dark:border-white/5 transition-all active:scale-95 shadow-sm"
+                                            key={note}
+                                            onClick={() => insertAtCursor(note)}
+                                            className="flex-1 min-w-[48px] bg-slate-50 dark:bg-slate-800 hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-white text-slate-700 dark:text-slate-200 text-sm font-bold py-3 rounded-lg border border-slate-200 dark:border-white/5 transition-all active:scale-95 shadow-sm"
                                         >
-                                            {chord}
+                                            {note}
                                         </button>
                                      ))}
                                 </div>
