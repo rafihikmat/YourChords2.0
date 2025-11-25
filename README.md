@@ -64,7 +64,7 @@ The project follows a standard React application structure:
     ```bash
     npm run dev
     ```
-    The app will be available at `http://localhost:5173`.
+    The app will be available at `http://localhost:3000`.
 
 ## Usage
 

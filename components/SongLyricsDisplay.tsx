@@ -2,6 +2,7 @@
 import React, { memo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '../lib/utils';
+import ChordTooltip from './ChordTooltip';
 
 /**
  * Props for the SongLyricsDisplay component.
@@ -27,27 +28,49 @@ interface SongLyricsDisplayProps {
  * @param {SongLyricsDisplayProps} props - The component props.
  * @returns {JSX.Element} The SongLyricsDisplay component.
  */
-const SongLyricsDisplay: React.FC<SongLyricsDisplayProps> = ({ 
-    html, 
-    fontSize = 16, 
-    onChordClick, 
-    className 
+const SongLyricsDisplay: React.FC<SongLyricsDisplayProps> = ({
+    html,
+    fontSize = 16,
+    onChordClick,
+    className
 }) => {
+
+    const [activeChord, setActiveChord] = React.useState<string | null>(null);
+    const [anchorRect, setAnchorRect] = React.useState<DOMRect | null>(null);
+    const [isTooltipOpen, setIsTooltipOpen] = React.useState(false);
 
     const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         // Event delegation to handle clicks on dynamically generated .chord elements
         const target = e.target as HTMLElement;
         if (target.classList.contains('chord')) {
             const chordName = target.textContent?.trim();
-            if (chordName && onChordClick) {
-                onChordClick(chordName);
+            if (chordName) {
+                // If clicking the same chord, toggle off
+                if (activeChord === chordName && isTooltipOpen) {
+                    setIsTooltipOpen(false);
+                    setActiveChord(null);
+                } else {
+                    setActiveChord(chordName);
+                    setAnchorRect(target.getBoundingClientRect());
+                    setIsTooltipOpen(true);
+                }
+
+                // Also trigger the prop callback if needed
+                if (onChordClick) {
+                    onChordClick(chordName);
+                }
             }
         }
-    }, [onChordClick]);
+    }, [onChordClick, activeChord, isTooltipOpen]);
+
+    const handleCloseTooltip = useCallback(() => {
+        setIsTooltipOpen(false);
+        setActiveChord(null);
+    }, []);
 
     return (
-        <motion.div 
-            initial={{ opacity: 0 }} 
+        <motion.div
+            initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
             className={cn(
@@ -55,23 +78,30 @@ const SongLyricsDisplay: React.FC<SongLyricsDisplayProps> = ({
                 className
             )}
         >
-            <div 
+            <div
                 className="chord-sheet-container font-mono whitespace-pre-wrap"
-                style={{ 
-                    fontSize: `${fontSize}px`, 
+                style={{
+                    fontSize: `${fontSize}px`,
                     fontFamily: "'JetBrains Mono', monospace",
-                    lineHeight: '1.5' 
+                    lineHeight: '1.5'
                 }}
                 onClick={handleClick}
                 dangerouslySetInnerHTML={{ __html: html }}
             />
-            
+
             {!html && (
-                 <div className="p-8 text-center border-2 border-dashed border-slate-200 dark:border-white/10 rounded-xl text-slate-400">
+                <div className="p-8 text-center border-2 border-dashed border-slate-200 dark:border-white/10 rounded-xl text-slate-400">
                     <p>No chord data available to render.</p>
                     <p className="text-xs mt-2 opacity-70">Try verifying the song data format.</p>
-                 </div>
+                </div>
             )}
+
+            <ChordTooltip
+                chordName={activeChord}
+                anchorRect={anchorRect}
+                isOpen={isTooltipOpen}
+                onClose={handleCloseTooltip}
+            />
         </motion.div>
     );
 };

@@ -282,16 +282,15 @@ export const seedDatabase = async () => {
       if (!existing) {
         const { error } = await supabase.from('songs').insert([song]);
         if (error) {
-             console.error("Seed Error:", error);
-             failCount++;
+          console.error("Seed Error:", error);
+          failCount++;
         } else {
-             successCount++;
+          successCount++;
         }
       } else {
-          // Skip if exists
-          console.log(`Skipped ${song.title} (already exists)`);
+        // Skip if exists
       }
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
       failCount++;
     }

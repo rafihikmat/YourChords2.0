@@ -24,7 +24,7 @@ export const AdminSidebar: React.FC<{ open: boolean }> = ({ open }) => {
         { icon: <Globe size={20} />, label: 'Page Content', path: '/admin/cms', permission: 'admin' },
         { icon: <Music size={20} />, label: 'Song Manager', path: '/admin/songs', permission: 'admin' },
         { icon: <Edit size={20} />, label: 'Manual Entry', path: '/admin/manual-entry', permission: 'admin' },
-        { icon: <PlayCircle size={20} />, label: 'Smart Sync', path: '/admin/smart-sync', permission: 'admin' },
+
         { icon: <Disc size={20} />, label: 'Asset Manager', path: '/admin/assets', permission: 'admin' },
         { icon: <Zap size={20} />, label: 'AI Generator', path: '/admin/ai-create', permission: 'admin' },
         { icon: <RefreshCw size={20} />, label: 'System Maint.', path: '/admin/cache', permission: 'super_admin' },
@@ -47,13 +47,13 @@ export const AdminSidebar: React.FC<{ open: boolean }> = ({ open }) => {
                 </div>
                 {open && (
                     <div className="leading-tight overflow-hidden whitespace-nowrap">
-                         <span className="font-bold text-lg tracking-tight block text-slate-900 dark:text-white">Admin<span className={isSuperAdmin ? "text-purple-600 dark:text-purple-400" : "text-blue-600 dark:text-blue-400"}>Core</span></span>
+                        <span className="font-bold text-lg tracking-tight block text-slate-900 dark:text-white">Admin<span className={isSuperAdmin ? "text-purple-600 dark:text-purple-400" : "text-blue-600 dark:text-blue-400"}>Core</span></span>
                     </div>
                 )}
             </div>
 
             <div className="flex-1 overflow-y-auto py-4 space-y-1 px-3 custom-scrollbar">
-                 <Link
+                <Link
                     to="/"
                     className={cn(
                         "flex items-center gap-3 p-3 rounded-lg transition-all mb-6 group",
@@ -70,7 +70,7 @@ export const AdminSidebar: React.FC<{ open: boolean }> = ({ open }) => {
                         to={item.path}
                         className={cn(
                             "flex items-center gap-3 p-3 rounded-lg transition-all relative overflow-hidden",
-                            location.pathname === item.path 
+                            location.pathname === item.path
                                 ? (isSuperAdmin ? "bg-purple-600 text-white shadow-lg shadow-purple-500/25" : "bg-blue-600 text-white shadow-lg shadow-blue-500/25")
                                 : "text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-white/5"
                         )}
@@ -85,7 +85,7 @@ export const AdminSidebar: React.FC<{ open: boolean }> = ({ open }) => {
             </div>
 
             <div className="p-4 border-t border-slate-200 dark:border-white/10">
-                <button 
+                <button
                     onClick={async () => { await signOut(); navigate('/'); }}
                     className="flex items-center gap-3 p-3 w-full rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-300 transition-all"
                 >

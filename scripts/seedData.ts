@@ -264,23 +264,18 @@ Reff:
 ];
 
 const seed = async () => {
-  console.log("🌱 Starting seed process...");
 
   for (const song of songs) {
     try {
       const { error } = await supabase.from('songs').insert([song]);
-      
+
       if (error) {
         console.error(`❌ Failed to insert: ${song.artist} - ${song.title}`, error.message);
-      } else {
-        console.log(`✅ Success: ${song.artist} - ${song.title}`);
       }
     } catch (e) {
       console.error(`❌ Error inserting ${song.title}:`, e);
     }
   }
-  
-  console.log("✨ Seeding complete!");
 };
 
 seed();

@@ -2,7 +2,7 @@
 import { cn, fuzzySearch, formatTime, calculateStrength } from '../lib/utils';
 import assert from 'assert';
 
-console.log("Running tests for utils...");
+
 
 // Test 1: cn (Class merging)
 try {
@@ -17,7 +17,7 @@ try {
     assert.ok(result.includes('p-4'), 'Should include p-4');
     assert.ok(!result.includes('m-2'), 'Should not include m-2');
 
-    console.log("Test 1 Passed: Class merging.");
+
 } catch (e: any) {
     console.error("Test 1 Failed:", e.message);
     process.exit(1);
@@ -41,7 +41,7 @@ try {
     const noMatch = fuzzySearch(data, 'Metallica', ['title']);
     assert.strictEqual(noMatch.length, 0, 'Should find 0 items');
 
-    console.log("Test 2 Passed: Fuzzy search.");
+
 } catch (e: any) {
     console.error("Test 2 Failed:", e.message);
     process.exit(1);
@@ -55,7 +55,7 @@ try {
     assert.strictEqual(formatTime(0), '0:00', '0s should be 0:00');
     assert.strictEqual(formatTime(NaN), '0:00', 'NaN should be 0:00');
 
-    console.log("Test 3 Passed: Time formatting.");
+
 } catch (e: any) {
     console.error("Test 3 Failed:", e.message);
     process.exit(1);
@@ -79,7 +79,7 @@ try {
     const strong = 'Abcdefg1!';
     assert.strictEqual(calculateStrength(strong), 4, 'All criteria gives 4 points');
 
-    console.log("Test 4 Passed: Password strength.");
+
 } catch (e: any) {
     console.error("Test 4 Failed:", e.message);
     process.exit(1);

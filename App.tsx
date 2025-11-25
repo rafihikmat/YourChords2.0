@@ -13,6 +13,8 @@ import FavoritesPage from './pages/Favorites';
 import ToolsPage from './pages/Tools';
 import ProfilePage from './pages/Profile';
 import About from './pages/About';
+import TestChordCarousel from './pages/TestChordCarousel';
+import TestAdvancedChords from './pages/TestAdvancedChords';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { DatabaseSetupScreen } from './components/setup/DatabaseSetupScreen';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
@@ -26,7 +28,7 @@ import { ProtectedRoute } from './components/auth/ProtectedRoute';
 const AppContent: React.FC = () => {
   const { dbConnectionError } = useAuth();
   const location = useLocation();
-  
+
   // Global Check: If DB connection has issues (missing tables), show SQL setup
   if (dbConnectionError) return <DatabaseSetupScreen />;
 
@@ -38,33 +40,35 @@ const AppContent: React.FC = () => {
       <Navbar />
       <main className="flex-grow">
         <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/chat" element={<ChatPage />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/update-password" element={<UpdatePassword />} />
-            <Route path="/song/:id" element={<SongDetail />} />
-            <Route path="/tools" element={<ToolsPage />} />
-            <Route path="/about" element={<About />} />
-            
-            {/* Protected Routes */}
-            <Route path="/favorites" element={
-                <ProtectedRoute>
-                    <FavoritesPage />
-                </ProtectedRoute>
-            } />
-            
-            <Route path="/profile" element={
-                <ProtectedRoute>
-                    <ProfilePage />
-                </ProtectedRoute>
-            } />
+          <Route path="/" element={<Home />} />
+          <Route path="/chat" element={<ChatPage />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/update-password" element={<UpdatePassword />} />
+          <Route path="/song/:id" element={<SongDetail />} />
+          <Route path="/tools" element={<ToolsPage />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/test-chords" element={<TestChordCarousel />} />
+          <Route path="/test-advanced" element={<TestAdvancedChords />} />
 
-            {/* Admin Routes */}
-            <Route path="/admin/*" element={
-            <ProtectedRoute adminOnly>
-                <AdminDashboard />
+          {/* Protected Routes */}
+          <Route path="/favorites" element={
+            <ProtectedRoute>
+              <FavoritesPage />
             </ProtectedRoute>
-            } />
+          } />
+
+          <Route path="/profile" element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          } />
+
+          {/* Admin Routes */}
+          <Route path="/admin/*" element={
+            <ProtectedRoute adminOnly>
+              <AdminDashboard />
+            </ProtectedRoute>
+          } />
         </Routes>
       </main>
       {showFooter && <Footer />}
@@ -83,7 +87,7 @@ const App: React.FC = () => {
     <Router>
       <AuthProvider>
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white font-sans selection:bg-primary/30 overflow-x-hidden transition-colors duration-300">
-            <AppContent />
+          <AppContent />
         </div>
       </AuthProvider>
     </Router>

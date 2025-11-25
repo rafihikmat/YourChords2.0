@@ -2,7 +2,7 @@
 import { convertToChordPro, normalizeChordName, transposeChord, parseChordsFromText } from '../lib/musicUtils';
 import assert from 'assert';
 
-console.log("Running tests for musicUtils...");
+
 
 // Test 1: Bug Reproduction - Chords trailing after lyrics
 try {
@@ -20,7 +20,7 @@ Love`;
         throw new Error(`Expected significant spacing before [E]. Got: '${trimmedOutput}'`);
     }
 
-    console.log("Test 1 Passed: Trailing chords spacing preserved.");
+
 } catch (e: any) {
     console.error("Test 1 Failed:", e.message);
     process.exit(1);
@@ -34,13 +34,11 @@ Love You
 `;
     // C at 0. G at 5.
     // Love You. (Love at 0, space at 4, You at 5).
-    // Expect: [C]Love [G]You
-
     const output = convertToChordPro(input);
     if (!output.includes("[C]Love [G]You")) {
         throw new Error(`Expected '[C]Love [G]You'. Got: '${output}'`);
     }
-     console.log("Test 2 Passed: Standard merge works.");
+
 } catch (e: any) {
     console.error("Test 2 Failed:", e.message);
     process.exit(1);
@@ -60,10 +58,10 @@ Hi`;
     if (!output.includes("[C]Hi      [G]")) {
         throw new Error(`Expected '[C]Hi      [G]'. Got: '${output}'`);
     }
-    console.log("Test 3 Passed: Gap after short lyric line.");
+
 } catch (e: any) {
-     console.error("Test 3 Failed:", e.message);
-     process.exit(1);
+    console.error("Test 3 Failed:", e.message);
+    process.exit(1);
 }
 
 // Test 4: normalizeChordName
@@ -75,7 +73,7 @@ try {
     assert.strictEqual(normalizeChordName('Fsus'), 'Fsus4', 'Fsus -> Fsus4');
     assert.strictEqual(normalizeChordName(''), '', 'Empty string -> Empty string');
 
-    console.log("Test 4 Passed: normalizeChordName.");
+
 } catch (e: any) {
     console.error("Test 4 Failed:", e.message);
     process.exit(1);
@@ -98,7 +96,7 @@ try {
     // Invalid/Ignored
     assert.strictEqual(transposeChord('Hello', 2), 'Hello', 'Invalid chord returned as is');
 
-    console.log("Test 5 Passed: transposeChord.");
+
 } catch (e: any) {
     console.error("Test 5 Failed:", e.message);
     process.exit(1);
@@ -125,7 +123,7 @@ try {
     const dupes = parseChordsFromText(textWithDupes);
     assert.strictEqual(dupes.length, 2, 'Should ignore duplicates');
 
-    console.log("Test 6 Passed: parseChordsFromText.");
+
 } catch (e: any) {
     console.error("Test 6 Failed:", e.message);
     process.exit(1);

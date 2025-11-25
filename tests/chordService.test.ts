@@ -2,14 +2,14 @@
 import { ChordAdapter } from '../lib/chordService';
 import assert from 'assert';
 
-console.log("Running tests for chordService...");
+
 
 // Test 1: Standard Major Chord
 try {
     const fingering = ChordAdapter.getExternalChord('C');
     // chords-db C Major: x32010
     assert.deepStrictEqual(fingering, [-1, 3, 2, 0, 1, 0], 'C Major fingering incorrect');
-    console.log("Test 1 Passed: C Major retrieval.");
+
 } catch (e: any) {
     console.error("Test 1 Failed:", e.message);
     process.exit(1);
@@ -20,7 +20,7 @@ try {
     const fingering = ChordAdapter.getExternalChord('Am');
     // chords-db Am: x02210
     assert.deepStrictEqual(fingering, [-1, 0, 2, 2, 1, 0], 'Am fingering incorrect');
-    console.log("Test 2 Passed: Am retrieval.");
+
 } catch (e: any) {
     console.error("Test 2 Failed:", e.message);
     process.exit(1);
@@ -39,7 +39,7 @@ try {
     // My manual test showed [-1, 4, 3, 1, 2, 1]
     assert.deepStrictEqual(cSharp, [-1, 4, 3, 1, 2, 1], 'C# fingering matches DB');
 
-    console.log("Test 3 Passed: Enharmonic equivalents.");
+
 } catch (e: any) {
     console.error("Test 3 Failed:", e.message);
     process.exit(1);
@@ -49,7 +49,7 @@ try {
 try {
     const gOverA = ChordAdapter.getExternalChord('G/A');
     assert.notStrictEqual(gOverA, null, 'G/A should be found (or fallback)');
-    console.log("Test 4 Passed: Slash chord handled.");
+
 } catch (e: any) {
     console.error("Test 4 Failed:", e.message);
     process.exit(1);
@@ -74,7 +74,7 @@ try {
         assert.strictEqual(cmOverG[0], 3, 'Cm/G should have G (3rd fret) in bass');
     }
 
-    console.log("Test 4b Passed: Minor Slash chord specific lookup.");
+
 } catch (e: any) {
     console.error("Test 4b Failed:", e.message);
     process.exit(1);
@@ -86,7 +86,7 @@ try {
     const cMin = ChordAdapter.getExternalChord('Cmin');
     const cM = ChordAdapter.getExternalChord('Cm');
     assert.deepStrictEqual(cMin, cM, 'Cmin should match Cm');
-    console.log("Test 5 Passed: Suffix normalization.");
+
 } catch (e: any) {
     console.error("Test 5 Failed:", e.message);
     process.exit(1);
@@ -97,7 +97,7 @@ try {
     // Cm11 -> Cm (if not in DB)
     const cm11 = ChordAdapter.getExternalChord('Cm11');
     assert.notStrictEqual(cm11, null, 'Cm11 should return result');
-    console.log("Test 6 Passed: Fallback/Lookup logic.");
+
 } catch (e: any) {
     console.error("Test 6 Failed:", e.message);
     process.exit(1);
@@ -111,7 +111,7 @@ try {
     const invalid2 = ChordAdapter.getExternalChord('');
     assert.strictEqual(invalid2, null, 'Empty string should return null');
 
-    console.log("Test 7 Passed: Invalid input handling.");
+
 } catch (e: any) {
     console.error("Test 7 Failed:", e.message);
     process.exit(1);
