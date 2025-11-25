@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Music, Save, Grid, Eye, Edit3, Globe, Loader2, AlertTriangle, CheckCircle, FileText, Link as LinkIcon, Download, Lock, RefreshCw } from 'lucide-react';
+import { Music, Save, Grid, Eye, Edit3, Globe, Loader2, AlertTriangle, CheckCircle, FileText, Link as LinkIcon, Download, Lock, RefreshCw, Wand2 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { Song } from '../../../types';
 import { cn } from '../../../lib/utils';
@@ -299,6 +299,46 @@ const ManualEntry: React.FC = () => {
         setImportStatus({ type: 'success', msg: 'Text structure converted to ChordPro format.' });
     };
 
+    const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+        // Detect if standard "Chords Over Lyrics" format is used
+        // Heuristic: if convertToChordPro produces a significantly different result (more brackets)
+        const pastedText = e.clipboardData.getData('text');
+        if (!pastedText) return;
+
+        // 1. Check if it looks like it needs conversion (no brackets but potential chords)
+        // If it already has brackets [C], assume it's already ChordPro or intentional.
+        const hasBrackets = /\[[A-G][#b]?[^\]]*\]/.test(pastedText);
+
+        if (!hasBrackets) {
+            // Run trial conversion
+            const converted = convertToChordPro(pastedText);
+            // If conversion added brackets, use it
+            if (converted !== pastedText && /\[[A-G][#b]?[^\]]*\]/.test(converted)) {
+                e.preventDefault();
+
+                // Insert the CONVERTED text at cursor position
+                if (textareaRef.current) {
+                    const start = textareaRef.current.selectionStart;
+                    const end = textareaRef.current.selectionEnd;
+                    const currentText = formData.rawText;
+                    const newText = currentText.substring(0, start) + converted + currentText.substring(end);
+
+                    setFormData({ ...formData, rawText: newText });
+                    setImportStatus({ type: 'success', msg: 'Standard text detected & auto-converted to ChordPro.' });
+
+                    // Restore cursor position (approximate)
+                    setTimeout(() => {
+                        if (textareaRef.current) {
+                            textareaRef.current.focus();
+                            textareaRef.current.selectionStart = start + converted.length;
+                            textareaRef.current.selectionEnd = start + converted.length;
+                        }
+                    }, 0);
+                }
+            }
+        }
+    };
+
     return (
         <div className="p-8 animate-in fade-in space-y-8">
             <div className="flex items-center justify-between">
@@ -458,14 +498,29 @@ const ManualEntry: React.FC = () => {
                                 <div className="flex items-center gap-2 text-xs font-bold text-slate-500 px-2">
                                     <Music className="w-4 h-4" /> Chords & Lyrics Editor
                                 </div>
-                                <button 
-                                    type="button"
-                                    onClick={handleAutoConvert}
-                                    className="flex items-center gap-1.5 text-[10px] font-bold bg-primary/10 text-primary px-3 py-1.5 rounded hover:bg-primary/20 transition-colors"
-                                    title="Converts text chords like 'Am' to ChordPro '[Am]'"
-                                >
-                                    <RefreshCw className="w-3 h-3" /> Convert to ChordPro
-                                </button>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={handleAutoConvert}
+                                        className="flex items-center gap-1.5 text-[10px] font-bold bg-purple-100 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 px-3 py-1.5 rounded hover:bg-purple-200 dark:hover:bg-purple-900/30 transition-colors border border-purple-200 dark:border-purple-900/30"
+                                        title="Fixes layout if chords are visually placed above lyrics"
+                                    >
+                                        <Wand2 className="w-3 h-3" /> Fix Layout / Convert Visual Chords
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const text = formData.rawText;
+                                            // Basic re-scan if needed, currently same as Fix Layout
+                                            const converted = convertToChordPro(text);
+                                            setFormData({ ...formData, rawText: converted });
+                                        }}
+                                        className="flex items-center gap-1.5 text-[10px] font-bold bg-primary/10 text-primary px-3 py-1.5 rounded hover:bg-primary/20 transition-colors"
+                                        title="Refresh / Convert to ChordPro"
+                                    >
+                                        <RefreshCw className="w-3 h-3" />
+                                    </button>
+                                </div>
                              </div>
                             
                             {/* Quick Insert Panel - REDESIGNED */}
@@ -513,6 +568,7 @@ const ManualEntry: React.FC = () => {
                                 required 
                                 value={formData.rawText} 
                                 onChange={e => setFormData({...formData, rawText: e.target.value})} 
+                                onPaste={handlePaste}
                                 className="w-full p-6 rounded-b-xl border border-t-0 bg-white dark:bg-slate-900 border-slate-200 dark:border-white/10 font-mono text-sm text-slate-900 dark:text-white min-h-[500px] focus:ring-0 outline-none leading-relaxed" 
                                 placeholder="Type lyrics here. Use [Bracket] notation for chords. e.g. [C]Hello [G]World"
                             />
