@@ -1,8 +1,15 @@
 
 import { ChordAdapter } from './chordService';
 
+/**
+ * Array of standard musical notes used for transposition and validation.
+ */
 export const NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
+/**
+ * Mapping of chord families to their constituent chords.
+ * Used for categorization or grouping of chords.
+ */
 export const CHORD_FAMILIES: Record<string, string[]> = {
   'Major': ['C', 'D', 'E', 'F', 'G', 'A', 'B'],
   'Minor': ['Cm', 'Dm', 'Em', 'Fm', 'Gm', 'Am', 'Bm'],
@@ -12,6 +19,13 @@ export const CHORD_FAMILIES: Record<string, string[]> = {
   'Sus4': ['Csus4', 'Dsus4', 'Esus4', 'Fsus4', 'Gsus4', 'Asus4', 'Bsus4'],
 };
 
+/**
+ * Normalizes a chord name to a standard format.
+ * Examples: "c minor" -> "Cm", "G major" -> "G", "Dsus" -> "Dsus4".
+ *
+ * @param {string} input - The raw chord string to normalize.
+ * @returns {string} The normalized chord string, or an empty string if input is invalid.
+ */
 export const normalizeChordName = (input: string): string => {
   if (!input || typeof input !== 'string') return "";
   const normalized = input.trim().charAt(0).toUpperCase() + input.trim().slice(1);
@@ -21,6 +35,14 @@ export const normalizeChordName = (input: string): string => {
     .replace(/sus$/, 'sus4');
 };
 
+/**
+ * Transposes a chord by a given number of semitones.
+ * Handles slash chords (e.g., C/G) and maintains chord quality (e.g., m, 7, sus4).
+ *
+ * @param {string} chord - The chord to transpose (e.g., "Am", "C/G").
+ * @param {number} semitones - The number of semitones to shift (positive or negative).
+ * @returns {string} The transposed chord. Returns the original chord if input is invalid or not recognized.
+ */
 export const transposeChord = (chord: string, semitones: number): string => {
   if (!chord || typeof chord !== 'string' || !chord.trim()) return chord;
   const match = chord.match(/^([A-G][#b]?)(.*?)(\/([A-G][#b]?))?$/);
@@ -41,7 +63,14 @@ export const transposeChord = (chord: string, semitones: number): string => {
   return `${shift(root)}${quality}${bass ? '/' + shift(bass) : ''}`;
 };
 
-export const parseChordsFromText = (text: string) => {
+/**
+ * Parses a text to find all unique chords formatted within brackets (e.g., [C], [Am7]).
+ * Used for extracting a list of chords used in a song.
+ *
+ * @param {string} text - The text to scan for chords.
+ * @returns {string[]} An array of unique chord names found in the text.
+ */
+export const parseChordsFromText = (text: string): string[] => {
   if (!text || typeof text !== 'string') return [];
   
   // This function extracts a list of unique chords found in the text
@@ -59,6 +88,13 @@ export const parseChordsFromText = (text: string) => {
   return Array.from(chords);
 };
 
+/**
+ * Retrieves the fingering (fret positions) for a given chord name.
+ * Delegates to ChordAdapter to fetch data from the external database.
+ *
+ * @param {string} name - The name of the chord.
+ * @returns {number[] | null} An array representing fret positions (e.g., [-1, 3, 2, 0, 1, 0] for C major), or null if not found.
+ */
 export const getChordFingering = (name: string): number[] | null => {
   return ChordAdapter.getExternalChord(name);
 };
@@ -70,7 +106,11 @@ export const getChordFingering = (name: string): number[] | null => {
 const CHORD_TOKEN_REGEX = /(?:^|\s)([A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|2|4|5|6|7|9|11|13)*\d*\+?(?:\/[A-G][#b]?)?)(?=\s|$)/g;
 
 /**
- * Expand tabs to spaces to ensure alignment logic works
+ * Expand tabs to spaces to ensure alignment logic works.
+ *
+ * @param {string} text - The text containing tabs.
+ * @param {number} [tabSize=4] - The number of spaces to replace each tab with.
+ * @returns {string} The text with tabs expanded to spaces.
  */
 function expandTabs(text: string, tabSize = 4): string {
     return text.replace(/\t/g, ' '.repeat(tabSize));
@@ -79,6 +119,9 @@ function expandTabs(text: string, tabSize = 4): string {
 /**
  * Determines if a line is purely a chord line (to be merged) or a lyric line.
  * Uses heuristic density analysis to avoid false positives.
+ *
+ * @param {string} line - The line of text to analyze.
+ * @returns {boolean} True if the line is determined to be a chord line, false otherwise.
  */
 function isChordLine(line: string): boolean {
   const trimmed = line.trim();
@@ -135,6 +178,9 @@ function isChordLine(line: string): boolean {
  * - Auto-detects sections
  * - Handles file imports with tabs/bad spacing
  * - Converts (C) to [C]
+ *
+ * @param {string} rawText - The raw song text (chords and lyrics).
+ * @returns {string} The converted ChordPro formatted string.
  */
 export const convertToChordPro = (rawText: string): string => {
   if (!rawText) return "";

@@ -10,6 +10,13 @@ import {
   Zap, Smartphone, Layers, Mic2, ArrowLeft, HelpCircle 
 } from 'lucide-react';
 
+/**
+ * The About page component.
+ * Displays information about the platform, its mission, features, and FAQs.
+ * Content can be dynamically fetched from the database, falling back to defaults.
+ *
+ * @returns {JSX.Element} The About page component.
+ */
 const About: React.FC = () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [content, setContent] = useState<any>(null);

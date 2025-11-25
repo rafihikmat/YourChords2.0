@@ -4,10 +4,21 @@ import { Mic, Square, Loader2 } from 'lucide-react';
 import { ai } from '../lib/gemini';
 import { blobToBase64 } from '../lib/utils';
 
+/**
+ * Props for the AudioRecorder component.
+ */
 interface AudioRecorderProps {
+  /** Callback function called when transcription is successfully completed. */
   onTranscriptionComplete: (text: string) => void;
 }
 
+/**
+ * Component that records audio from the user's microphone and uses Gemini AI to transcribe it to text.
+ * Useful for inputting lyrics by voice.
+ *
+ * @param {AudioRecorderProps} props - The component props.
+ * @returns {JSX.Element} The AudioRecorder component.
+ */
 const AudioRecorder: React.FC<AudioRecorderProps> = ({ onTranscriptionComplete }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);

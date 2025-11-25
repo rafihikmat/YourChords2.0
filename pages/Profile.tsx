@@ -7,6 +7,12 @@ import { motion } from 'framer-motion';
 import { DOT_GRID_SVG, cn } from '../lib/utils';
 import { Spotlight } from '../components/ui/Spotlight';
 
+/**
+ * The User Profile page component.
+ * Allows users to view and update their profile information (name, avatar).
+ *
+ * @returns {JSX.Element} The ProfilePage component.
+ */
 const ProfilePage: React.FC = () => {
   const { user, profile } = useAuth();
   const [fullName, setFullName] = useState('');

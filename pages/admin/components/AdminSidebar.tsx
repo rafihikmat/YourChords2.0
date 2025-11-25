@@ -5,6 +5,15 @@ import { Shield, LayoutDashboard, Globe, Music, Edit, Disc, Zap, RefreshCw, User
 import { cn } from '../../../lib/utils';
 import { useAuth } from '../../../contexts/AuthContext';
 
+/**
+ * Sidebar navigation component for the Admin Dashboard.
+ * Displays different menu items based on user roles (Admin vs. Super Admin).
+ * Handles navigation, active state styling, and logout.
+ *
+ * @param {Object} props - Component props.
+ * @param {boolean} props.open - Whether the sidebar is expanded or collapsed.
+ * @returns {JSX.Element} The AdminSidebar component.
+ */
 export const AdminSidebar: React.FC<{ open: boolean }> = ({ open }) => {
     const { isSuperAdmin, signOut } = useAuth();
     const location = useLocation();

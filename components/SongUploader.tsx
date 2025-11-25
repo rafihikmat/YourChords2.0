@@ -5,6 +5,12 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
+/**
+ * Component for uploading song files (PDF, TXT, Images) to the library.
+ * Handles file selection, metadata input, upload to Supabase Storage, and database record creation.
+ *
+ * @returns {JSX.Element} The SongUploader component.
+ */
 const SongUploader: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -54,6 +60,7 @@ const SongUploader: React.FC = () => {
       }
 
       // 2. Create Song Record
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: songData, error: dbError } = await supabase
         .from('songs')
         .insert([{
@@ -73,6 +80,7 @@ const SongUploader: React.FC = () => {
           navigate(`/song/${songData.id}`);
       }, 1500);
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error('Upload failed:', err);
       setError(err.message);

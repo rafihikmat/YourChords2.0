@@ -11,6 +11,13 @@ import { VideoGallery } from '../components/VideoGallery';
 import { seedDatabase } from '../lib/seeder';
 import { useNavigate } from 'react-router-dom';
 
+/**
+ * The Home page component (Landing Page).
+ * Displays the hero section, trending songs, featured albums, and video tutorials.
+ * Handles data fetching, filtering by difficulty, and database seeding.
+ *
+ * @returns {JSX.Element} The Home page component.
+ */
 const Home: React.FC = () => {
   const navigate = useNavigate();
   const [songs, setSongs] = useState<Song[]>([]);

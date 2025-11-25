@@ -1,11 +1,23 @@
 import React from "react";
 import { cn } from "../../lib/utils";
 
+/**
+ * Props for the Spotlight component.
+ */
 interface SpotlightProps {
+  /** Optional class names for positioning and styling. */
   className?: string;
+  /** The fill color of the spotlight effect. Defaults to "white". */
   fill?: string;
 }
 
+/**
+ * A decorative spotlight effect component using SVG filters.
+ * Creates a glowing, animated background effect.
+ *
+ * @param {SpotlightProps} props - The component props.
+ * @returns {JSX.Element} The Spotlight SVG.
+ */
 export const Spotlight: React.FC<SpotlightProps> = ({ className, fill = "white" }) => {
   return (
     <svg

@@ -4,10 +4,17 @@ import { Play, Pause, Video, AlertCircle, PlayCircle, RotateCcw, Download, Chevr
 import { cn } from '../../lib/utils';
 
 // --- Types ---
+/**
+ * Represents a single line of lyrics or chords to be synchronized.
+ */
 interface SyncLine {
+  /** Unique identifier for the line. */
   id: string;
+  /** The text content of the line. */
   content: string;
+  /** The timestamp in seconds when this line should appear. Null if not yet synced. */
   timeStart: number | null; // null = not synced yet
+  /** The type of line: structural header, lyrics, or chord symbols. */
   type: 'header' | 'lyrics' | 'chords';
 }
 
@@ -23,6 +30,19 @@ declare global {
 // --- MEMOIZED LIST ITEM (CRITICAL OPTIMIZATION) ---
 // This prevents the entire list (100+ lines) from re-rendering when the active line changes.
 // Only the previous active line and the new active line will re-render.
+/**
+ * A memoized component representing a single line in the sync editor list.
+ * Optimized to prevent unnecessary re-renders of the entire list during synchronization.
+ *
+ * @param {Object} props - Component props.
+ * @param {SyncLine} props.line - The line data.
+ * @param {number} props.index - The index of the line in the list.
+ * @param {boolean} props.isActive - Whether this line is currently being synced.
+ * @param {Function} props.onSeek - Callback to seek video to this line's timestamp.
+ * @param {Function} props.onUpdateTimestamp - Callback to manually update timestamp.
+ * @param {Function} props.onSelect - Callback to select this line.
+ * @returns {JSX.Element} The SyncLineItem component.
+ */
 const SyncLineItem = React.memo(({ 
     line, 
     index, 
@@ -131,6 +151,16 @@ const SyncLineItem = React.memo(({
     );
 });
 
+/**
+ * The SmartSyncEditor page allows admins to synchronize lyrics/chords with a YouTube video.
+ * Features:
+ * - Input for YouTube ID and raw text.
+ * - "Spacebar" tapping interface to mark timestamps.
+ * - Video playback control synced with editing.
+ * - Export to JSON.
+ *
+ * @returns {JSX.Element} The SmartSyncEditor component.
+ */
 const SmartSyncEditor: React.FC = () => {
   // --- State ---
   const [phase, setPhase] = useState<'setup' | 'sync'>('setup');

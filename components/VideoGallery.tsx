@@ -10,6 +10,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useSmartSearch } from '../lib/hooks/useSmartSearch';
 
+/**
+ * Component to display a gallery of video tutorials.
+ * Fetches tutorials from Supabase, supports searching, favoriting, and modal playback.
+ *
+ * @returns {JSX.Element} The VideoGallery component.
+ */
 export const VideoGallery: React.FC = () => {
   const [allVideos, setAllVideos] = useState<VideoTutorial[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,8 +50,10 @@ export const VideoGallery: React.FC = () => {
 
   const fetchFavorites = async () => {
       if (!user) return;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data } = await supabase.from('video_favorites').select('video_id').eq('user_id', user.id);
       if (data) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           setFavoriteIds(data.map((item: any) => item.video_id));
       }
   };

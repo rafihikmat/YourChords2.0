@@ -8,8 +8,18 @@ import { Mail, Lock, Loader2, ArrowLeft, CheckCircle2, ShieldCheck, UserPlus, Lo
 import { DOT_GRID_SVG, cn, calculateStrength } from '../lib/utils';
 import { Spotlight } from '../components/ui/Spotlight';
 
+/**
+ * Auth view modes.
+ */
 type AuthView = 'login' | 'register' | 'forgot_password';
 
+/**
+ * Authentication page handling Login, Registration, and Password Reset.
+ * Includes OAuth integration (Google, Facebook), a custom "Hold to Verify" human check,
+ * and password strength validation.
+ *
+ * @returns {JSX.Element} The Auth page component.
+ */
 const Auth: React.FC = () => {
   const [view, setView] = useState<AuthView>('login');
   const [email, setEmail] = useState('');

@@ -11,12 +11,22 @@ import { useChordSheetParser } from '../lib/hooks/useChordSheetParser';
 import SongLyricsDisplay from './SongLyricsDisplay';
 import { ai } from '../lib/gemini';
 
+/**
+ * Extended form data interface including optional URLs and difficulty.
+ */
 interface ExtendedFormData extends AIChordFormData {
     spotifyUrl?: string;
     youtubeUrl?: string;
     difficulty: string;
 }
 
+/**
+ * Component providing a form to generate chord sheets using AI (Gemini).
+ * Supports both admin (save to DB) and user (local preview) modes.
+ * Features audio transcription for lyrics input.
+ *
+ * @returns {JSX.Element} The AIChordForm component.
+ */
 const AIChordForm: React.FC = () => {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();

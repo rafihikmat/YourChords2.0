@@ -6,13 +6,32 @@ import { SearchResult } from '../types';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 
+/**
+ * Props for the SearchBar component.
+ */
 interface SearchBarProps {
+  /** Optional class names for styling the container. */
   className?: string;
+  /**
+   * The visual variant of the search bar.
+   * - 'navbar': Compact version suitable for the navigation bar.
+   * - 'full': Expanded version suitable for full-width mobile menus.
+   */
   variant?: 'navbar' | 'full';
 }
 
+/**
+ * Available tabs for filtering search results.
+ */
 type SearchTab = 'all' | 'songs' | 'albums' | 'tutorials';
 
+/**
+ * A comprehensive search component that queries the local library, Spotify, and YouTube.
+ * Features auto-complete, trending suggestions, and categorized results.
+ *
+ * @param {SearchBarProps} props - The component props.
+ * @returns {JSX.Element} The SearchBar component.
+ */
 const SearchBar: React.FC<SearchBarProps> = ({ className, variant = 'navbar' }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
