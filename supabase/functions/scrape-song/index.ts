@@ -1,6 +1,6 @@
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import * as cheerio from "https://esm.sh/cheerio@1.0.0-rc.12";
+import { serve } from "std/http/server.ts";
+import * as cheerio from "cheerio";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -97,7 +97,7 @@ function convertToChordPro(rawText: string): string {
   return result.join('\n');
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -193,7 +193,7 @@ serve(async (req) => {
 
             storeData = JSON.parse(jsonStr);
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          } catch (e) {
+          } catch (_e) {
             // ignore error
           }
         }

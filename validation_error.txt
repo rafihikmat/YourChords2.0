@@ -1,4 +1,4 @@
-{
+﻿Invalid array passed in, ',' expected. (1833715): {
     "main": {
         "strings": 6,
         "fretsOnChord": 4,
@@ -99282,3 +99282,4 @@
 ]
 }
 }
+

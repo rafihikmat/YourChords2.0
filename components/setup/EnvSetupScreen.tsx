@@ -4,8 +4,8 @@ import { Copy, ShieldAlert, Database, Key } from 'lucide-react';
 
 export const EnvSetupScreen: React.FC = () => {
   const envExample = `VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key-here
-API_KEY=your-google-gemini-api-key`;
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFnZmt0Zmp3bnB5Y3JlbWVnZW1lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2NzQyMjcsImV4cCI6MjA3OTI1MDIyN30.cSPW-OROIwQiN8hCY6Ecl_g79Y2bOP_mKgc76bkmh00
+API_KEY=AIzaSyAupO7EhV9sfU_n5fI0xb6vTA0sAZ2zZD4`;
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(envExample);

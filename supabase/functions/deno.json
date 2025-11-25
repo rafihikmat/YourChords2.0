@@ -1,9 +1,13 @@
 {
-    "compilerOptions": {
-        "allowJs": true,
-        "lib": [
-            "deno.window"
-        ],
-        "strict": true
-    }
+  "compilerOptions": {
+    "allowJs": true,
+    "lib": [
+      "deno.window"
+    ],
+    "strict": true
+  },
+  "imports": {
+    "std/": "https://deno.land/std@0.168.0/",
+    "cheerio": "https://esm.sh/cheerio@1.0.0-rc.12"
+  }
 }

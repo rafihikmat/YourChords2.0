@@ -80,8 +80,8 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onTranscriptionComplete }
         ]
       });
 
-      if (response.response.text()) {
-        onTranscriptionComplete(response.response.text());
+      if (response.text) {
+        onTranscriptionComplete(response.text);
       }
     } catch {
       // Ignore error
