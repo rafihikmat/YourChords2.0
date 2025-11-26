@@ -15,6 +15,9 @@ import ProfilePage from './pages/Profile';
 import About from './pages/About';
 import TestChordCarousel from './pages/TestChordCarousel';
 import TestAdvancedChords from './pages/TestAdvancedChords';
+import Privacy from './pages/Privacy';
+import Terms from './pages/Terms';
+import Contact from './pages/Contact';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { DatabaseSetupScreen } from './components/setup/DatabaseSetupScreen';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
@@ -49,6 +52,9 @@ const AppContent: React.FC = () => {
           <Route path="/about" element={<About />} />
           <Route path="/test-chords" element={<TestChordCarousel />} />
           <Route path="/test-advanced" element={<TestAdvancedChords />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/contact" element={<Contact />} />
 
           {/* Protected Routes */}
           <Route path="/favorites" element={

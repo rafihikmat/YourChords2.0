@@ -61,9 +61,9 @@ const DEFAULT_FOOTER: FooterData = {
       title: "Company",
       links: [
         { label: 'About Us', path: '/about' },
-        { label: 'Privacy Policy', path: '#' },
-        { label: 'Terms of Service', path: '#' },
-        { label: 'Contact Support', path: '#' },
+        { label: 'Privacy Policy', path: '/privacy' },
+        { label: 'Terms of Service', path: '/terms' },
+        { label: 'Contact Support', path: '/contact' },
         { label: 'API Status', path: '#' }
       ]
     }
@@ -72,7 +72,7 @@ const DEFAULT_FOOTER: FooterData = {
     twitter: "https://twitter.com",
     github: "https://github.com",
     instagram: "https://instagram.com",
-    email: "mailto:support@yourchords.com"
+    email: "mailto:helpyourchords@gmail.com"
   },
   copyright_text: "YourChords AI. All rights reserved.",
   made_by_text: "Neural Architects"

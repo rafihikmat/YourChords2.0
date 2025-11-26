@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { User, Mail, Save, Loader2, Camera, Shield } from 'lucide-react';
+import { User, Mail, Save, Loader2, Camera, Shield, Upload } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { DOT_GRID_SVG, cn } from '../lib/utils';
 import { Spotlight } from '../components/ui/Spotlight';
@@ -26,6 +26,45 @@ const ProfilePage: React.FC = () => {
       setAvatarUrl(profile.avatar_url || '');
     }
   }, [profile]);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) {
+      return;
+    }
+
+    const file = e.target.files[0];
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${user?.id}-${Math.random()}.${fileExt}`;
+    const filePath = `${fileName}`;
+
+    setLoading(true);
+    setMessage(null);
+
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      setAvatarUrl(publicUrl);
+      setMessage({ type: 'success', text: 'Image uploaded successfully. Click Save to apply.' });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        setMessage({ type: 'error', text: error.message });
+      } else {
+        setMessage({ type: 'error', text: 'Error uploading image' });
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,9 +127,20 @@ const ProfilePage: React.FC = () => {
                      </div>
                    )}
                 </div>
-                <div className="absolute -bottom-2 -right-2 bg-slate-900 text-white p-1.5 rounded-full border border-white/10 shadow-lg">
+                <label 
+                  htmlFor="avatar-upload" 
+                  className="absolute -bottom-2 -right-2 bg-slate-900 text-white p-1.5 rounded-full border border-white/10 shadow-lg cursor-pointer hover:bg-primary transition-colors"
+                >
                   <Camera className="w-3 h-3" />
-                </div>
+                  <input
+                    type="file"
+                    id="avatar-upload"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    disabled={loading}
+                  />
+                </label>
               </div>
               
               <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 text-xs font-bold uppercase tracking-wider">
