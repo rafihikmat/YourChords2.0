@@ -41,10 +41,17 @@ export const generateAIContent = async (systemPrompt: string, userPrompt: string
       console.log(`Attempting to generate content using ${provider.name}...`);
       
       if (provider.type === 'openai') {
+        const baseURL = provider.baseURL?.startsWith('/') 
+          ? `${window.location.origin}${provider.baseURL}`
+          : provider.baseURL;
+
         const client = new OpenAI({
           apiKey: apiKey,
-          baseURL: provider.baseURL,
-          dangerouslyAllowBrowser: true
+          baseURL: baseURL,
+          dangerouslyAllowBrowser: true,
+          defaultHeaders: {
+            'Authorization': `Bearer ${apiKey}`
+          }
         });
 
         const response = await client.chat.completions.create({

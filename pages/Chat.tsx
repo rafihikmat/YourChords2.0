@@ -29,10 +29,41 @@ interface Message {
  * Configuration for each chat mode.
  */
 const MODES: Record<ChatMode, { name: string; icon: React.ReactNode; description: string; model: string; systemInstruction: string }> = {
-  turbo: { name: 'Turbo', icon: <Zap className="w-4 h-4 text-yellow-400" />, description: 'Fast (Flash 1.5)', model: 'gemini-1.5-flash', systemInstruction: 'You are a helpful music assistant. Concise answers.' },
-  guru: { name: 'Guru', icon: <Bot className="w-4 h-4 text-primary" />, description: 'Theory Expert', model: 'gemini-1.5-pro', systemInstruction: 'You are a Music Theory Expert. Explain harmony, scales, and composition.' },
-  thinking: { name: 'Deep Thought', icon: <BrainCircuit className="w-4 h-4 text-purple-400" />, description: 'Reasoning', model: 'gemini-1.5-pro', systemInstruction: 'You are a deep reasoning engine for complex analysis.' },
-  researcher: { name: 'Researcher', icon: <Globe className="w-4 h-4 text-green-400" />, description: 'Live Web Data', model: 'gemini-1.5-flash', systemInstruction: 'You are a music researcher with web access.' }
+  turbo: { 
+    name: 'Turbo', 
+    icon: <Zap className="w-4 h-4 text-yellow-400" />, 
+    description: 'Fast Assistant', 
+    model: 'gemini-1.5-flash', 
+    // Prompt singkat untuk mode cepat
+    systemInstruction: 'You are a helpful music assistant. Answer strictly about music only. Concise answers.' 
+  },
+  guru: { 
+    name: 'Professor', // Saya ganti namanya jadi Professor
+    icon: <Bot className="w-4 h-4 text-primary" />, 
+    description: 'Music Theory Expert', 
+    model: 'gemini-1.5-flash', 
+    // INI PROMPT PROFESSOR YANG LENGKAP:
+    systemInstruction: `You are "Professor Melodi," an expert in Music Arts (theory, history, composition, instruments). 
+    MISSION: Assist users with music inquiries only. Explain complex concepts simply.
+    STRICT CONSTRAINTS: 
+    1. ONLY answer questions related to music/audio. 
+    2. REFUSE any non-music topics (politics, coding, cooking, etc) with: "Maaf, sebagai Profesor Musik, saya hanya membahas musik."
+    3. Detect language (Indonesian/English) and reply accordingly.` 
+  },
+  thinking: { 
+    name: 'Deep Thought', 
+    icon: <BrainCircuit className="w-4 h-4 text-purple-400" />, 
+    description: 'Detailed Analysis', 
+    model: 'gemini-1.5-flash', 
+    systemInstruction: 'You are a deep reasoning engine for complex music analysis. Breakdown song structures and theoretical concepts in depth.' 
+  },
+  researcher: { 
+    name: 'Researcher', 
+    icon: <Globe className="w-4 h-4 text-green-400" />, 
+    description: 'Live Music Data', 
+    model: 'gemini-1.5-flash', 
+    systemInstruction: 'You are a music researcher. Find facts about latest songs, artist biographies, and music trends.' 
+  }
 };
 
 /**

@@ -63,7 +63,7 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onTranscriptionComplete }
     try {
       const base64Audio = await blobToBase64(audioBlob);
       const response = await ai.models.generateContent({
-        model: 'gemini-1.5-flash',
+        model: 'gemini-1.5-flash-002',
         contents: [
             {
                 role: 'user',
