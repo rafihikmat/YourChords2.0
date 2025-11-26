@@ -145,7 +145,7 @@ export default function SongDetail() {
     const visibleTabs = song.tablature ? Object.fromEntries(Object.entries(song.tablature).filter(([k]) => k !== 'content')) : null;
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white pt-20 pb-40 relative print:bg-white print:text-black print:pt-0">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white pt-20 pb-40 relative print:pt-0 print:bg-slate-50 dark:print:bg-slate-950 print:text-slate-900 dark:print:text-white" style={{ printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact' }}>
             <div className="fixed inset-0 pointer-events-none opacity-30 no-print" style={{ backgroundImage: `url('data:image/svg+xml;utf8,${encodeURIComponent(DOT_GRID_SVG)}')`, backgroundSize: '20px 20px' }} />
 
             {/* Chord Modal */}
@@ -286,7 +286,7 @@ export default function SongDetail() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
                     <div className="lg:col-span-2 space-y-10">
                         {/* Lyrics & Chords */}
-                        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white/80 dark:bg-[#0A0F1C]/90 backdrop-blur-xl rounded-2xl border border-slate-200 dark:border-white/10 p-6 md:p-10 shadow-xl print:shadow-none print:border-none print:p-0">
+                        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white/80 dark:bg-[#0A0F1C]/90 backdrop-blur-xl rounded-2xl border border-slate-200 dark:border-white/10 p-6 md:p-10 shadow-xl print:shadow-none print:border-none print:p-0 print:bg-transparent">
                             {song.file_path && (
                                 <div className="mb-8 p-4 rounded-xl bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-500/20 flex items-center justify-between no-print">
                                     <div className="flex items-center gap-3"><FileText className="w-5 h-5 text-blue-600" /><span className="text-sm font-bold text-blue-600 dark:text-blue-400">File Attached</span></div>
@@ -298,7 +298,7 @@ export default function SongDetail() {
 
                         {/* Chord Palette */}
                         {displayChords.length > 0 && (
-                            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 p-8 shadow-xl break-inside-avoid print:bg-white print:border">
+                            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 p-8 shadow-xl break-inside-avoid print:break-inside-avoid">
                                 <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2"><Book className="w-5 h-5 text-primary" /> Chords Used</h3>
                                 <div className="flex flex-wrap gap-6 justify-center">
                                     {displayChords.map(chord => (

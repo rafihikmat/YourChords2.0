@@ -18,7 +18,7 @@ interface ChordDiagramProps {
 /**
  * Renders a visual diagram of a guitar chord using SVG.
  * Supports multi-voicing, barre chords, muted strings, and open strings.
- * "Pro-Grade" visual style matching Ultimate Guitar dark mode.
+ * "Pro-Grade" visual style with Light/Dark mode support.
  */
 const ChordDiagram: React.FC<ChordDiagramProps> = ({ name, position, className, showName = true }) => {
   // If position is not provided, try to fetch the default one
@@ -48,20 +48,7 @@ const ChordDiagram: React.FC<ChordDiagramProps> = ({ name, position, className, 
   const stringSpacing = gridWidth / (numStrings - 1);
   const fretSpacing = gridHeight / numFrets;
 
-  // Colors
-  const colors = {
-    bg: "transparent",
-    line: "#FFFFFF", // White lines for dark mode
-    dot: "#FFFFFF",
-    text: "#000000", // Text inside dot
-    muted: "#A0A0A0", // Gray for X/O
-    fretLabel: "#FFFFFF"
-  };
-
   // Helper to determine if a fret is visible in the current window
-  // The window usually starts at baseFret and goes up numFrets
-  // But our frets array has absolute fret numbers.
-  // We need to map absolute fret -> relative row index (0 to numFrets-1)
   const getRelativeFret = (absFret: number) => {
     return absFret - baseFret + 1;
   };
@@ -69,14 +56,14 @@ const ChordDiagram: React.FC<ChordDiagramProps> = ({ name, position, className, 
   return (
     <div className={`flex flex-col items-center select-none ${className}`}>
       {showName && (
-        <div className="text-xl font-bold mb-2 text-white font-sans tracking-wide">{name}</div>
+        <div className="text-xl font-bold mb-2 text-slate-900 dark:text-white font-sans tracking-wide">{name}</div>
       )}
 
       <svg
         width={width}
         height={height}
         viewBox={`0 0 ${width} ${height}`}
-        className="bg-[#111] rounded-xl shadow-2xl border border-white/10"
+        className="bg-white dark:bg-[#111] rounded-xl shadow-lg border border-slate-200 dark:border-white/10 transition-colors duration-300"
         style={{ fontFamily: 'Inter, sans-serif' }}
       >
         {/* Fret Label (e.g., "5fr") */}
@@ -84,7 +71,7 @@ const ChordDiagram: React.FC<ChordDiagramProps> = ({ name, position, className, 
           <text
             x={margin.left + gridWidth + 8}
             y={margin.top + fretSpacing / 2}
-            className="text-xs font-bold fill-white opacity-60"
+            className="text-xs font-bold fill-slate-500 dark:fill-white dark:opacity-60"
             dominantBaseline="middle"
           >
             {baseFret}fr
@@ -102,9 +89,7 @@ const ChordDiagram: React.FC<ChordDiagramProps> = ({ name, position, className, 
               y1={y}
               x2={margin.left + gridWidth}
               y2={y}
-              stroke={colors.line}
-              strokeWidth={isNut ? 4 : 1} // Thick nut
-              strokeOpacity={isNut ? 1 : 0.3}
+              className={`stroke-slate-300 dark:stroke-white ${isNut ? 'stroke-[4px] opacity-100' : 'stroke-[1px] opacity-30'}`}
               strokeLinecap="round"
             />
           );
@@ -120,9 +105,7 @@ const ChordDiagram: React.FC<ChordDiagramProps> = ({ name, position, className, 
               y1={margin.top}
               x2={x}
               y2={margin.top + gridHeight}
-              stroke={colors.line}
-              strokeWidth={1} // Thicker strings? Maybe vary thickness like real guitar?
-              strokeOpacity={0.3}
+              className="stroke-slate-300 dark:stroke-white stroke-[1px] opacity-30"
             />
           );
         })}
@@ -151,25 +134,15 @@ const ChordDiagram: React.FC<ChordDiagramProps> = ({ name, position, className, 
           const x2 = margin.left + maxString * stringSpacing;
           const y = margin.top + (relFret - 0.5) * fretSpacing;
 
-          // Curved Barre
-          const curveHeight = 8;
-          const pathData = `
-            M ${x1} ${y} 
-            Q ${(x1 + x2) / 2} ${y - curveHeight} ${x2} ${y}
-            Q ${(x1 + x2) / 2} ${y + curveHeight} ${x1} ${y}
-            Z
-          `;
-
           return (
             <g key={`barre-${idx}`}>
-              {/* Solid Bar Style (Alternative to curve, cleaner for UI) */}
               <rect
                 x={x1 - 6}
                 y={y - 6}
                 width={(x2 - x1) + 12}
                 height={12}
                 rx={6}
-                fill={colors.dot}
+                className="fill-slate-900 dark:fill-white"
               />
             </g>
           );
@@ -187,7 +160,7 @@ const ChordDiagram: React.FC<ChordDiagramProps> = ({ name, position, className, 
                 x={x}
                 y={margin.top - 15}
                 textAnchor="middle"
-                className="text-sm fill-white opacity-50 font-sans"
+                className="text-sm fill-slate-400 dark:fill-white dark:opacity-50 font-sans"
                 dominantBaseline="middle"
               >
                 ✕
@@ -197,10 +170,6 @@ const ChordDiagram: React.FC<ChordDiagramProps> = ({ name, position, className, 
 
           // Open (O)
           if (fret === 0) {
-            // Only show 'O' if baseFret is 1, otherwise it's weird to have open string with capo/high fret? 
-            // Actually open string is always open 0.
-            // If baseFret > 1, an open string 0 is theoretically way above.
-            // But usually we just show 'O' at the top.
             return (
               <circle
                 key={`open-${stringIdx}`}
@@ -208,9 +177,7 @@ const ChordDiagram: React.FC<ChordDiagramProps> = ({ name, position, className, 
                 cy={margin.top - 15}
                 r={4}
                 fill="none"
-                stroke={colors.line}
-                strokeWidth={1.5}
-                strokeOpacity={0.5}
+                className="stroke-slate-900 dark:stroke-white stroke-[1.5px] opacity-80"
               />
             );
           }
@@ -219,11 +186,6 @@ const ChordDiagram: React.FC<ChordDiagramProps> = ({ name, position, className, 
           const relFret = getRelativeFret(fret);
           if (relFret >= 1 && relFret <= numFrets) {
             const y = margin.top + (relFret - 0.5) * fretSpacing;
-
-            // Check if this is part of a barre. If it is, we usually DON'T draw the dot ON TOP of the barre 
-            // unless we want to show the finger number.
-            // But for visual clarity, a dot on top of the barre bar is fine if it has the number.
-
             const finger = fingers && fingers[stringIdx];
 
             return (
@@ -232,7 +194,7 @@ const ChordDiagram: React.FC<ChordDiagramProps> = ({ name, position, className, 
                   cx={x}
                   cy={y}
                   r={9}
-                  fill={colors.dot}
+                  className="fill-slate-900 dark:fill-white"
                 />
                 {finger > 0 && (
                   <text
@@ -240,7 +202,7 @@ const ChordDiagram: React.FC<ChordDiagramProps> = ({ name, position, className, 
                     y={y + 1} // Optical adjustment
                     textAnchor="middle"
                     dominantBaseline="middle"
-                    className="text-[10px] font-bold fill-black"
+                    className="text-[10px] font-bold fill-white dark:fill-black"
                   >
                     {finger}
                   </text>
@@ -256,7 +218,7 @@ const ChordDiagram: React.FC<ChordDiagramProps> = ({ name, position, className, 
       {chordData.tags && chordData.tags.length > 0 && (
         <div className="flex gap-2 mt-2 flex-wrap justify-center max-w-[200px]">
           {chordData.tags.map(tag => (
-            <span key={tag} className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-bold bg-white/10 text-white/70 rounded-full">
+            <span key={tag} className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-bold bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-white/70 rounded-full">
               {tag}
             </span>
           ))}
