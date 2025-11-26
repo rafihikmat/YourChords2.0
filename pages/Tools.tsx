@@ -7,6 +7,8 @@ import { DOT_GRID_SVG, cn } from '../lib/utils';
 import { Spotlight } from '../components/ui/Spotlight';
 import { generateAIContent } from '../lib/ai-service';
 import { useMetronome } from '../lib/hooks';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 // Augment window type for older browser AudioContext
 declare global {
@@ -102,6 +104,14 @@ const ToolsPage: React.FC = () => {
         5. Music Pedagogy (Effective practice techniques, learning strategies, sight-reading)
 
         Tone: Professional, academic yet accessible, encouraging, and highly detailed. Use analogies where helpful.
+        
+        STRICT CONSTRAINTS:
+        1. ONLY answer questions related to music, audio, instruments, or music history.
+        2. REFUSE any non-music topics (politics, coding, cooking, general life advice, etc) with: "Maaf, sebagai Profesor Musik, saya hanya membahas topik seputar musik dan audio."
+        3. LANGUAGE: Detect the user's language (Indonesian or English) and respond in the SAME language.
+           - If User asks in Indonesian -> Answer in Indonesian.
+           - If User asks in English -> Answer in English.
+        4. FORMATTING: Use clear Markdown formatting. Use bolding for key terms, lists for steps, and code blocks for tab/notation if needed.
         
         Provide a clear, structured answer. If the question implies a need for a practical example (like a chord progression, scale pattern, or EQ setting), provide it clearly.
       `;
@@ -228,8 +238,10 @@ const ToolsPage: React.FC = () => {
                 <div className="p-6">
                      <div className="mb-6 min-h-[100px] bg-slate-50 dark:bg-slate-950 rounded-xl p-6 border border-slate-200 dark:border-white/10">
                          {assistantResponse ? (
-                             <div className="text-sm leading-relaxed text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
-                                 {assistantResponse}
+                             <div className="text-sm leading-relaxed text-slate-700 dark:text-slate-300 prose dark:prose-invert max-w-none">
+                                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                     {assistantResponse}
+                                 </ReactMarkdown>
                              </div>
                          ) : (
                              <div className="text-center text-slate-400 py-4 flex flex-col items-center gap-4">

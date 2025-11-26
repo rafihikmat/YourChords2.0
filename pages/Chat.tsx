@@ -5,6 +5,8 @@ import { Chat, GenerateContentResponse } from "@google/genai";
 import { ai } from '../lib/gemini';
 import { cn, DOT_GRID_SVG } from '../lib/utils';
 import { Spotlight } from '../components/ui/Spotlight';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 /**
  * Defines the available chat modes and their configurations.
@@ -33,16 +35,15 @@ const MODES: Record<ChatMode, { name: string; icon: React.ReactNode; description
     name: 'Turbo', 
     icon: <Zap className="w-4 h-4 text-yellow-400" />, 
     description: 'Fast Assistant', 
-    model: 'gemini-1.5-flash', 
+    model: 'gemini-2.0-flash', 
     // Prompt singkat untuk mode cepat
     systemInstruction: 'You are a helpful music assistant. Answer strictly about music only. Concise answers.' 
   },
   guru: { 
-    name: 'Professor', // Saya ganti namanya jadi Professor
+    name: 'Professor', 
     icon: <Bot className="w-4 h-4 text-primary" />, 
     description: 'Music Theory Expert', 
-    model: 'gemini-1.5-flash', 
-    // INI PROMPT PROFESSOR YANG LENGKAP:
+    model: 'gemini-2.0-flash', 
     systemInstruction: `You are "Professor Melodi," an expert in Music Arts (theory, history, composition, instruments). 
     MISSION: Assist users with music inquiries only. Explain complex concepts simply.
     STRICT CONSTRAINTS: 
@@ -54,24 +55,17 @@ const MODES: Record<ChatMode, { name: string; icon: React.ReactNode; description
     name: 'Deep Thought', 
     icon: <BrainCircuit className="w-4 h-4 text-purple-400" />, 
     description: 'Detailed Analysis', 
-    model: 'gemini-1.5-flash', 
+    model: 'gemini-2.0-flash', 
     systemInstruction: 'You are a deep reasoning engine for complex music analysis. Breakdown song structures and theoretical concepts in depth.' 
   },
   researcher: { 
     name: 'Researcher', 
     icon: <Globe className="w-4 h-4 text-green-400" />, 
     description: 'Live Music Data', 
-    model: 'gemini-1.5-flash', 
+    model: 'gemini-2.0-flash', 
     systemInstruction: 'You are a music researcher. Find facts about latest songs, artist biographies, and music trends.' 
   }
 };
-
-/**
- * The ChatPage component providing an AI chat interface.
- * Supports multiple personas (modes), streaming responses, and real-time grounding citations.
- *
- * @returns {JSX.Element} The ChatPage component.
- */
 const ChatPage: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([{ id: '1', role: 'model', text: "Greetings. Select a persona to begin." }]);
   const [input, setInput] = useState('');
@@ -153,7 +147,11 @@ const ChatPage: React.FC = () => {
                         {msg.role === 'user' ? <User className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
                     </div>
                     <div className={cn("max-w-[80%] rounded-2xl px-5 py-3 text-sm leading-relaxed shadow-sm", msg.role === 'user' ? "bg-primary text-white rounded-tr-none" : "bg-white dark:bg-slate-800/80 dark:text-slate-200 border border-slate-200 dark:border-white/5 rounded-tl-none")}>
-                        <div className="whitespace-pre-wrap font-mono text-xs md:text-sm">{msg.text}</div>
+                        <div className="prose dark:prose-invert max-w-none text-xs md:text-sm">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                {msg.text}
+                            </ReactMarkdown>
+                        </div>
                         {msg.groundingUrls && (
                             <div className="mt-3 pt-3 border-t border-white/10 flex flex-wrap gap-2">
                                 {msg.groundingUrls.map((u, i) => (

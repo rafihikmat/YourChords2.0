@@ -9,6 +9,13 @@ export interface AIProviderConfig {
 
 export const AI_PROVIDERS: AIProviderConfig[] = [
   { 
+    id: 'gemini',
+    name: 'Google Gemini (2.0 Flash)', 
+    type: 'gemini', 
+    apiKeyEnv: 'VITE_API_KEY', 
+    model: 'gemini-2.0-flash' 
+  },
+  { 
     id: 'openai',
     name: 'OpenAI (GPT-4o Mini)', 
     type: 'openai', 
@@ -46,12 +53,5 @@ export const AI_PROVIDERS: AIProviderConfig[] = [
     apiKeyEnv: 'VITE_OPENROUTER_API_KEY', 
     baseURL: 'https://openrouter.ai/api/v1', 
     model: 'openai/gpt-3.5-turbo' // Fallback model
-  },
-  { 
-    id: 'gemini',
-    name: 'Google Gemini (1.5 Flash)', 
-    type: 'gemini', 
-    apiKeyEnv: 'VITE_API_KEY', 
-    model: 'gemini-1.5-flash' 
   }
 ];

@@ -51,7 +51,8 @@ export const generateAIContent = async (systemPrompt: string, userPrompt: string
           dangerouslyAllowBrowser: true,
           defaultHeaders: {
             'Authorization': `Bearer ${apiKey}`
-          }
+          },
+          timeout: 10000 // 10s timeout
         });
 
         const response = await client.chat.completions.create({
@@ -69,14 +70,15 @@ export const generateAIContent = async (systemPrompt: string, userPrompt: string
         return text;
 
       } else if (provider.type === 'gemini') {
-        // Use the new @google/genai SDK syntax
         try {
             const client = new GoogleGenAI({ apiKey });
             
-            // The new SDK uses client.models.generateContent
-            // If this fails with "is not a function", it means the SDK version might be different than expected
-            // or the import is resolving to the old SDK.
-            const response = await client.models.generateContent({
+            // Create a timeout promise
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Request timed out')), 10000)
+            );
+
+            const apiCall = client.models.generateContent({
                 model: provider.model,
                 contents: [{
                     role: 'user',
@@ -84,7 +86,11 @@ export const generateAIContent = async (systemPrompt: string, userPrompt: string
                 }]
             });
 
-            // @ts-expect-error - SDK type handling for text() helper or direct access
+            // Race between API call and timeout
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const response: any = await Promise.race([apiCall, timeoutPromise]);
+
+            // SDK type handling
             const text = typeof response.text === 'function' ? response.text() : 
                         response.candidates?.[0]?.content?.parts?.[0]?.text;
 
