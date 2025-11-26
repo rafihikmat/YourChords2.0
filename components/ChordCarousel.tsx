@@ -39,7 +39,7 @@ const ChordCarousel: React.FC<ChordCarouselProps> = ({ chordName, initialPositio
     return (
         <div className={`flex flex-col items-center p-4 bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-white/5 shadow-sm dark:shadow-none ${className}`}>
             {/* Diagram */}
-            <div className="mb-4 transition-all duration-300 ease-in-out transform hover:scale-105">
+            <div className="mb-4 transition-all duration-300 ease-in-out transform hover:scale-105 w-48">
                 <ChordDiagram
                     name={chordName}
                     position={currentPosition}

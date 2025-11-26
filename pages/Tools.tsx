@@ -1,14 +1,11 @@
-
 import React, { useState, useRef, useEffect } from 'react';
-import AIChordForm from '../components/AIChordForm';
-import SongUploader from '../components/SongUploader';
 import ChordDiagram from '../components/ChordDiagram';
+import ChordCarousel from '../components/ChordCarousel';
 import { CHORD_FAMILIES, normalizeChordName } from '../lib/musicUtils';
-import { Sparkles, Upload, Activity, Book, Play, Mic2, Pause, Send, GraduationCap, Lightbulb, Search } from 'lucide-react';
+import { Activity, Book, Play, Mic2, Pause, Send, GraduationCap, Lightbulb, Search } from 'lucide-react';
 import { DOT_GRID_SVG, cn } from '../lib/utils';
 import { Spotlight } from '../components/ui/Spotlight';
-import { useAuth } from '../contexts/AuthContext';
-import { ai } from '../lib/gemini';
+import { generateAIContent } from '../lib/ai-service';
 import { useMetronome } from '../lib/hooks';
 
 // Augment window type for older browser AudioContext
@@ -30,14 +27,13 @@ type TabId = 'ai' | 'upload' | 'tuner' | 'library' | 'metronome' | 'assistant';
  * - Guitar Tuner (Web Audio API)
  * - Metronome (Custom Hook)
  * - Chord Visualizer (Library)
- * - Professor AI Assistant (Gemini)
+ * - Professor AI Assistant (Multi-Provider Fallback)
  * - AI Chord Generator (Component)
  * - Song Uploader (Admin only)
  *
  * @returns {JSX.Element} The ToolsPage component.
  */
 const ToolsPage: React.FC = () => {
-  const { isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState<TabId>('tuner');
   
   // Tuner State
@@ -91,37 +87,37 @@ const ToolsPage: React.FC = () => {
       e.preventDefault();
       if (!assistantQuery.trim()) return;
       setIsAssistantLoading(true);
+      setAssistantResponse(null);
+
+      const systemPrompt = `
+        You are "Prof. Harmony", an elite Music Professor and Multi-instrumentalist Expert.
+        
+        Your Mission: Act as a comprehensive academic mentor for music students and musicians.
+        
+        Your 5 Pillars of Expertise:
+        1. Music Theory & Analysis (Harmony, Counterpoint, Modes, Jazz Theory, Voice Leading)
+        2. History & Musicology (Baroque to Modern, Ethnomusicology, Genre Evolution)
+        3. Composition & Arrangement (Songwriting structures, Orchestration, Motif development)
+        4. Music Production & Technology (Mixing, Mastering, DAW workflows, Sound Design, Acoustics)
+        5. Music Pedagogy (Effective practice techniques, learning strategies, sight-reading)
+
+        Tone: Professional, academic yet accessible, encouraging, and highly detailed. Use analogies where helpful.
+        
+        Provide a clear, structured answer. If the question implies a need for a practical example (like a chord progression, scale pattern, or EQ setting), provide it clearly.
+      `;
+
       try {
-          // System Instruction: Music Professor Persona
-          const prompt = `
-            You are "Prof. Harmony", an elite Music Professor and Multi-instrumentalist Expert.
-            
-            Your Mission: Act as a comprehensive academic mentor for music students and musicians.
-            
-            Your 5 Pillars of Expertise:
-            1. Music Theory & Analysis (Harmony, Counterpoint, Modes, Jazz Theory, Voice Leading)
-            2. History & Musicology (Baroque to Modern, Ethnomusicology, Genre Evolution)
-            3. Composition & Arrangement (Songwriting structures, Orchestration, Motif development)
-            4. Music Production & Technology (Mixing, Mastering, DAW workflows, Sound Design, Acoustics)
-            5. Music Pedagogy (Effective practice techniques, learning strategies, sight-reading)
-
-            Tone: Professional, academic yet accessible, encouraging, and highly detailed. Use analogies where helpful.
-            
-            User Question: "${assistantQuery}"
-            
-            Provide a clear, structured answer. If the question implies a need for a practical example (like a chord progression, scale pattern, or EQ setting), provide it clearly.
-          `;
-
-          const response = await ai.models.generateContent({
-            model: 'gemini-1.5-pro',
-            contents: [{
-                role: 'user',
-                parts: [{ text: prompt }]
-            }]
-          });
-          setAssistantResponse(response.response.text() || "I couldn't analyze that musical concept right now.");
-      } catch {
-          setAssistantResponse("Neural Link Interrupted. Please check your connection.");
+          const text = await generateAIContent(systemPrompt, assistantQuery);
+          setAssistantResponse(text);
+      } catch (error: any) {
+          console.error("Professor AI Error:", error);
+          const errorMessage = error?.message || "Unknown error";
+          setAssistantResponse(`Neural Link Interrupted. All AI services failed to respond.
+          
+          Details:
+          ${errorMessage}
+          
+          Please check your API keys in .env.`);
       } finally {
           setIsAssistantLoading(false);
       }
@@ -143,8 +139,6 @@ const ToolsPage: React.FC = () => {
       { id: 'metronome', label: 'Metronome', icon: Mic2, show: true },
       { id: 'library', label: 'Chord Visualizer', icon: Book, show: true },
       { id: 'assistant', label: 'Professor AI', icon: GraduationCap, show: true },
-      { id: 'ai', label: 'AI Generator', icon: Sparkles, show: true },
-      { id: 'upload', label: 'Upload File', icon: Upload, show: true }, // Logic handled inside component
   ];
 
   return (
@@ -170,17 +164,6 @@ const ToolsPage: React.FC = () => {
         </div>
 
         {/* View Content */}
-        {activeTab === 'ai' && <AIChordForm />}
-        {activeTab === 'upload' && (
-            isAdmin ? <SongUploader /> : (
-                <div className="text-center py-20 bg-white/50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-white/10">
-                    <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-                    <h3 className="text-xl font-bold dark:text-white">Admin Access Required</h3>
-                    <p className="text-slate-500 mt-2">Only administrators can upload persistent files to the database.</p>
-                </div>
-            )
-        )}
-        
         {activeTab === 'tuner' && (
              <div className="w-full max-w-xl mx-auto bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 p-8 shadow-xl text-center">
                 <h2 className="text-2xl font-bold dark:text-white mb-6 flex items-center justify-center gap-2"><Activity className="w-6 h-6 text-primary" /> Standard Tuning</h2>
@@ -215,7 +198,10 @@ const ToolsPage: React.FC = () => {
                  </form>
                  {searchedChord && (
                     <div className="flex flex-col items-center animate-in fade-in">
-                        <div className="p-6 bg-white dark:bg-slate-900 rounded-2xl border border-primary/30 shadow-xl"><h3 className="text-sm font-bold text-center mb-4 text-primary">{searchedChord}</h3><ChordDiagram name={searchedChord} className="scale-125" /></div>
+                        <div className="p-8 bg-white dark:bg-slate-900 rounded-2xl border border-primary/30 shadow-xl max-w-sm w-full">
+                            <h3 className="text-2xl font-bold text-center mb-6 text-primary">{searchedChord}</h3>
+                            <ChordCarousel chordName={searchedChord} />
+                        </div>
                     </div>
                  )}
                  {Object.entries(CHORD_FAMILIES).map(([family, chords]) => (

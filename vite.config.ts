@@ -8,6 +8,20 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3000,
         host: '0.0.0.0',
+        proxy: {
+          '/api/kimi': {
+            target: 'https://api.moonshot.cn/v1',
+            changeOrigin: true,
+            rewrite: (path) => path.replace(/^\/api\/kimi/, ''),
+            secure: false
+          },
+          '/api/minimax': {
+            target: 'https://api.minimax.chat/v1',
+            changeOrigin: true,
+            rewrite: (path) => path.replace(/^\/api\/minimax/, ''),
+            secure: false
+          }
+        }
       },
       plugins: [react()],
       define: {

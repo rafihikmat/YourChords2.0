@@ -145,7 +145,7 @@ export default function SongDetail() {
     const visibleTabs = song.tablature ? Object.fromEntries(Object.entries(song.tablature).filter(([k]) => k !== 'content')) : null;
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white pt-20 pb-40 relative print:pt-0 print:bg-slate-50 dark:print:bg-slate-950 print:text-slate-900 dark:print:text-white" style={{ printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact' }}>
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white pt-20 pb-40 relative print:pt-0 print:bg-white print:text-black">
             <div className="fixed inset-0 pointer-events-none opacity-30 no-print" style={{ backgroundImage: `url('data:image/svg+xml;utf8,${encodeURIComponent(DOT_GRID_SVG)}')`, backgroundSize: '20px 20px' }} />
 
             {/* Chord Modal */}
@@ -298,11 +298,11 @@ export default function SongDetail() {
 
                         {/* Chord Palette */}
                         {displayChords.length > 0 && (
-                            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 p-8 shadow-xl break-inside-avoid print:break-inside-avoid">
-                                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2"><Book className="w-5 h-5 text-primary" /> Chords Used</h3>
-                                <div className="flex flex-wrap gap-6 justify-center">
+                            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 p-8 shadow-xl break-inside-avoid print:break-inside-avoid print:bg-white print:border-none print:shadow-none">
+                                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2 print:text-black"><Book className="w-5 h-5 text-primary print:text-black" /> Chords Used</h3>
+                                <div className="flex flex-wrap gap-6 justify-center print:gap-4">
                                     {displayChords.map(chord => (
-                                        <div key={chord} className="flex flex-col items-center p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-white/5 rounded-xl cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setSelectedChord(chord)}>
+                                        <div key={chord} className="flex flex-col items-center p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-white/5 rounded-xl cursor-pointer hover:border-primary/50 transition-colors w-32 print:w-24 print:p-0 print:border-none print:bg-transparent" onClick={() => setSelectedChord(chord)}>
                                             <ChordDiagram name={chord} />
                                         </div>
                                     ))}
