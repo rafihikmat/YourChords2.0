@@ -2,10 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { User, Mail, Save, Loader2, Camera, Shield, Upload } from 'lucide-react';
+import { User, Mail, Save, Loader2, Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { DOT_GRID_SVG, cn } from '../lib/utils';
 import { Spotlight } from '../components/ui/Spotlight';
+import { FileUpload } from '../components/ui/file-upload';
 
 /**
  * The User Profile page component.
@@ -14,7 +15,7 @@ import { Spotlight } from '../components/ui/Spotlight';
  * @returns {JSX.Element} The ProfilePage component.
  */
 const ProfilePage: React.FC = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const [fullName, setFullName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
   const [loading, setLoading] = useState(false);
@@ -27,12 +28,12 @@ const ProfilePage: React.FC = () => {
     }
   }, [profile]);
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) {
+  const handleFileUpload = async (files: File[]) => {
+    if (!files || files.length === 0) {
       return;
     }
 
-    const file = e.target.files[0];
+    const file = files[0];
     const fileExt = file.name.split('.').pop();
     const fileName = `${user?.id}-${Math.random()}.${fileExt}`;
     const filePath = `${fileName}`;
@@ -84,6 +85,8 @@ const ProfilePage: React.FC = () => {
       const { error } = await supabase.from('profiles').upsert(updates);
 
       if (error) throw error;
+      
+      await refreshProfile();
       setMessage({ type: 'success', text: 'Profile updated successfully' });
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -127,20 +130,6 @@ const ProfilePage: React.FC = () => {
                      </div>
                    )}
                 </div>
-                <label 
-                  htmlFor="avatar-upload" 
-                  className="absolute -bottom-2 -right-2 bg-slate-900 text-white p-1.5 rounded-full border border-white/10 shadow-lg cursor-pointer hover:bg-primary transition-colors"
-                >
-                  <Camera className="w-3 h-3" />
-                  <input
-                    type="file"
-                    id="avatar-upload"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                    disabled={loading}
-                  />
-                </label>
               </div>
               
               <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 text-xs font-bold uppercase tracking-wider">
@@ -182,16 +171,12 @@ const ProfilePage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Avatar URL</label>
-                  <input 
-                    type="url" 
-                    value={avatarUrl} 
-                    onChange={(e) => setAvatarUrl(e.target.value)}
-                    className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg py-2.5 px-4 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 outline-none transition-all font-mono"
-                    placeholder="https://example.com/avatar.jpg"
-                  />
-                  <p className="text-[10px] text-slate-400">Paste a direct link to an image file.</p>
+              <div className="w-full max-w-4xl mx-auto min-h-48 border border-dashed bg-white dark:bg-black border-neutral-200 dark:border-neutral-800 rounded-lg">
+                <FileUpload 
+                  onChange={handleFileUpload} 
+                  maxSize={5 * 1024 * 1024} 
+                  onError={(msg) => setMessage({ type: 'error', text: msg })}
+                />
               </div>
 
               {message && (
@@ -215,11 +200,90 @@ const ProfilePage: React.FC = () => {
                 </button>
               </div>
             </form>
+
+            <div className="mt-12 pt-8 border-t border-slate-200 dark:border-white/10">
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Security</h2>
+                <ChangePasswordForm />
+            </div>
           </div>
         </motion.div>
       </div>
     </div>
   );
+};
+
+const ChangePasswordForm = () => {
+    const [password, setPassword] = useState('');
+    const [confirm, setConfirm] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [msg, setMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+    const handlePasswordUpdate = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (password !== confirm) {
+            setMsg({ type: 'error', text: "Passwords do not match." });
+            return;
+        }
+        if (password.length < 6) {
+            setMsg({ type: 'error', text: "Password must be at least 6 characters." });
+            return;
+        }
+
+        setLoading(true);
+        setMsg(null);
+
+        try {
+            const { error } = await supabase.auth.updateUser({ password });
+            if (error) throw error;
+            setMsg({ type: 'success', text: "Password updated successfully." });
+            setPassword('');
+            setConfirm('');
+        } catch (err: any) {
+            setMsg({ type: 'error', text: err.message });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <form onSubmit={handlePasswordUpdate} className="space-y-4 max-w-md">
+            <div className="space-y-2">
+                <label className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400">New Password</label>
+                <input 
+                    type="password" 
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg py-2.5 px-4 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 outline-none transition-all"
+                    placeholder="Enter new password"
+                />
+            </div>
+            <div className="space-y-2">
+                <label className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Confirm Password</label>
+                <input 
+                    type="password" 
+                    value={confirm}
+                    onChange={e => setConfirm(e.target.value)}
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg py-2.5 px-4 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 outline-none transition-all"
+                    placeholder="Confirm new password"
+                />
+            </div>
+            {msg && (
+                <div className={cn(
+                    "p-3 rounded-lg text-sm",
+                    msg.type === 'success' ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"
+                )}>
+                    {msg.text}
+                </div>
+            )}
+            <button 
+                type="submit" 
+                disabled={loading || !password}
+                className="px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold rounded-lg hover:opacity-90 transition-all disabled:opacity-50 text-sm"
+            >
+                {loading ? "Updating..." : "Update Password"}
+            </button>
+        </form>
+    );
 };
 
 export default ProfilePage;

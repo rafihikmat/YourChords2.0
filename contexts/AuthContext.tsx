@@ -23,7 +23,10 @@ interface AuthContextType {
   /** Boolean indicating if the current user has admin privileges. */
   isAdmin: boolean;
   /** Boolean indicating if the current user has super admin privileges. */
+  /** Boolean indicating if the current user has super admin privileges. */
   isSuperAdmin: boolean;
+  /** Function to manually refresh the user's profile data. */
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -115,7 +118,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     dbConnectionError,
     signOut,
     isAdmin: profile?.role === 'admin' || profile?.role === 'super_admin',
+
     isSuperAdmin: profile?.role === 'super_admin',
+    refreshProfile: async () => {
+      if (user) await fetchProfile(user.id);
+    },
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

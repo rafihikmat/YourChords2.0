@@ -12,6 +12,7 @@ import MaintenanceConsole from './views/MaintenanceConsole';
 import SongManager from './views/SongManager';
 import AssetManager from './views/AssetManager';
 import ManualEntry from './views/ManualEntry';
+import PasswordRequests from './views/PasswordRequests';
 
 import { useTheme } from '../../lib/hooks';
 
@@ -56,6 +57,7 @@ const AdminDashboard: React.FC = () => {
             <Route path="cms" element={<ContentManager />} />
             <Route path="songs" element={<SongManager />} />
             <Route path="manual-entry" element={<ManualEntry />} />
+            <Route path="password-requests" element={<PasswordRequests />} />
 
             <Route path="assets" element={<AssetManager />} />
             <Route path="ai-create" element={<div className="p-8"><h2 className="text-2xl font-bold mb-6">AI Song Generator</h2><AIChordForm /></div>} />

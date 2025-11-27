@@ -1,8 +1,5 @@
-
 import { cn, fuzzySearch, formatTime, calculateStrength } from '../lib/utils';
 import assert from 'assert';
-
-
 
 // Test 1: cn (Class merging)
 try {

@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Shield, LayoutDashboard, Globe, Music, Edit, Disc, Zap, RefreshCw, Users, Home, LogOut, PlayCircle } from 'lucide-react';
+import { Shield, LayoutDashboard, Globe, Music, Edit, Disc, Zap, RefreshCw, Users, Home, LogOut, PlayCircle, KeyRound } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { useAuth } from '../../../contexts/AuthContext';
 
@@ -26,6 +26,7 @@ export const AdminSidebar: React.FC<{ open: boolean }> = ({ open }) => {
         { icon: <Edit size={20} />, label: 'Manual Entry', path: '/admin/manual-entry', permission: 'admin' },
 
         { icon: <Disc size={20} />, label: 'Asset Manager', path: '/admin/assets', permission: 'admin' },
+        { icon: <KeyRound size={20} />, label: 'Password Requests', path: '/admin/password-requests', permission: 'admin' },
         { icon: <Zap size={20} />, label: 'AI Generator', path: '/admin/ai-create', permission: 'admin' },
         { icon: <RefreshCw size={20} />, label: 'System Maint.', path: '/admin/cache', permission: 'super_admin' },
         { icon: <Users size={20} />, label: 'Role Management', path: '/admin/roles', permission: 'super_admin' },

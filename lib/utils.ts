@@ -1,4 +1,3 @@
-
 import { ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -89,9 +88,9 @@ export const formatTime = (sec: number) => {
  */
 export const calculateStrength = (pwd: string) => {
     let score = 0;
-    if (pwd.length > 7) score++;
-    if (/[A-Z]/.test(pwd)) score++;
-    if (/\d/.test(pwd)) score++;
-    if (/[^A-Za-z0-9]/.test(pwd)) score++;
+    if (pwd.length > 5) score++; // Easier length requirement
+    if (pwd.length > 7) score++; // Bonus for standard length
+    if (/[A-Z]/.test(pwd) || /\d/.test(pwd)) score++; // Mixed content (easier)
+    if (/[^A-Za-z0-9]/.test(pwd)) score++; // Special char bonus
     return score;
 };
