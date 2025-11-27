@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, Music2, Zap, Disc, SearchX, Database, Loader2, AlertTriangle } from 'lucide-react';
 import { Spotlight } from '../components/ui/Spotlight';
-import { DOT_GRID_SVG, cn } from '../lib/utils';
+import { cn } from '../lib/utils';
 import SongCard from '../components/ui/SongCard';
 import { Song, Album } from '../types';
 import { supabase } from '../lib/supabase';
@@ -104,12 +104,7 @@ const Home: React.FC = () => {
 
   return (
     <div className="relative w-full min-h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden flex flex-col transition-colors duration-500">
-      <div 
-        className="absolute inset-0 pointer-events-none z-0 opacity-30"
-        style={{ backgroundImage: `url('data:image/svg+xml;utf8,${encodeURIComponent(DOT_GRID_SVG)}')`, backgroundSize: '20px 20px' }}
-      />
-      
-      <div className="absolute pointer-events-none inset-0 flex items-center justify-center bg-slate-50 dark:bg-slate-950 [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)]"></div>
+
 
       {/* Hero Section */}
       <div className="relative z-10 pt-36 pb-20 px-4 w-full flex flex-col items-center justify-center">

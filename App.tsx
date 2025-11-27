@@ -20,6 +20,7 @@ import Contact from './pages/Contact';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { DatabaseSetupScreen } from './components/setup/DatabaseSetupScreen';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import GlobalBackground from './components/GlobalBackground';
 
 /**
  * The main content wrapper component.
@@ -38,7 +39,8 @@ const AppContent: React.FC = () => {
   const showFooter = !location.pathname.startsWith('/admin') && !location.pathname.startsWith('/auth') && !location.pathname.startsWith('/update-password');
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen relative">
+      <GlobalBackground />
       <Navbar />
       <main className="flex-grow">
         <Routes>
