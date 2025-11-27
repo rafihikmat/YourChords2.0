@@ -2,13 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import ChordDiagram from '../components/ChordDiagram';
 import ChordCarousel from '../components/ChordCarousel';
 import { CHORD_FAMILIES, normalizeChordName } from '../lib/musicUtils';
-import { Activity, Book, Play, Mic2, Pause, Send, GraduationCap, Lightbulb, Search } from 'lucide-react';
+import { Activity, Book, Play, Mic2, Pause, GraduationCap, Search, Send } from 'lucide-react';
 import { DOT_GRID_SVG, cn } from '../lib/utils';
 import { Spotlight } from '../components/ui/Spotlight';
-import { generateAIContent } from '../lib/ai-service';
 import { useMetronome } from '../lib/hooks';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import ProfessorChat from '@/components/tools/ProfessorChat';
 
 // Augment window type for older browser AudioContext
 declare global {
@@ -29,9 +27,7 @@ type TabId = 'ai' | 'upload' | 'tuner' | 'library' | 'metronome' | 'assistant';
  * - Guitar Tuner (Web Audio API)
  * - Metronome (Custom Hook)
  * - Chord Visualizer (Library)
- * - Professor AI Assistant (Multi-Provider Fallback)
- * - AI Chord Generator (Component)
- * - Song Uploader (Admin only)
+ * - Professor AI (LLM Chat)
  *
  * @returns {JSX.Element} The ToolsPage component.
  */
@@ -45,11 +41,6 @@ const ToolsPage: React.FC = () => {
   // Metronome
   const { isPlaying: isMetroPlaying, setIsPlaying: setIsMetroPlaying, bpm, setBpm } = useMetronome(120);
   
-  // Assistant
-  const [assistantQuery, setAssistantQuery] = useState('');
-  const [assistantResponse, setAssistantResponse] = useState<string | null>(null);
-  const [isAssistantLoading, setIsAssistantLoading] = useState(false);
-
   // Search
   const [chordSearchTerm, setChordSearchTerm] = useState('');
   const [searchedChord, setSearchedChord] = useState<string | null>(null);
@@ -85,54 +76,6 @@ const ToolsPage: React.FC = () => {
       setActiveNote(null);
   };
   
-  const handleAssistantSubmit = async (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!assistantQuery.trim()) return;
-      setIsAssistantLoading(true);
-      setAssistantResponse(null);
-
-      const systemPrompt = `
-        You are "Prof. Harmony", an elite Music Professor and Multi-instrumentalist Expert.
-        
-        Your Mission: Act as a comprehensive academic mentor for music students and musicians.
-        
-        Your 5 Pillars of Expertise:
-        1. Music Theory & Analysis (Harmony, Counterpoint, Modes, Jazz Theory, Voice Leading)
-        2. History & Musicology (Baroque to Modern, Ethnomusicology, Genre Evolution)
-        3. Composition & Arrangement (Songwriting structures, Orchestration, Motif development)
-        4. Music Production & Technology (Mixing, Mastering, DAW workflows, Sound Design, Acoustics)
-        5. Music Pedagogy (Effective practice techniques, learning strategies, sight-reading)
-
-        Tone: Professional, academic yet accessible, encouraging, and highly detailed. Use analogies where helpful.
-        
-        STRICT CONSTRAINTS:
-        1. ONLY answer questions related to music, audio, instruments, or music history.
-        2. REFUSE any non-music topics (politics, coding, cooking, general life advice, etc) with: "Maaf, sebagai Profesor Musik, saya hanya membahas topik seputar musik dan audio."
-        3. LANGUAGE: Detect the user's language (Indonesian or English) and respond in the SAME language.
-           - If User asks in Indonesian -> Answer in Indonesian.
-           - If User asks in English -> Answer in English.
-        4. FORMATTING: Use clear Markdown formatting. Use bolding for key terms, lists for steps, and code blocks for tab/notation if needed.
-        
-        Provide a clear, structured answer. If the question implies a need for a practical example (like a chord progression, scale pattern, or EQ setting), provide it clearly.
-      `;
-
-      try {
-          const text = await generateAIContent(systemPrompt, assistantQuery);
-          setAssistantResponse(text);
-      } catch (error: any) {
-          console.error("Professor AI Error:", error);
-          const errorMessage = error?.message || "Unknown error";
-          setAssistantResponse(`Neural Link Interrupted. All AI services failed to respond.
-          
-          Details:
-          ${errorMessage}
-          
-          Please check your API keys in .env.`);
-      } finally {
-          setIsAssistantLoading(false);
-      }
-  };
-
   const handleChordSearch = (e: React.FormEvent) => {
       e.preventDefault();
       if (chordSearchTerm) setSearchedChord(normalizeChordName(chordSearchTerm));
@@ -143,7 +86,6 @@ const ToolsPage: React.FC = () => {
       { note: 'G3', freq: 196.00 }, { note: 'B3', freq: 246.94 }, { note: 'E4', freq: 329.63 },
   ];
 
-  // Updated: AI Generator is available to everyone. Upload is restricted to Admin/User logic in component.
   const tabs = [
       { id: 'tuner', label: 'Guitar Tuner', icon: Activity, show: true },
       { id: 'metronome', label: 'Metronome', icon: Mic2, show: true },
@@ -226,41 +168,18 @@ const ToolsPage: React.FC = () => {
         )}
         
         {activeTab === 'assistant' && (
-             <div className="w-full max-w-3xl mx-auto bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 overflow-hidden shadow-xl">
-                <div className="bg-primary/10 p-8 text-center">
-                    <h2 className="text-2xl font-bold dark:text-white flex items-center justify-center gap-2">
-                        <GraduationCap className="w-6 h-6 text-primary" /> Professor Harmony AI
-                    </h2>
-                    <p className="text-slate-500 text-sm mt-2">
-                        Expert guidance on Theory, History, Composition, Production, and Pedagogy.
-                    </p>
-                </div>
-                <div className="p-6">
-                     <div className="mb-6 min-h-[100px] bg-slate-50 dark:bg-slate-950 rounded-xl p-6 border border-slate-200 dark:border-white/10">
-                         {assistantResponse ? (
-                             <div className="text-sm leading-relaxed text-slate-700 dark:text-slate-300 prose dark:prose-invert max-w-none">
-                                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                     {assistantResponse}
-                                 </ReactMarkdown>
-                             </div>
-                         ) : (
-                             <div className="text-center text-slate-400 py-4 flex flex-col items-center gap-4">
-                                <Lightbulb className="w-6 h-6 opacity-50" />
-                                <div className="space-y-2">
-                                    <p className="text-xs italic">"Explain the Circle of Fifths and how to use it in Jazz."</p>
-                                    <p className="text-xs italic">"What are the key characteristics of Baroque composition?"</p>
-                                    <p className="text-xs italic">"How do I compress a vocal track properly?"</p>
-                                    <p className="text-xs italic">"What is the history of the pentatonic scale?"</p>
-                                </div>
-                             </div>
-                         )}
-                     </div>
-                     <form onSubmit={handleAssistantSubmit} className="relative">
-                         <input type="text" value={assistantQuery} onChange={(e) => setAssistantQuery(e.target.value)} placeholder="Ask your professor..." className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl py-4 pl-4 pr-12 text-sm dark:text-white focus:ring-2 focus:ring-primary/50 outline-none shadow-inner" />
-                         <button type="submit" disabled={isAssistantLoading || !assistantQuery.trim()} className="absolute right-2 top-2 p-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
-                             {isAssistantLoading ? <Activity className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                         </button>
-                     </form>
+             <div className="w-full max-w-4xl mx-auto space-y-8">
+                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 overflow-hidden shadow-xl p-6">
+                    <div className="text-center mb-8">
+                        <h2 className="text-2xl font-bold dark:text-white flex items-center justify-center gap-2 mb-2">
+                            <GraduationCap className="w-6 h-6 text-primary" /> Professor Harmony AI
+                        </h2>
+                        <p className="text-slate-500 text-sm">
+                            Your Personal Music Theory Assistant & Composition Guide
+                        </p>
+                    </div>
+
+                    <ProfessorChat />
                 </div>
              </div>
         )}
