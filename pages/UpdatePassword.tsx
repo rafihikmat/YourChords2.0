@@ -16,15 +16,31 @@ import { Spotlight } from '../components/ui/Spotlight';
  */
 const UpdatePassword: React.FC = () => {
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [email, setEmail] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
 
+  React.useEffect(() => {
+    const getUser = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.email) setEmail(user.email);
+    };
+    getUser();
+  }, []);
+
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+
+    if (password !== confirmPassword) {
+        setError("Passwords do not match.");
+        setLoading(false);
+        return;
+    }
 
     if (password.length < 6) {
         setError("Password must be at least 6 characters long.");
@@ -76,6 +92,13 @@ const UpdatePassword: React.FC = () => {
 
             <div className="p-8">
                 <form onSubmit={handleUpdatePassword} className="space-y-4">
+                    {email && (
+                        <div className="p-3 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-center mb-4">
+                            <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-bold mb-1">Resetting password for</p>
+                            <p className="text-sm font-medium text-slate-900 dark:text-white">{email}</p>
+                        </div>
+                    )}
+
                     <div>
                         <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1.5">New Password</label>
                         <div className="relative group">
@@ -87,6 +110,22 @@ const UpdatePassword: React.FC = () => {
                                 onChange={e => setPassword(e.target.value)} 
                                 className="w-full bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-white/10 rounded-lg py-2.5 pl-10 pr-4 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all" 
                                 placeholder="At least 6 characters" 
+                                minLength={6} 
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1.5">Confirm Password</label>
+                        <div className="relative group">
+                            <Lock className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                            <input 
+                                type="password" 
+                                required 
+                                value={confirmPassword} 
+                                onChange={e => setConfirmPassword(e.target.value)} 
+                                className="w-full bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-white/10 rounded-lg py-2.5 pl-10 pr-4 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all" 
+                                placeholder="Re-enter new password" 
                                 minLength={6} 
                             />
                         </div>

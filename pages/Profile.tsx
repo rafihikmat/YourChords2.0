@@ -202,7 +202,10 @@ const ProfilePage: React.FC = () => {
             </form>
 
             <div className="mt-12 pt-8 border-t border-slate-200 dark:border-white/10">
-                <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Security</h2>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Security</h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 max-w-xl">
+                    If you logged in via Google or Facebook, you can set a password here to enable email/password login for your account.
+                </p>
                 <ChangePasswordForm />
             </div>
           </div>

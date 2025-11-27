@@ -210,10 +210,18 @@ const Auth: React.FC = () => {
         const { data, error } = await supabase.auth.signUp({ 
           email: cleanEmail, 
           password, 
-          options: { data: { full_name: cleanEmail.split('@')[0] } } 
+          options: { 
+            data: { full_name: cleanEmail.split('@')[0] },
+            emailRedirectTo: `${window.location.origin}/auth/callback`
+          } 
         });
         if (error) throw error;
-        setSuccessMsg(data.session ? "Logging in..." : "Verification email sent. Please check your inbox.");
+        
+        if (data.user && !data.session) {
+            setSuccessMsg("Account created! Please check your email to verify your account.");
+        } else {
+            setSuccessMsg("Logging in...");
+        }
       } else if (view === 'forgot_password') {
           const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
               redirectTo: `${window.location.origin}/update-password`,
