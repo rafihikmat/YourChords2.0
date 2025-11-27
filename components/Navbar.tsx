@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Music, User, Sun, Moon, LogOut, Shield, Heart, Info, Menu, X, Sparkles } from 'lucide-react';
+import { Music, User, LogOut, Shield, Heart, Info, Menu, X, Sparkles } from 'lucide-react';
 import { cn } from '../lib/utils';
 import SearchBar from './SearchBar';
 import { useAuth } from '../contexts/AuthContext';
-import { useTheme } from '../lib/hooks';
+import { AnimatedThemeToggler } from './ui/animated-theme-toggler';
 
 /**
  * The main navigation bar component.
@@ -18,7 +17,6 @@ const Navbar: React.FC = () => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const { isDark, toggleTheme } = useTheme();
   
   const { user, profile, signOut, isAdmin } = useAuth();
   const navigate = useNavigate();
@@ -81,12 +79,8 @@ const Navbar: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <button 
-            onClick={toggleTheme}
-            className="p-2 rounded-full text-slate-600 hover:text-slate-900 dark:text-neutral-300 dark:hover:text-white transition-colors bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10"
-          >
-            {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </button>
+          {/* Animated Theme Toggler */}
+          <AnimatedThemeToggler />
 
           {user ? (
             <div className="relative">
