@@ -3,7 +3,7 @@ import { FileText } from 'lucide-react';
 
 const Terms: React.FC = () => {
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pt-24 pb-12 px-4">
+    <div className="min-h-screen pt-24 pb-12 px-4 relative overflow-hidden">
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center gap-3 mb-8">
           <div className="p-3 bg-primary/10 rounded-xl">

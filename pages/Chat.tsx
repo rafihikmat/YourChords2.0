@@ -124,8 +124,7 @@ const ChatPage: React.FC = () => {
   };
 
   return (
-    <div className="relative w-full h-screen pt-20 pb-6 px-4 bg-slate-50 dark:bg-slate-950 overflow-hidden flex flex-col">
-      <div className="absolute inset-0 pointer-events-none opacity-30" style={{ backgroundImage: `url('data:image/svg+xml;utf8,${encodeURIComponent(DOT_GRID_SVG)}')`, backgroundSize: '20px 20px' }} />
+    <div className="relative w-full h-screen pt-20 pb-6 px-4 overflow-hidden flex flex-col">
       <Spotlight className="-top-40 left-0 hidden dark:block opacity-50" fill="white" />
 
       <div className="relative z-10 flex-1 max-w-5xl mx-auto w-full flex flex-col bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-200 dark:border-white/10 shadow-2xl overflow-hidden">

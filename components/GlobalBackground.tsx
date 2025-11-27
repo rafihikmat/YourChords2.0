@@ -34,42 +34,51 @@ const GlobalBackground: React.FC = () => {
     return () => observer.disconnect();
   }, []);
 
-  // Configuration for Light vs Dark mode
-  // Dark Mode: Screen blend mode, brighter lines, black background (default)
-  // Light Mode: Multiply blend mode, darker lines, white background (via opacity/colors)
-  
-  // For Light Mode, we want dark lines on a light background.
-  // Using 'multiply' with dark colored lines works well on white.
-  // For Dark Mode, we want light lines on a dark background.
-  // Using 'screen' with bright colored lines works well on black.
-
   return (
-    <div className="fixed inset-0 z-[-1] pointer-events-none overflow-hidden">
-      <FloatingLines 
-        // Global settings for performance
-        lineCount={isDark ? [6, 8, 10] : [4, 6, 8]} // Slightly fewer lines in light mode for cleaner look
-        lineDistance={isDark ? [5, 4, 3] : [8, 6, 5]}
-        animationSpeed={isDark ? 0.8 : 0.5} // Slower in light mode
-        
-        // Theme specific settings
-        linesGradient={isDark 
-          ? ['#e91e63', '#9c27b0', '#673ab7'] // Pink/Purple/DeepBlue for Dark
-          : ['#64748b', '#94a3b8', '#cbd5e1'] // Slate/Gray for Light (Subtle)
-        }
-        
-        mixBlendMode={isDark ? 'screen' : 'multiply'}
-        
-        // Common settings
-        enabledWaves={['top', 'middle', 'bottom']}
-        bendRadius={5.0}
-        bendStrength={-0.5}
-        interactive={true}
-        parallax={true}
-        parallaxStrength={0.1} // Reduced for global background to be less distracting
-      />
+    <div className="fixed inset-0 z-[-1] overflow-hidden">
+      {/* Solid Background Layer */}
+      <div className={`absolute inset-0 transition-colors duration-500 ${isDark ? 'bg-slate-950' : 'bg-slate-50'}`} />
+
+      {/* Floating Lines Layer */}
+      <div className="absolute inset-0">
+        <FloatingLines 
+          // In Light Mode: We invert the colors (Black bg -> White bg, Colored lines -> Inverted colors)
+          // and use 'multiply' to blend dark lines onto the white background.
+          className={!isDark ? 'invert filter' : ''}
+          
+          lineCount={isDark ? [30, 40, 50] : [20, 30, 40]} // Increased significantly for "React Bits" density
+          lineDistance={isDark ? [10, 8, 6] : [12, 10, 8]} // Wider spacing for sweeping effect
+          animationSpeed={isDark ? 0.4 : 0.3} // Slower, majestic movement
+          
+          // Gradients: "React Bits" Neon Style
+          // Cyan -> Violet -> Pink -> Blue
+          linesGradient={[
+            '#00f2ff', // Cyan
+            '#bd00ff', // Electric Violet
+            '#ff0055', // Neon Pink
+            '#0051ff'  // Deep Blue
+          ]}
+          
+          mixBlendMode={isDark ? 'screen' : 'multiply'}
+          
+          enabledWaves={['top', 'middle', 'bottom']}
+          
+          // Adjusted positions to cover the screen better
+          topWavePosition={{ x: 10, y: 1.0, rotate: -0.2 }}
+          middleWavePosition={{ x: 5, y: 0.0, rotate: 0.0 }}
+          bottomWavePosition={{ x: 2, y: -1.0, rotate: 0.2 }}
+
+          bendRadius={8.0}
+          bendStrength={-0.8} // Stronger interaction
+          interactive={true}
+          parallax={true}
+          parallaxStrength={0.15}
+        />
+      </div>
       
-      {/* Overlay to dampen the effect if needed */}
-      <div className={`absolute inset-0 ${isDark ? 'bg-slate-950/80' : 'bg-slate-50/80'} pointer-events-none`} />
+      {/* Vignette / Overlay for depth */}
+      {/* Subtle Vignette for depth */}
+      <div className={`absolute inset-0 pointer-events-none ${isDark ? 'bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.2)_100%)]' : 'bg-[radial-gradient(circle_at_center,transparent_0%,rgba(255,255,255,0.2)_100%)]'}`} />
     </div>
   );
 };

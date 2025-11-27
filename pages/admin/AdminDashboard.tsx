@@ -24,7 +24,7 @@ const AdminDashboard: React.FC = () => {
   const { isDark, toggleTheme } = useTheme();
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex font-sans text-slate-900 dark:text-white transition-colors duration-300">
+    <div className="min-h-screen flex font-sans text-slate-900 dark:text-white transition-colors duration-300">
       <AdminSidebar open={sidebarOpen} />
       <div className={cn("flex-1 transition-all duration-300", sidebarOpen ? "ml-64" : "ml-20")}>
         <header className="h-16 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-200 dark:border-white/10 sticky top-0 z-40 px-8 flex items-center justify-between shadow-sm no-print">

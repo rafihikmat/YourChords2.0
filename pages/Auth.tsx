@@ -256,8 +256,7 @@ const Auth: React.FC = () => {
   const passwordStrength = calculateStrength(password);
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-slate-50 dark:bg-slate-950 relative overflow-hidden transition-colors duration-300">
-      <GridBackground />
+    <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden transition-colors duration-300">
       
       <Link 
         to="/" 

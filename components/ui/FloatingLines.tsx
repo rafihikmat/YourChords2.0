@@ -231,6 +231,7 @@ type FloatingLinesProps = {
   parallaxStrength?: number;
   mixBlendMode?: React.CSSProperties['mixBlendMode'];
   backgroundColor?: string;
+  className?: string;
 };
 
 function hexToVec3(hex: string): Vector3 {
@@ -273,7 +274,8 @@ export default function FloatingLines({
   parallax = true,
   parallaxStrength = 0.2,
   mixBlendMode = 'screen',
-  backgroundColor = '#000000'
+  backgroundColor = '#000000',
+  className = ''
 }: FloatingLinesProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const targetMouseRef = useRef<Vector2>(new Vector2(-1000, -1000));
@@ -505,7 +507,7 @@ export default function FloatingLines({
   return (
     <div
       ref={containerRef}
-      className="w-full h-full relative overflow-hidden floating-lines-container"
+      className={`w-full h-full relative overflow-hidden floating-lines-container ${className}`}
       style={{
         mixBlendMode: mixBlendMode
       }}

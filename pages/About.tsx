@@ -127,7 +127,7 @@ const About: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pt-24 pb-12 relative overflow-hidden font-sans text-slate-900 dark:text-white transition-colors duration-300">
+    <div className="min-h-screen pt-24 pb-12 relative overflow-hidden font-sans text-slate-900 dark:text-white transition-colors duration-300">
       <div className="absolute inset-0 pointer-events-none z-0 opacity-30" style={{ backgroundImage: `url('data:image/svg+xml;utf8,${encodeURIComponent(DOT_GRID_SVG)}')`, backgroundSize: '20px 20px' }} />
       <Spotlight className="-top-40 left-0 hidden dark:block opacity-50" fill="white" />
 

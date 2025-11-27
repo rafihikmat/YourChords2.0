@@ -45,12 +45,7 @@ const FavoritesPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pt-24 pb-12 px-4 relative">
-       <div 
-        className="absolute inset-0 pointer-events-none z-0 opacity-30"
-        style={{ backgroundImage: `url('data:image/svg+xml;utf8,${encodeURIComponent(DOT_GRID_SVG)}')`, backgroundSize: '20px 20px' }}
-      />
-      
+    <div className="min-h-screen pt-24 pb-12 px-4 relative overflow-hidden">
       <div className="max-w-7xl mx-auto relative z-10">
         <div className="flex items-center gap-3 mb-8">
             <div className="p-3 bg-pink-500/10 rounded-2xl">

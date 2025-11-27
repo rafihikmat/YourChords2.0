@@ -145,8 +145,7 @@ export default function SongDetail() {
     const visibleTabs = song.tablature ? Object.fromEntries(Object.entries(song.tablature).filter(([k]) => k !== 'content')) : null;
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white pt-20 pb-40 relative print:pt-0 print:bg-white print:text-black">
-            <div className="fixed inset-0 pointer-events-none opacity-30 no-print" style={{ backgroundImage: `url('data:image/svg+xml;utf8,${encodeURIComponent(DOT_GRID_SVG)}')`, backgroundSize: '20px 20px' }} />
+        <div className="min-h-screen text-slate-900 dark:text-white pt-20 pb-40 relative print:pt-0 print:bg-white print:text-black">
 
             {/* Chord Modal */}
             <AnimatePresence>

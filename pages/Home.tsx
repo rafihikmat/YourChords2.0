@@ -103,7 +103,7 @@ const Home: React.FC = () => {
   const heroSubtitle = pageContent?.hero_subtitle || "The most advanced guitar platform for the modern musician. AI-generated chords, immersive tablature, and distraction-free practice modes.";
 
   return (
-    <div className="relative w-full min-h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden flex flex-col transition-colors duration-500">
+    <div className="relative w-full min-h-screen overflow-hidden flex flex-col transition-colors duration-500">
 
 
       {/* Hero Section */}

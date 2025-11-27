@@ -3,7 +3,7 @@ import { Mail, MessageSquare, Phone } from 'lucide-react';
 
 const Contact: React.FC = () => {
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pt-24 pb-12 px-4">
+    <div className="min-h-screen pt-24 pb-12 px-4 relative overflow-hidden">
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-12">
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-4">Contact Support</h1>
