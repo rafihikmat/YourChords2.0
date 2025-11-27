@@ -8,12 +8,21 @@ import { Search, Shield, UserCog } from 'lucide-react';
 import { useSmartSearch } from '../../../lib/hooks/useSmartSearch';
 import { useCallback } from 'react';
 
+import { useNavigate } from 'react-router-dom';
+
 const RoleManager: React.FC = () => {
     const [users, setUsers] = useState<Profile[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [roleFilter, setRoleFilter] = useState('all');
-    const { user: currentUser } = useAuth();
+    const { user: currentUser, isSuperAdmin } = useAuth();
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        if (!isSuperAdmin) {
+            navigate('/admin');
+        }
+    }, [isSuperAdmin, navigate]);
 
     const fetchUsers = useCallback(async () => {
         setLoading(true);
@@ -29,6 +38,12 @@ const RoleManager: React.FC = () => {
     }, []);
 
     const handleRoleChange = async (targetId: string, newRole: string) => {
+        // SECURITY: Only Super Admin can change roles
+        if (!isSuperAdmin) {
+            alert("Security Protocol: Only Super Admins can modify clearance levels.");
+            return;
+        }
+
         // SECURITY: Prevent Self-Demotion
         if (targetId === currentUser?.id) {
             alert("Security Protocol: You cannot modify your own clearance level to prevent lockout.");
@@ -43,15 +58,51 @@ const RoleManager: React.FC = () => {
         
         if (!confirm(`Authorize role change to [${newRole.toUpperCase()}] for this user?`)) return;
 
-        // LOGIC: If removing admin privileges (setting to user), we ensure it falls back gracefully
-        const safeRole = newRole || 'user'; // Fallback logic
+        try {
+            const { error } = await supabase.functions.invoke('admin-actions', {
+                body: { 
+                    action: 'UPDATE_ROLE',
+                    targetUserId: targetId,
+                    newRole: newRole
+                }
+            });
 
-        const { error } = await supabase.from('profiles').update({ role: safeRole }).eq('id', targetId);
+            if (error) throw error;
+
+            // Optimistic update
+            setUsers(users.map(u => u.id === targetId ? { ...u, role: newRole as Profile['role'] } : u));
+            alert(`User role updated to ${newRole.toUpperCase()}.`);
+
+        } catch (err: any) {
+            alert("Role Update Failed: " + (err.message || "Unknown error"));
+        }
+    };
+
+    const handleDeleteUser = async (targetId: string, targetName: string) => {
+        if (!isSuperAdmin) return;
         
-        if (error) {
-            alert("Operation Failed: " + error.message);
-        } else {
-            setUsers(users.map(u => u.id === targetId ? { ...u, role: safeRole as Profile['role'] } : u));
+        if (targetId === currentUser?.id) {
+            alert("Security Protocol: Self-termination is not permitted.");
+            return;
+        }
+
+        if (!confirm(`WARNING: Are you sure you want to PERMANENTLY DELETE user "${targetName}"?\n\nThis action cannot be undone and will remove all their data.`)) return;
+
+        try {
+            const { error } = await supabase.functions.invoke('admin-actions', {
+                body: { 
+                    action: 'DELETE_USER',
+                    targetUserId: targetId 
+                }
+            });
+
+            if (error) throw error;
+
+            // Optimistic update
+            setUsers(users.filter(u => u.id !== targetId));
+            alert(`User "${targetName}" has been terminated.`);
+        } catch (err: any) {
+            alert("Deletion Failed: " + (err.message || "Unknown error"));
         }
     };
 
@@ -138,16 +189,28 @@ const RoleManager: React.FC = () => {
                                         {u.id}
                                     </td>
                                     <td className="p-4 text-right">
-                                        <select 
-                                            value={u.role}
-                                            onChange={(e) => handleRoleChange(u.id, e.target.value)}
-                                            disabled={u.id === currentUser?.id}
-                                            className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-xs rounded-lg py-1.5 px-2 focus:ring-2 focus:ring-primary/50 outline-none text-slate-900 dark:text-white cursor-pointer hover:bg-white dark:hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            <option value="user">User</option>
-                                            <option value="admin">Admin</option>
-                                            <option value="super_admin">Super Admin</option>
-                                        </select>
+                                        <div className="flex items-center justify-end gap-2">
+                                            <select 
+                                                value={u.role}
+                                                onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                                                disabled={u.id === currentUser?.id || !isSuperAdmin}
+                                                className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-xs rounded-lg py-1.5 px-2 focus:ring-2 focus:ring-primary/50 outline-none text-slate-900 dark:text-white cursor-pointer hover:bg-white dark:hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                <option value="user">User</option>
+                                                <option value="admin">Admin</option>
+                                                <option value="super_admin">Super Admin</option>
+                                            </select>
+                                            
+                                            {isSuperAdmin && u.id !== currentUser?.id && (
+                                                <button
+                                                    onClick={() => handleDeleteUser(u.id, u.full_name || 'User')}
+                                                    className="p-1.5 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                                                    title="Delete User"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                                </button>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))
