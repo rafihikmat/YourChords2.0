@@ -1,8 +1,9 @@
+
 import React, { useEffect, useState } from 'react';
-import FloatingLines from './ui/FloatingLines';
+import { WavyBackground } from './ui/wavy-background';
 
 /**
- * GlobalBackground component that renders the FloatingLines background
+ * GlobalBackground component that renders the WavyBackground
  * with theme-aware settings (Light/Dark mode).
  */
 const GlobalBackground: React.FC = () => {
@@ -36,49 +37,28 @@ const GlobalBackground: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-[-1] overflow-hidden">
-      {/* Solid Background Layer */}
-      <div className={`absolute inset-0 transition-colors duration-500 ${isDark ? 'bg-slate-950' : 'bg-slate-50'}`} />
-
-      {/* Floating Lines Layer */}
-      <div className="absolute inset-0">
-        <FloatingLines 
-          // In Light Mode: We invert the colors (Black bg -> White bg, Colored lines -> Inverted colors)
-          // and use 'multiply' to blend dark lines onto the white background.
-          className={!isDark ? 'invert filter' : ''}
-          
-          lineCount={isDark ? [30, 40, 50] : [20, 30, 40]} // Increased significantly for "React Bits" density
-          lineDistance={isDark ? [10, 8, 6] : [12, 10, 8]} // Wider spacing for sweeping effect
-          animationSpeed={isDark ? 0.4 : 0.3} // Slower, majestic movement
-          
-          // Gradients: "React Bits" Neon Style
-          // Cyan -> Violet -> Pink -> Blue
-          linesGradient={[
-            '#00f2ff', // Cyan
-            '#bd00ff', // Electric Violet
-            '#ff0055', // Neon Pink
-            '#0051ff'  // Deep Blue
-          ]}
-          
-          mixBlendMode={isDark ? 'screen' : 'multiply'}
-          
-          enabledWaves={['top', 'middle', 'bottom']}
-          
-          // Adjusted positions to cover the screen better
-          topWavePosition={{ x: 10, y: 1.0, rotate: -0.2 }}
-          middleWavePosition={{ x: 5, y: 0.0, rotate: 0.0 }}
-          bottomWavePosition={{ x: 2, y: -1.0, rotate: 0.2 }}
-
-          bendRadius={8.0}
-          bendStrength={-0.8} // Stronger interaction
-          interactive={true}
-          parallax={true}
-          parallaxStrength={0.15}
-        />
-      </div>
-      
-      {/* Vignette / Overlay for depth */}
-      {/* Subtle Vignette for depth */}
-      <div className={`absolute inset-0 pointer-events-none ${isDark ? 'bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.2)_100%)]' : 'bg-[radial-gradient(circle_at_center,transparent_0%,rgba(255,255,255,0.2)_100%)]'}`} />
+      <WavyBackground 
+        className="max-w-4xl mx-auto"
+        containerClassName="fixed inset-0"
+        colors={isDark ? [
+          "#38bdf8", // Sky Blue
+          "#818cf8", // Indigo
+          "#c084fc", // Purple
+          "#e879f9", // Fuchsia
+          "#22d3ee"  // Cyan
+        ] : [
+          "#bae6fd", // Pastel Sky
+          "#c7d2fe", // Pastel Indigo
+          "#e9d5ff", // Pastel Purple
+          "#f5d0fe", // Pastel Fuchsia
+          "#a5f3fc"  // Pastel Cyan
+        ]}
+        backgroundFill={isDark ? "#020617" : "#ffffff"} // Slate-950 vs Pure White
+        blur={10}
+        speed="fast"
+        waveOpacity={isDark ? 0.5 : 0.2} // Lower opacity for Light Mode
+        waveWidth={50}
+      />
     </div>
   );
 };
