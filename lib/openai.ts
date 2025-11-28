@@ -8,7 +8,6 @@ import OpenAI from 'openai';
  */
 const getApiKey = () => {
   // Safe extraction for Vite/Browser/Node environments
-  // @ts-expect-error - process might not be defined
   if (typeof process !== 'undefined' && process.env?.OPENAI_API_KEY) return process.env.OPENAI_API_KEY;
   // @ts-expect-error - import.meta might not be defined or miss props
   if (import.meta?.env?.OPENAI_API_KEY) return import.meta.env.OPENAI_API_KEY;

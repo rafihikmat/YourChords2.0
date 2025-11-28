@@ -60,7 +60,7 @@ const SongUploader: React.FC = () => {
       }
 
       // 2. Create Song Record
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const { data: songData, error: dbError } = await supabase
         .from('songs')
         .insert([{

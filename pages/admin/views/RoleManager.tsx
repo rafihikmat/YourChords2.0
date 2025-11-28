@@ -5,7 +5,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { Profile } from '../../../types';
 import { cn } from '../../../lib/utils';
 import { Search, Shield, UserCog } from 'lucide-react';
-import { useSmartSearch } from '../../../lib/hooks/useSmartSearch';
+
 import { useCallback } from 'react';
 
 import { useNavigate } from 'react-router-dom';
@@ -106,8 +106,11 @@ const RoleManager: React.FC = () => {
         }
     };
 
-    // Apply Smart Search Logic with explicit generic
-    const searchResults = useSmartSearch<Profile>(users, searchQuery, ['full_name', 'id']);
+    // Simple filter
+    const searchResults = users.filter(u => 
+        (u.full_name?.toLowerCase() || '').includes(searchQuery.toLowerCase()) || 
+        u.id.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
     const filteredUsers = searchResults.filter(u => 
         roleFilter === 'all' ? true : u.role === roleFilter

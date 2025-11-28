@@ -4,7 +4,7 @@ import { Plus, Trash2, Disc3, Edit2, Save, X, Image as ImageIcon } from 'lucide-
 import { supabase } from '../../../../lib/supabase';
 import { Album } from '../../../../types';
 import { cn } from '../../../../lib/utils';
-import { useSmartSearch } from '../../../../lib/hooks/useSmartSearch';
+
 
 interface AlbumManagerProps {
     searchTerm: string;
@@ -88,8 +88,11 @@ export const AlbumManager: React.FC<AlbumManagerProps> = ({ searchTerm }) => {
         setEditingId(null);
     };
 
-    // Use Smart Search Hook with generic
-    const filteredAlbums = useSmartSearch<Album>(albums, searchTerm, ['title', 'artist']);
+    // Simple filter
+    const filteredAlbums = albums.filter(a => 
+        a.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        a.artist.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     return (
         <div className="space-y-8 animate-in slide-in-from-right-4 duration-300">

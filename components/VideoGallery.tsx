@@ -8,7 +8,7 @@ import YouTubePlayer from './YouTubePlayer';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { useSmartSearch } from '../lib/hooks/useSmartSearch';
+
 
 /**
  * Component to display a gallery of video tutorials.
@@ -50,7 +50,7 @@ export const VideoGallery: React.FC = () => {
 
   const fetchFavorites = async () => {
       if (!user) return;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const { data } = await supabase.from('video_favorites').select('video_id').eq('user_id', user.id);
       if (data) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -76,8 +76,11 @@ export const VideoGallery: React.FC = () => {
       }
   };
 
-  // Use the new Smart Search Hook with generic
-  const filteredVideos = useSmartSearch<VideoTutorial>(allVideos, searchQuery, ['title', 'channel_title']);
+  // Simple filter
+  const filteredVideos = allVideos.filter(v => 
+      v.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      v.channel_title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="space-y-8">

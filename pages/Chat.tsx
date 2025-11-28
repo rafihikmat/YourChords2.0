@@ -107,7 +107,7 @@ const ChatPage: React.FC = () => {
           fullText += c.text;
           setMessages(p => p.map(m => m.id === aiId ? { ...m, text: fullText } : m));
         }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         const urls = c.candidates?.[0]?.groundingMetadata?.groundingChunks
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             ?.filter((x: any) => x.web?.uri).map((x: any) => ({ uri: x.web.uri, title: x.web.title }));

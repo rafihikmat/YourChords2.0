@@ -1,4 +1,4 @@
-import { cn, fuzzySearch, formatTime, calculateStrength } from '../lib/utils';
+import { cn, formatTime, calculateStrength } from '../lib/utils';
 import assert from 'assert';
 
 // Test 1: cn (Class merging)
@@ -15,34 +15,16 @@ try {
     assert.ok(!result.includes('m-2'), 'Should not include m-2');
 
 
-} catch (e: any) {
-    console.error("Test 1 Failed:", e.message);
+} catch (e: unknown) {
+    if (e instanceof Error) {
+        console.error("Test 1 Failed:", e.message);
+    } else {
+        console.error("Test 1 Failed:", String(e));
+    }
     process.exit(1);
 }
 
-// Test 2: fuzzySearch
-try {
-    const data = [
-        { id: 1, title: 'Amazing Grace', artist: 'John Newton' },
-        { id: 2, title: 'Wonderwall', artist: 'Oasis' },
-        { id: 3, title: 'Grace', artist: 'Jeff Buckley' }
-    ];
 
-    const results = fuzzySearch(data, 'Grace', ['title', 'artist']);
-    assert.strictEqual(results.length, 2, 'Should find 2 items with "Grace"');
-
-    const artistSearch = fuzzySearch(data, 'Oasis', ['artist']);
-    assert.strictEqual(artistSearch.length, 1, 'Should find 1 item with "Oasis"');
-    assert.strictEqual(artistSearch[0].title, 'Wonderwall');
-
-    const noMatch = fuzzySearch(data, 'Metallica', ['title']);
-    assert.strictEqual(noMatch.length, 0, 'Should find 0 items');
-
-
-} catch (e: any) {
-    console.error("Test 2 Failed:", e.message);
-    process.exit(1);
-}
 
 // Test 3: formatTime
 try {
@@ -53,8 +35,12 @@ try {
     assert.strictEqual(formatTime(NaN), '0:00', 'NaN should be 0:00');
 
 
-} catch (e: any) {
-    console.error("Test 3 Failed:", e.message);
+} catch (e: unknown) {
+    if (e instanceof Error) {
+        console.error("Test 3 Failed:", e.message);
+    } else {
+        console.error("Test 3 Failed:", String(e));
+    }
     process.exit(1);
 }
 
@@ -77,7 +63,11 @@ try {
     assert.strictEqual(calculateStrength(strong), 4, 'All criteria gives 4 points');
 
 
-} catch (e: any) {
-    console.error("Test 4 Failed:", e.message);
+} catch (e: unknown) {
+    if (e instanceof Error) {
+        console.error("Test 4 Failed:", e.message);
+    } else {
+        console.error("Test 4 Failed:", String(e));
+    }
     process.exit(1);
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { SearchResult } from '../../types';
+import { mapSongToResult, mapAlbumToResult, mapVideoToResult } from '../utils';
 
 export type SearchTab = 'all' | 'songs' | 'albums' | 'tutorials';
 
@@ -53,13 +54,7 @@ export const useSearch = () => {
                         .limit(5);
 
                     if (librarySongs) {
-                        newResults.push(...librarySongs.map(s => ({
-                            id: s.id,
-                            title: s.title,
-                            artist: s.artist,
-                            source: 'library' as const,
-                            url: `/song/${s.id}`
-                        })));
+                        newResults.push(...librarySongs.map(mapSongToResult));
                     }
                 }
 
@@ -72,14 +67,7 @@ export const useSearch = () => {
                         .limit(4);
 
                     if (libraryAlbums) {
-                        newResults.push(...libraryAlbums.map(a => ({
-                            id: a.id,
-                            title: a.title,
-                            artist: a.artist,
-                            thumbnail: a.cover_url,
-                            source: 'library' as const,
-                            url: `#album-${a.id}`
-                        })));
+                        newResults.push(...libraryAlbums.map(mapAlbumToResult));
                     }
                 }
 
@@ -93,14 +81,7 @@ export const useSearch = () => {
                         .limit(3);
 
                     if (localVideos) {
-                        newResults.push(...localVideos.map(v => ({
-                            id: v.video_id,
-                            title: v.title,
-                            artist: v.channel_title,
-                            thumbnail: v.thumbnail_url,
-                            source: 'youtube' as const,
-                            url: `https://www.youtube.com/watch?v=${v.video_id}`
-                        })));
+                        newResults.push(...localVideos.map(mapVideoToResult));
                     }
                 }
 

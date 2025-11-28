@@ -6,7 +6,7 @@ import { DOT_GRID_SVG } from '../lib/utils';
 import { Spotlight } from '../components/ui/Spotlight';
 import MagicBento, { BentoCardProps } from '../components/ui/MagicBento';
 import TabsFAQ from '../components/ui/TabsFAQ';
-import { Meteors } from '../components/ui/meteors';
+import { CometCard } from '../components/ui/comet-card';
 import {
   Music2, Heart, Users, Sparkles, Target, Shield,
   Zap, Smartphone, Layers, Mic2, ArrowLeft
@@ -157,49 +157,6 @@ const About: React.FC = () => {
           <MagicBento items={bentoItems} />
         </div>
 
-        {/* Mission Section */}
-        <div className="grid md:grid-cols-2 gap-12 items-center mb-24">
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="text-3xl font-bold mb-6 flex items-center gap-3">
-              <Target className="w-8 h-8 text-primary" />
-              {missionTitle}
-            </h2>
-            <p className="text-lg text-slate-600 dark:text-slate-300 leading-relaxed mb-6">
-              {missionText}
-            </p>
-            <div className="h-1 w-20 bg-primary rounded-full"></div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            className="relative"
-          >
-            <div className="absolute -inset-4 bg-gradient-to-r from-primary to-purple-600 opacity-20 blur-3xl rounded-full"></div>
-            <div className="relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 p-8 rounded-3xl shadow-2xl">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="text-center p-4 bg-slate-50 dark:bg-white/5 rounded-xl">
-                  <div className="text-3xl font-black text-primary mb-1">10k+</div>
-                  <div className="text-xs uppercase font-bold text-slate-500">Songs Indexed</div>
-                </div>
-                <div className="text-center p-4 bg-slate-50 dark:bg-white/5 rounded-xl">
-                  <div className="text-3xl font-black text-purple-500 mb-1">99%</div>
-                  <div className="text-xs uppercase font-bold text-slate-500">Accuracy</div>
-                </div>
-                <div className="text-center p-4 bg-slate-50 dark:bg-white/5 rounded-xl col-span-2">
-                  <div className="text-3xl font-black text-green-500 mb-1">24/7</div>
-                  <div className="text-xs uppercase font-bold text-slate-500">System Uptime</div>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-
         {/* Commitments */}
         <div className="mb-24">
           <h2 className="text-3xl font-bold mb-8 flex items-center gap-3">
@@ -226,26 +183,51 @@ const About: React.FC = () => {
           </div>
         </div>
 
-        {/* Join Community CTA */}
-        <div className="mb-24 relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 to-slate-800 border border-white/10 p-10 text-center">
-          <Meteors number={30} />
-          <div className="relative z-10">
-            <h2 className="text-3xl font-bold text-white mb-4">Join the Neural Network</h2>
-            <p className="text-slate-300 mb-8 max-w-2xl mx-auto">
-              YourChords is more than a tool; it's a living library growing every day.
-              Create an account to save your favorites, contribute corrections, and access advanced AI features.
-            </p>
-            <div className="flex justify-center gap-4">
-              <Link to="/auth">
-                <button className="px-8 py-3 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl transition-all shadow-lg shadow-primary/25">
-                  Get Started Free
-                </button>
-              </Link>
-              <button className="px-8 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-all border border-white/10">
-                Contact Support
-              </button>
+        {/* Join Community CTA - Comet Card Style */}
+        <div className="mb-24 flex justify-center w-full perspective-1000">
+          <CometCard className="w-full max-w-3xl">
+            <div className="relative w-full transform transition-all duration-500">
+              <div className="absolute inset-0 h-full w-full scale-[0.9] transform rounded-full bg-red-500 bg-gradient-to-r from-blue-500 to-teal-500 blur-3xl opacity-50" />
+              <div className="relative flex h-full flex-col items-start justify-end overflow-hidden rounded-3xl border border-gray-800 bg-gray-900/95 backdrop-blur-xl px-10 py-12 shadow-2xl">
+                <div className="mb-6 flex h-8 w-8 items-center justify-center rounded-full border border-gray-500 bg-gray-800/50">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth="1.5"
+                    stroke="currentColor"
+                    className="h-4 w-4 text-gray-300"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M4.5 4.5l15 15m0 0V8.25m0 11.25H8.25"
+                    />
+                  </svg>
+                </div>
+
+                <h1 className="relative z-50 mb-6 text-4xl font-bold text-white tracking-tight">
+                  Join the Neural Network
+                </h1>
+
+                <p className="relative z-50 mb-8 text-lg font-normal text-slate-400 max-w-xl leading-relaxed">
+                  YourChords is more than a tool; it's a living library growing every day.
+                  Create an account to save your favorites, contribute corrections, and access advanced AI features.
+                </p>
+
+                <div className="flex flex-wrap gap-4 relative z-50">
+                  <Link to="/auth">
+                    <button className="rounded-xl border border-gray-600 bg-gray-800/50 px-8 py-3 text-white hover:bg-gray-700 hover:border-gray-500 transition-all duration-300 shadow-lg font-medium">
+                      Get Started Free
+                    </button>
+                  </Link>
+                  <button className="rounded-xl border border-transparent px-8 py-3 text-gray-400 hover:text-white transition-colors font-medium">
+                    Contact Support
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
+          </CometCard>
         </div>
 
         {/* Tabs FAQ */}

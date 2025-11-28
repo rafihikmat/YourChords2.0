@@ -8,6 +8,7 @@ import SongCard from '../components/ui/SongCard';
 import { Song, Album } from '../types';
 import { supabase } from '../lib/supabase';
 import { VideoGallery } from '../components/VideoGallery';
+import { LayoutTextFlip } from '../components/ui/layout-text-flip';
 import { seedDatabase } from '../lib/seeder';
 import { useNavigate } from 'react-router-dom';
 
@@ -99,7 +100,7 @@ const Home: React.FC = () => {
       }
   };
 
-  const heroTitle = pageContent?.hero_title || "Master your chords in Hyperspeed.";
+
   const heroSubtitle = pageContent?.hero_subtitle || "The most advanced guitar platform for the modern musician. AI-generated chords, immersive tablature, and distraction-free practice modes.";
 
   return (
@@ -124,8 +125,11 @@ const Home: React.FC = () => {
                 v2.0 System Online
             </div>
 
-            <h1 className="text-4xl md:text-7xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-slate-900 to-slate-500 dark:from-neutral-50 dark:to-neutral-400 tracking-tight mb-6" dangerouslySetInnerHTML={{__html: heroTitle.replace('Hyperspeed', '<span class="text-primary">Hyperspeed</span>')}}>
-            </h1>
+            <LayoutTextFlip
+                text="Master your chords in "
+                words={["Hyperspeed", "ANJAY", "Realtime"]}
+                className="mb-6"
+            />
 
             <p className="text-slate-600 dark:text-neutral-400 text-lg md:text-xl max-w-2xl mb-10">
                 {heroSubtitle}

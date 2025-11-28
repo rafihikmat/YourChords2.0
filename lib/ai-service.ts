@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import { GoogleGenAI } from "@google/genai";
-import { AI_PROVIDERS, AIProviderConfig } from './ai-config';
+import { AI_PROVIDERS } from './ai-config';
 
 /**
  * Helper to get API key from environment
@@ -33,12 +33,10 @@ export const generateAIContent = async (systemPrompt: string, userPrompt: string
     const apiKey = getApiKey(provider.apiKeyEnv);
     
     if (!apiKey) {
-      console.warn(`Skipping ${provider.name}: No API Key found in ${provider.apiKeyEnv}`);
       continue;
     }
 
     try {
-      console.log(`Attempting to generate content using ${provider.name}...`);
       
       if (provider.type === 'openai') {
         const baseURL = provider.baseURL?.startsWith('/') 
@@ -66,7 +64,6 @@ export const generateAIContent = async (systemPrompt: string, userPrompt: string
         const text = response.choices[0]?.message?.content;
         if (!text) throw new Error('Empty response');
         
-        console.log(`Success! Generated content with ${provider.name}`);
         return text;
 
       } else if (provider.type === 'gemini') {
@@ -96,17 +93,14 @@ export const generateAIContent = async (systemPrompt: string, userPrompt: string
 
             if (!text) throw new Error('Empty response');
             
-            console.log(`Success! Generated content with ${provider.name}`);
             return text;
         } catch (geminiInternalError: any) {
-             console.error("Gemini SDK Internal Error:", geminiInternalError);
              throw geminiInternalError;
         }
       }
 
     } catch (error: any) {
       const errorMsg = error?.message || 'Unknown error';
-      console.warn(`Failed to generate with ${provider.name}:`, errorMsg);
       errors.push(`${provider.name}: ${errorMsg}`);
       // Continue to next provider
     }

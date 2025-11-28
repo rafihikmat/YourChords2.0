@@ -107,7 +107,7 @@ export class ChordAdapter {
         if (!match) return null;
 
         let root = match[1];
-        let suffixRaw = match[2];
+        const suffixRaw = match[2];
         let bass = match[3];
 
         // 2. Normalize Root
@@ -120,7 +120,7 @@ export class ChordAdapter {
         }
 
         // 3. Normalize Suffix
-        let suffix = SUFFIX_MAP[suffixRaw] || suffixRaw;
+        const suffix = SUFFIX_MAP[suffixRaw] || suffixRaw;
 
         // 4. Construct Query Suffix
         let querySuffix = suffix;

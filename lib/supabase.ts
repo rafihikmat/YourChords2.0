@@ -2,13 +2,13 @@
 import { createClient } from '@supabase/supabase-js';
 
 // Access environment variables with provided keys as fallbacks
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 /**
  * The Supabase URL, retrieved from environment variables or a fallback.
  */
 export const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || 'https://qgfktfjwnpycremegeme.supabase.co';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 /**
  * The Supabase Anonymous Key, retrieved from environment variables or a fallback.
  * Used for client-side interactions with Supabase.

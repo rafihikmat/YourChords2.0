@@ -5,7 +5,7 @@ import { Search, ExternalLink, Edit, Trash2, Disc3, Eye, Upload, Plus } from 'lu
 import { supabase } from '../../../lib/supabase';
 import { Song, Album } from '../../../types';
 import { cn, DIFFICULTY_COLORS } from '../../../lib/utils';
-import { useSmartSearch } from '../../../lib/hooks/useSmartSearch';
+
 import { BulkImportModal } from '../../../components/admin/BulkImportModal';
 
 const SongManager: React.FC = () => {
@@ -62,8 +62,11 @@ const SongManager: React.FC = () => {
         }
     };
 
-    // Implementation of Smart Search with explicit generic
-    const searchResults = useSmartSearch<Song>(songs, searchTerm, ['title', 'artist']);
+    // Simple filter
+    const searchResults = songs.filter(s => 
+        s.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        s.artist.toLowerCase().includes(searchTerm.toLowerCase())
+    );
     
     const filteredSongs = searchResults.filter(s => 
         difficultyFilter ? s.difficulty === difficultyFilter : true

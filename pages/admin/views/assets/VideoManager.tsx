@@ -5,7 +5,7 @@ import { supabase } from '../../../../lib/supabase';
 import { VideoTutorial } from '../../../../types';
 import { cn } from '../../../../lib/utils';
 import YouTubePlayer from '../../../../components/YouTubePlayer';
-import { useSmartSearch } from '../../../../lib/hooks/useSmartSearch';
+
 
 interface VideoManagerProps {
     searchTerm: string;
@@ -200,8 +200,12 @@ export const VideoManager: React.FC<VideoManagerProps> = ({ searchTerm }) => {
         setStatus(null);
     };
 
-    // Use Smart Search Hook with generic
-    const filteredVideos = useSmartSearch<VideoTutorial>(videos, searchTerm, ['title', 'channel_title', 'video_id']);
+    // Simple filter
+    const filteredVideos = videos.filter(v => 
+        v.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        v.channel_title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        v.video_id.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     // Memoize Player to prevent reloading during typing
     const previewPlayer = useMemo(() => {

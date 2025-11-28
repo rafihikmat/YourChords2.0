@@ -1,0 +1,209 @@
+@import "tailwindcss";
+
+@theme {
+    --font-sans: "Inter", "sans-serif";
+    --font-mono: "JetBrains Mono", "monospace";
+
+    --color-background: #020617;
+    --color-primary: #3b82f6;
+    --color-secondary: #8b5cf6;
+
+    --animate-spotlight: spotlight 2s ease 0.75s 1 forwards;
+    --animate-shimmer: shimmer 2s linear infinite;
+    --animate-meteor: meteor 5s linear infinite;
+
+    @keyframes spotlight {
+        0% {
+            opacity: 0;
+            transform: translate(-72%, -62%) scale(0.5);
+        }
+        100% {
+            opacity: 1;
+            transform: translate(-50%, -40%) scale(1);
+        }
+    }
+
+    @keyframes shimmer {
+        from {
+            background-position: 0 0;
+        }
+        to {
+            background-position: -200% 0;
+        }
+    }
+
+    @keyframes meteor {
+        0% {
+            transform: rotate(215deg) translateX(0);
+            opacity: 1;
+        }
+        70% {
+            opacity: 1;
+        }
+        100% {
+            transform: rotate(215deg) translateX(-500px);
+            opacity: 0;
+        }
+    }
+
+    --shadow-input: 0px 2px 3px -1px rgba(0, 0, 0, 0.1), 0px 1px 0px 0px rgba(25, 28, 33, 0.02), 0px 0px 0px 1px rgba(25, 28, 33, 0.08);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* Light Mode Scrollbar */
+:root:not(.dark) ::-webkit-scrollbar-thumb {
+    background: #cbd5e1; /* Slate 300 */
+    border-radius: 4px;
+}
+:root:not(.dark) ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8; /* Slate 400 */
+}
+
+/* Dark Mode Scrollbar */
+:root.dark ::-webkit-scrollbar-thumb {
+    background: #1e293b; /* Slate 800 */
+    border-radius: 4px;
+}
+:root.dark ::-webkit-scrollbar-thumb:hover {
+    background: #334155; /* Slate 700 */
+}
+
+:root.dark body {
+    background-color: #020617;
+    color: #ffffff;
+}
+
+:root:not(.dark) body {
+    background-color: #f8fafc;
+    color: #0f172a;
+}
+
+/* --- CHORD SHEET JS STYLES (Futuristic) --- */
+
+.chord-sheet-container .chord-sheet,
+.chord-sheet-container .chord-sheet-table {
+    width: 100% !important;
+    border-collapse: separate !important;
+    border-spacing: 0 4px !important;
+    table-layout: auto !important;
+    display: table !important;
+    margin-bottom: 2rem;
+}
+
+.chord-sheet-container tr {
+    display: table-row !important;
+    background: transparent !important;
+    border: none !important;
+}
+
+.chord-sheet-container td,
+.chord-sheet-container .chord,
+.chord-sheet-container .lyrics {
+    display: table-cell !important;
+    vertical-align: bottom !important;
+    padding-right: 0.5em !important;
+    padding-bottom: 0.5em !important;
+    white-space: pre !important;
+    border: none !important;
+    font-size: inherit !important;
+}
+
+.chord-sheet-container .chord {
+    color: #facc15;
+    font-weight: 700;
+    font-family: "JetBrains Mono", monospace !important;
+    font-size: 0.9em !important;
+    line-height: 1.4;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    padding-bottom: 2px !important;
+}
+
+:root.dark .chord-sheet-container .chord {
+    text-shadow: 0 0 12px rgba(250, 204, 21, 0.2);
+}
+
+.chord-sheet-container .chord:hover {
+    color: #8b5cf6;
+    text-shadow: 0 0 15px rgba(139, 92, 246, 0.6);
+    transform: translateY(-1px);
+}
+
+.chord-sheet-container .lyrics {
+    font-family: "JetBrains Mono", monospace !important;
+    color: inherit;
+    font-size: 1em !important;
+    line-height: 1.6;
+    opacity: 0.9;
+}
+
+.chord-sheet-container .comment {
+    display: inline-block;
+    margin-top: 2.5rem;
+    margin-bottom: 1rem;
+    font-family: "Inter", sans-serif !important;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 0.75em !important;
+    padding: 4px 12px;
+    border-radius: 99px;
+    background: rgba(148, 163, 184, 0.1);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    color: #94a3b8;
+}
+
+:root:not(.dark) .chord-sheet-container .comment {
+    background: #e2e8f0;
+    color: #475569;
+    border-color: #cbd5e1;
+}
+
+.chord-sheet-container .paragraph {
+    margin-bottom: 1rem;
+}
+
+:root.dark .chord-sheet-container .lyrics {
+    color: #e2e8f0;
+}
+
+:root:not(.dark) .chord-sheet-container .lyrics {
+    color: #334155;
+}
+
+@media print {
+    .no-print {
+        display: none !important;
+    }
+    .print-only {
+        display: block !important;
+    }
+    body {
+        background: white !important;
+        color: black !important;
+    }
+    html {
+        background: white !important;
+        color: black !important;
+    }
+
+    .chord-sheet-container .chord,
+    :root.dark .chord-sheet-container .chord {
+        color: #000 !important;
+        font-weight: 800 !important;
+        text-shadow: none !important;
+        opacity: 1 !important;
+    }
+    .chord-sheet-container .comment {
+        border: 1px solid #000;
+        color: #000;
+    }
+}

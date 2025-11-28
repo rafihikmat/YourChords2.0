@@ -50,13 +50,14 @@ const MaintenanceConsole: React.FC = () => {
         setStatus('Analyzing song database for album clusters...');
         try {
              // 1. Fetch all songs
-             const { data: songs } = await supabase.from('songs').select('id, artist, album_id');
-             if (!songs) throw new Error("No songs found");
+             const { data: rawSongs } = await supabase.from('songs').select('id, artist, album_id');
+             if (!rawSongs) throw new Error("No songs found");
+             
+             const songs = rawSongs as unknown as Song[];
 
              // 2. Group by Artist
              const artistMap: Record<string, Song[]> = {};
-             songs.forEach((s) => {
-                 const song = s as unknown as Song;
+             songs.forEach((song) => {
                  // Normalize artist name to avoid case sensitivity issues
                  const key = song.artist.trim();
                  if (!artistMap[key]) artistMap[key] = [];
@@ -83,7 +84,7 @@ const MaintenanceConsole: React.FC = () => {
                              cover_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(albumTitle)}&background=random&size=512`
                          }]).select().single();
 
-                         // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                          
                          if (albumError) {
                             console.error('Error creating album:', albumError);
                          }

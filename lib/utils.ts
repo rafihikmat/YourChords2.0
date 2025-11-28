@@ -33,20 +33,42 @@ export const DIFFICULTY_COLORS: Record<string, string> = {
 };
 
 /**
- * Performs a simple fuzzy search on an array of objects.
- * Checks if the query string is included in any of the specified keys.
- *
- * @template T
- * @param {T[]} items - The array of objects to search.
- * @param {string} query - The search query string.
- * @param {(keyof T)[]} keys - The keys of the objects to search within.
- * @returns {T[]} The filtered array of objects that match the query.
+ * Maps a Song object to a SearchResult.
  */
-export function fuzzySearch<T>(items: T[], query: string, keys: (keyof T)[]): T[] {
-  if (!query) return items;
-  const lowerQuery = query.toLowerCase();
-  return items.filter(item => keys.some(key => String(item[key]).toLowerCase().includes(lowerQuery)));
-}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const mapSongToResult = (s: any) => ({
+    id: s.id,
+    title: s.title,
+    artist: s.artist,
+    source: 'library' as const,
+    url: `/song/${s.id}`
+});
+
+/**
+ * Maps an Album object to a SearchResult.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const mapAlbumToResult = (a: any) => ({
+    id: a.id,
+    title: a.title,
+    artist: a.artist,
+    thumbnail: a.cover_url,
+    source: 'library' as const,
+    url: `#album-${a.id}`
+});
+
+/**
+ * Maps a Video object to a SearchResult.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const mapVideoToResult = (v: any) => ({
+    id: v.video_id,
+    title: v.title,
+    artist: v.channel_title,
+    thumbnail: v.thumbnail_url,
+    source: 'youtube' as const,
+    url: `https://www.youtube.com/watch?v=${v.video_id}`
+});
 
 /**
  * Converts a Blob object to a Base64 string.
