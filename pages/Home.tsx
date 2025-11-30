@@ -1,14 +1,13 @@
 
 import React, { useEffect, useState, Suspense } from 'react';
-import { Song, Album } from '../types';
-import { supabase } from '../lib/supabase';
+import { Song } from '../types';
 // Lazy load heavy VideoGallery component
 const VideoGallery = React.lazy(() => import('../components/VideoGallery').then(module => ({ default: module.VideoGallery })));
-import { seedDatabase } from '../lib/seeder';
-import { useNavigate } from 'react-router-dom';
 import { HomeHero } from '../components/home/HomeHero';
 import { TrendingSection } from '../components/home/TrendingSection';
 import { FeaturedAlbums } from '../components/home/FeaturedAlbums';
+
+import { useHomeData } from '../lib/hooks/useHomeData';
 
 /**
  * The Home page component (Landing Page).
@@ -18,59 +17,18 @@ import { FeaturedAlbums } from '../components/home/FeaturedAlbums';
  * @returns {JSX.Element} The Home page component.
  */
 const Home: React.FC = () => {
-  const navigate = useNavigate();
-  const [songs, setSongs] = useState<Song[]>([]);
+  const { 
+    songs, 
+    albums, 
+    isLoadingSongs, 
+    pageContent, 
+    fetchError, 
+    handleSeed, 
+    isSeeding 
+  } = useHomeData();
+
   const [filteredSongs, setFilteredSongs] = useState<Song[]>([]);
-  const [albums, setAlbums] = useState<Album[]>([]);
-  const [isLoadingSongs, setIsLoadingSongs] = useState(true);
-  const [isSeeding, setIsSeeding] = useState(false);
   const [difficultyFilter, setDifficultyFilter] = useState<string>('All');
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [pageContent, setPageContent] = useState<any>(null);
-  const [fetchError, setFetchError] = useState<string | null>(null);
-
-  const fetchData = async () => {
-      setIsLoadingSongs(true);
-      setFetchError(null);
-      try {
-        // 1. Content
-        const { data: cmsData } = await supabase.from('page_content').select('content').eq('id', 'home').single();
-        if (cmsData) setPageContent(cmsData.content);
-
-        // 2. Songs
-        const { data, error } = await supabase.from('songs').select('*').order('view_count', { ascending: false }).limit(12);
-        
-        if (error) {
-            console.error("Supabase Song Error:", error);
-            setFetchError(error.message);
-            setSongs([]);
-            setFilteredSongs([]);
-        } else if (data) {
-            const safeData = data as unknown as Song[];
-            setSongs(safeData);
-            setFilteredSongs(safeData);
-        }
-
-        // 3. Albums
-        const { data: albumData } = await supabase.from('albums').select('*').limit(4);
-        if (albumData) setAlbums(albumData as unknown as Album[]);
-
-      } catch (err: unknown) {
-        console.error("Data load failed", err);
-        if (err instanceof Error) {
-            setFetchError(err.message);
-        } else {
-            setFetchError("Unknown error");
-        }
-        setSongs([]);
-      } finally {
-        setIsLoadingSongs(false);
-      }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
 
   useEffect(() => {
       if (difficultyFilter === 'All') {
@@ -79,25 +37,6 @@ const Home: React.FC = () => {
           setFilteredSongs(songs.filter(s => s.difficulty === difficultyFilter));
       }
   }, [difficultyFilter, songs]);
-
-  const handleSeed = async () => {
-      setIsSeeding(true);
-      try {
-          const result = await seedDatabase();
-          if (result.failed > 0 && result.success === 0) {
-              alert("Seeding failed. You might need to Sign In first due to security policies.");
-              navigate('/auth');
-          } else {
-              await fetchData();
-          }
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      } catch (e) {
-          alert("Seeding error. See console.");
-      } finally {
-          setIsSeeding(false);
-      }
-  };
-
 
   const heroSubtitle = pageContent?.hero_subtitle || "The most advanced guitar platform for the modern musician. AI-generated chords, immersive tablature, and distraction-free practice modes.";
 

@@ -152,7 +152,12 @@ export interface PageContent {
   /** The page identifier (e.g., 'home', 'about', 'footer'). */
   id: string;
   /** The JSON content for the page. */
-  content: Record<string, any>;
+  content: {
+    hero_title_prefix?: string;
+    hero_title_words?: string[];
+    hero_subtitle?: string;
+    [key: string]: any; // Allow other dynamic keys
+  };
   /** Timestamp of the last update. */
   updated_at?: string;
 }

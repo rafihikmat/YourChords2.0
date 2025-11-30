@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabase';
 import { Song, Album } from '../../types';
+import { seedDatabase } from '../seeder';
+import { useNavigate } from 'react-router-dom';
 
 export const useHomeData = () => {
     const [songs, setSongs] = useState<Song[]>([]);
@@ -9,6 +11,8 @@ export const useHomeData = () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [pageContent, setPageContent] = useState<any>(null);
     const [fetchError, setFetchError] = useState<string | null>(null);
+    const [isSeeding, setIsSeeding] = useState(false);
+    const navigate = useNavigate();
 
     const fetchData = useCallback(async () => {
         setIsLoadingSongs(true);
@@ -51,12 +55,31 @@ export const useHomeData = () => {
         fetchData();
     }, [fetchData]);
 
+    const handleSeed = async () => {
+        setIsSeeding(true);
+        try {
+            const result = await seedDatabase();
+            if (result.failed > 0 && result.success === 0) {
+                alert("Seeding failed. You might need to Sign In first due to security policies.");
+                navigate('/auth');
+            } else {
+                await fetchData();
+            }
+        } catch (e) {
+            alert("Seeding error. See console.");
+        } finally {
+            setIsSeeding(false);
+        }
+    };
+
     return {
         songs,
         albums,
         isLoadingSongs,
         pageContent,
         fetchError,
-        refetch: fetchData
+        refetch: fetchData,
+        handleSeed,
+        isSeeding
     };
 };
