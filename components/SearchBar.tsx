@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, X, Music, Youtube, Loader2, Disc, Book, TrendingUp, Sparkles } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { SearchResult } from '../types';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSearch, SearchTab } from '../lib/hooks/useSearch';
 
 /**
  * Props for the SearchBar component.
@@ -19,8 +19,6 @@ interface SearchBarProps {
      */
     variant?: 'navbar' | 'full';
 }
-
-import { useSearch, SearchTab } from '../lib/hooks/useSearch';
 
 /**
  * A comprehensive search component that queries the local library, Spotify, and YouTube.

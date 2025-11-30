@@ -74,9 +74,9 @@ export const WavyBackground = ({
       ctx.beginPath();
       ctx.lineWidth = waveWidth || 50;
       ctx.strokeStyle = waveColors[i % waveColors.length];
-      for (x = 0; x < w; x += 5) {
+      for (x = 0; x < w; x += 10) { // Optimized: Increased step from 5 to 10
         const y = noise(x / 800, 0.3 * i, nt) * 100;
-        ctx.lineTo(x, y + h * 0.5); // adjust for height, currently at 50% of the screen
+        ctx.lineTo(x, y + h * 0.5); 
       }
       ctx.stroke();
       ctx.closePath();
@@ -88,7 +88,7 @@ export const WavyBackground = ({
     ctx.fillStyle = backgroundFill || "black";
     ctx.globalAlpha = waveOpacity || 0.5;
     ctx.fillRect(0, 0, w, h);
-    drawWave(5);
+    drawWave(props.waveCount || 5); // Use prop or default
     animationId = requestAnimationFrame(render);
   };
 

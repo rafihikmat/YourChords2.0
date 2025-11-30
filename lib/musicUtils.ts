@@ -285,3 +285,52 @@ export const convertToChordPro = (rawText: string): string => {
 
   return result.join('\n');
 };
+
+/**
+ * Extracts a unique list of chords from various song data formats.
+ * Handles:
+ * 1. Parser output (uniqueChords)
+ * 2. Legacy DB format (string[])
+ * 3. AI/New DB format (ChordLine[])
+ * 
+ * @param {string[] | null} parserChords - Chords extracted by the parser.
+ * @param {any} dbChords - Raw chords data from the database.
+ * @returns {string[]} A sorted list of unique, valid chords.
+ */
+export const extractUniqueChords = (parserChords: string[] | null, dbChords: any): string[] => {
+    let rawList: string[] = [];
+
+    // 1. Priority: Use unique chords extracted by the parser
+    if (parserChords && parserChords.length > 0) {
+        rawList = parserChords;
+    }
+    // 2. Fallback: Use DB 'chords' column
+    else if (Array.isArray(dbChords)) {
+        if (dbChords.length > 0) {
+            const firstItem = dbChords[0];
+
+            if (typeof firstItem === 'string') {
+                // Legacy Format: ["C", "Am", "F"]
+                rawList = dbChords as string[];
+            } else if (typeof firstItem === 'object' && firstItem !== null && 'chords' in firstItem) {
+                // AI/New Format: [{ line: "...", chords: ["C", "Am"] }]
+                // Flatten all chords from all lines
+                rawList = (dbChords as any[]).flatMap(line => Array.isArray(line.chords) ? line.chords : []);
+            }
+        }
+    }
+
+    // 3. Clean, Dedup, and Validate
+    const validSet = new Set<string>();
+
+    rawList.forEach(c => {
+        if (!c || typeof c !== 'string') return;
+        const clean = c.trim();
+        // Verify against music utils to ensure it's a renderable chord
+        if (clean.length > 0 && clean.length < 10 && getChordFingering(clean) !== null) {
+            validSet.add(clean);
+        }
+    });
+
+    return Array.from(validSet);
+};

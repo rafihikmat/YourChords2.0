@@ -15,7 +15,7 @@ import { useSongData } from '../lib/hooks/useSongData';
 import { useAutoScroll } from '../lib/hooks/useAutoScroll';
 import { useChordSheetParser } from '../lib/hooks/useChordSheetParser';
 import SongLyricsDisplay from '../components/SongLyricsDisplay';
-import { getChordFingering } from '../lib/musicUtils';
+import { getChordFingering, extractUniqueChords } from '../lib/musicUtils';
 
 /**
  * The Song Detail page component.
@@ -73,46 +73,7 @@ export default function SongDetail() {
 
     // --- GHOST DIAGRAM FIX & CRASH PREVENTION ---
     const displayChords = useMemo(() => {
-        let rawList: string[] = [];
-
-        // 1. Priority: Use unique chords extracted by the parser (most accurate for ChordPro/AI content)
-        if (uniqueChords && uniqueChords.length > 0) {
-            rawList = uniqueChords;
-        }
-        // 2. Fallback: Use DB 'chords' column if parser found nothing
-        else if (Array.isArray(song?.chords)) {
-            // CHECK DATA TYPE: ensure we are looking at an array of strings
-            const chords = song.chords;
-
-            if (chords.length > 0) {
-                const firstItem = chords[0];
-
-                if (typeof firstItem === 'string') {
-                    // Legacy Format: ["C", "Am", "F"]
-                    rawList = chords as unknown as string[];
-                } else if (typeof firstItem === 'object' && firstItem !== null && 'chords' in firstItem) {
-                    // AI/New Format: [{ line: "...", chords: ["C", "Am"] }]
-                    // Flatten all chords from all lines
-
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    rawList = (chords as any[]).flatMap(line => Array.isArray(line.chords) ? line.chords : []);
-                }
-            }
-        }
-
-        // 3. Clean, Dedup, and Validate
-        const validSet = new Set<string>();
-
-        rawList.forEach(c => {
-            if (!c || typeof c !== 'string') return;
-            const clean = c.trim();
-            // Verify against music utils to ensure it's a renderable chord (prevents lyrics appearing as chords)
-            if (clean.length > 0 && clean.length < 10 && getChordFingering(clean) !== null) {
-                validSet.add(clean);
-            }
-        });
-
-        return Array.from(validSet);
+        return extractUniqueChords(uniqueChords, song?.chords);
     }, [uniqueChords, song?.chords]);
 
 

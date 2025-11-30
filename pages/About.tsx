@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
 import { DOT_GRID_SVG } from '../lib/utils';
 import { Spotlight } from '../components/ui/Spotlight';
 import MagicBento, { BentoCardProps } from '../components/ui/MagicBento';
@@ -11,6 +10,7 @@ import {
   Music2, Heart, Users, Sparkles, Target, Shield,
   Zap, Smartphone, Layers, Mic2, ArrowLeft, LucideIcon
 } from 'lucide-react';
+import { useAboutData } from '../lib/hooks/useAboutData';
 
 // Icon Mapping
 const ICON_MAP: Record<string, LucideIcon> = {
@@ -34,38 +34,14 @@ const ICON_MAP: Record<string, LucideIcon> = {
  * @returns {JSX.Element} The About page component.
  */
 const About: React.FC = () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [content, setContent] = useState<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchContent = async () => {
-      try {
-        const { data } = await supabase
-          .from('page_content')
-          .select('content')
-          .eq('id', 'about')
-          .single();
-
-        if (data && data.content) {
-          setContent(data.content);
-        }
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      } catch (err) {
-        // Silent failure for default content
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchContent();
-  }, []);
+  const { content } = useAboutData();
 
   // Default content (Merged with dynamic DB content)
   const data = content || {};
   const title = data.title || "Revolutionizing Music Education";
   const subtitle = data.subtitle || "We merge advanced AI with musical passion to create the ultimate learning platform.";
   const missionTitle = data.mission_title || "Our Mission";
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const missionText = data.mission_text || "To democratize music theory and accessibility. We believe every song should be playable, every chord understood, and every musician empowered with the best tools available.";
   const foundedText = data.founded_text || "Founded in 2024 by RJ. Powered by RJ.";
 

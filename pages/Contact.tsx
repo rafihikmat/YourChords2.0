@@ -1,5 +1,6 @@
 import React from 'react';
 import { Mail, MessageSquare, Phone } from 'lucide-react';
+import { ContactCard } from '../components/ContactCard';
 
 const Contact: React.FC = () => {
   return (
@@ -13,44 +14,44 @@ const Contact: React.FC = () => {
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-white/10 shadow-sm text-center hover:border-primary/50 transition-colors group">
-            <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-              <Mail className="w-6 h-6 text-blue-500" />
-            </div>
-            <h3 className="font-bold text-slate-900 dark:text-white mb-2">Email Us</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-              For general inquiries and support
-            </p>
-            <a href="mailto:helpyourchords@gmail.com" className="text-primary font-medium hover:underline">
-              helpyourchords@gmail.com
-            </a>
-          </div>
+          <ContactCard 
+            icon={Mail}
+            title="Email Us"
+            description="For general inquiries and support"
+            colorClass="text-blue-500"
+            bgClass="bg-blue-50 dark:bg-blue-900/20"
+            action={
+                <a href="mailto:helpyourchords@gmail.com" className="text-primary font-medium hover:underline">
+                  helpyourchords@gmail.com
+                </a>
+            }
+          />
 
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-white/10 shadow-sm text-center hover:border-primary/50 transition-colors group">
-            <div className="w-12 h-12 bg-purple-50 dark:bg-purple-900/20 rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-              <MessageSquare className="w-6 h-6 text-purple-500" />
-            </div>
-            <h3 className="font-bold text-slate-900 dark:text-white mb-2">Live Chat</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-              Chat with our AI assistant
-            </p>
-            <button className="text-primary font-medium hover:underline">
-              Start Chat
-            </button>
-          </div>
+          <ContactCard 
+            icon={MessageSquare}
+            title="Live Chat"
+            description="Chat with our AI assistant"
+            colorClass="text-purple-500"
+            bgClass="bg-purple-50 dark:bg-purple-900/20"
+            action={
+                <button className="text-primary font-medium hover:underline">
+                  Start Chat
+                </button>
+            }
+          />
 
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-white/10 shadow-sm text-center hover:border-primary/50 transition-colors group">
-            <div className="w-12 h-12 bg-green-50 dark:bg-green-900/20 rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-              <Phone className="w-6 h-6 text-green-500" />
-            </div>
-            <h3 className="font-bold text-slate-900 dark:text-white mb-2">Phone</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-              Mon-Fri from 8am to 5pm
-            </p>
-            <a href="tel:+628812251733" className="text-primary font-medium hover:underline">
-              +62 8812251733
-            </a>
-          </div>
+          <ContactCard 
+            icon={Phone}
+            title="Phone"
+            description="Mon-Fri from 8am to 5pm"
+            colorClass="text-green-500"
+            bgClass="bg-green-50 dark:bg-green-900/20"
+            action={
+                <a href="tel:+628812251733" className="text-primary font-medium hover:underline">
+                  +62 8812251733
+                </a>
+            }
+          />
         </div>
 
         <div className="mt-12 bg-white dark:bg-slate-900 p-8 rounded-2xl border border-slate-200 dark:border-white/10 shadow-sm">

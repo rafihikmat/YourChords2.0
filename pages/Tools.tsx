@@ -1,12 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
-import ChordDiagram from '../components/ChordDiagram';
-import ChordCarousel from '../components/ChordCarousel';
-import { CHORD_FAMILIES, normalizeChordName } from '../lib/musicUtils';
-import { Activity, Book, Play, Mic2, Pause, GraduationCap, Search, Send } from 'lucide-react';
-import { DOT_GRID_SVG, cn } from '../lib/utils';
+import React, { useState } from 'react';
+import { Activity, Book, Mic2, GraduationCap } from 'lucide-react';
+import { cn } from '../lib/utils';
 import { Spotlight } from '../components/ui/Spotlight';
-import { useMetronome } from '../lib/hooks';
 import ProfessorChat from '@/components/tools/ProfessorChat';
+import TunerTool from '../components/tools/TunerTool';
+import MetronomeTool from '../components/tools/MetronomeTool';
+import LibraryTool from '../components/tools/LibraryTool';
 
 // Augment window type for older browser AudioContext
 declare global {
@@ -33,58 +32,6 @@ type TabId = 'ai' | 'upload' | 'tuner' | 'library' | 'metronome' | 'assistant';
  */
 const ToolsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabId>('tuner');
-  
-  // Tuner State
-  const tunerCtx = useRef<AudioContext | null>(null);
-  const [activeNote, setActiveNote] = useState<string | null>(null);
-  
-  // Metronome
-  const { isPlaying: isMetroPlaying, setIsPlaying: setIsMetroPlaying, bpm, setBpm } = useMetronome(120);
-  
-  // Search
-  const [chordSearchTerm, setChordSearchTerm] = useState('');
-  const [searchedChord, setSearchedChord] = useState<string | null>(null);
-
-  useEffect(() => {
-      return () => { if(tunerCtx.current) tunerCtx.current.close(); };
-  }, []);
-
-  const playNote = (frequency: number, note: string) => {
-      if (activeNote === note) return stopNote();
-      stopNote();
-      setActiveNote(note);
-      
-      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      const ctx = new AudioContextClass();
-      tunerCtx.current = ctx;
-      
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      
-      osc.type = 'sine';
-      osc.frequency.value = frequency;
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-  };
-
-  const stopNote = () => {
-      if (tunerCtx.current) {
-          tunerCtx.current.close().catch(() => {});
-          tunerCtx.current = null;
-      }
-      setActiveNote(null);
-  };
-  
-  const handleChordSearch = (e: React.FormEvent) => {
-      e.preventDefault();
-      if (chordSearchTerm) setSearchedChord(normalizeChordName(chordSearchTerm));
-  };
-
-  const GUITAR_STRINGS = [
-      { note: 'E2', freq: 82.41 }, { note: 'A2', freq: 110.00 }, { note: 'D3', freq: 146.83 },
-      { note: 'G3', freq: 196.00 }, { note: 'B3', freq: 246.94 }, { note: 'E4', freq: 329.63 },
-  ];
 
   const tabs = [
       { id: 'tuner', label: 'Guitar Tuner', icon: Activity, show: true },
@@ -107,7 +54,16 @@ const ToolsPage: React.FC = () => {
         <div className="flex justify-center mb-8 overflow-x-auto">
             <div className="flex bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-white/10 shadow-sm min-w-max">
                 {tabs.filter(t => t.show).map((tab) => (
-                    <button key={tab.id} onClick={() => { setActiveTab(tab.id as TabId); stopNote(); setIsMetroPlaying(false); }} className={cn("flex items-center gap-2 px-6 py-2 rounded-lg text-sm font-bold transition-all", activeTab === tab.id ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white" : "text-slate-500 hover:text-slate-900 dark:hover:text-white")}>
+                    <button 
+                        key={tab.id} 
+                        onClick={() => setActiveTab(tab.id as TabId)} 
+                        className={cn(
+                            "flex items-center gap-2 px-6 py-2 rounded-lg text-sm font-bold transition-all", 
+                            activeTab === tab.id 
+                                ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white" 
+                                : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+                        )}
+                    >
                         <tab.icon className="w-4 h-4" /> {tab.label}
                     </button>
                 ))}
@@ -115,73 +71,27 @@ const ToolsPage: React.FC = () => {
         </div>
 
         {/* View Content */}
-        {activeTab === 'tuner' && (
-             <div className="w-full max-w-xl mx-auto bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 p-8 shadow-xl text-center">
-                <h2 className="text-2xl font-bold dark:text-white mb-6 flex items-center justify-center gap-2"><Activity className="w-6 h-6 text-primary" /> Standard Tuning</h2>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-4">
-                    {GUITAR_STRINGS.map((s) => (
-                        <button key={s.note} onClick={() => playNote(s.freq, s.note)} className={cn("flex flex-col items-center justify-center p-4 rounded-xl border transition-all h-32 relative overflow-hidden", activeNote === s.note ? "bg-primary text-white border-primary" : "bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-white/10")}>
-                            <span className="text-2xl font-black mb-2">{s.note.charAt(0)}</span>
-                            <span className="text-xs opacity-70">{s.freq}Hz</span>
-                            {activeNote === s.note && <div className="absolute inset-0 bg-white/20 animate-pulse"></div>}
-                        </button>
-                    ))}
-                </div>
-             </div>
-        )}
-
-        {activeTab === 'metronome' && (
-             <div className="w-full max-w-xl mx-auto bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 p-12 shadow-xl text-center">
-                <h2 className="text-2xl font-bold dark:text-white mb-8"><Mic2 className="w-6 h-6 text-primary inline mr-2" /> Metronome</h2>
-                <div className="mb-10"><div className="text-6xl font-black dark:text-white mb-2 font-mono">{bpm}</div><div className="text-slate-500 text-sm">BPM</div></div>
-                <input type="range" min="40" max="240" value={bpm} onChange={(e) => setBpm(Number(e.target.value))} className="w-64 accent-primary h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer mb-10" />
-                <button onClick={() => setIsMetroPlaying(!isMetroPlaying)} className={cn("w-20 h-20 rounded-full flex items-center justify-center shadow-xl mx-auto transition-all", isMetroPlaying ? "bg-primary text-white animate-pulse" : "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white")}>
-                    {isMetroPlaying ? <Pause className="w-8 h-8 fill-current" /> : <Play className="w-8 h-8 fill-current ml-1" />}
-                </button>
-             </div>
-        )}
-
-        {activeTab === 'library' && (
-             <div className="w-full mx-auto space-y-8">
-                 <form onSubmit={handleChordSearch} className="max-w-md mx-auto relative">
-                    <input type="text" value={chordSearchTerm} onChange={(e) => setChordSearchTerm(e.target.value)} placeholder="Search Chord (e.g. C, Am)" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-full py-3 pl-12 pr-4 text-sm shadow-lg focus:ring-2 focus:ring-primary/50 outline-none dark:text-white" />
-                    <Search className="absolute left-4 top-3 w-5 h-5 text-slate-400" />
-                 </form>
-                 {searchedChord && (
-                    <div className="flex flex-col items-center animate-in fade-in">
-                        <div className="p-8 bg-white dark:bg-slate-900 rounded-2xl border border-primary/30 shadow-xl max-w-sm w-full">
-                            <h3 className="text-2xl font-bold text-center mb-6 text-primary">{searchedChord}</h3>
-                            <ChordCarousel chordName={searchedChord} />
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {activeTab === 'tuner' && <TunerTool />}
+            {activeTab === 'metronome' && <MetronomeTool />}
+            {activeTab === 'library' && <LibraryTool />}
+            
+            {activeTab === 'assistant' && (
+                 <div className="w-full max-w-4xl mx-auto space-y-8">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 overflow-hidden shadow-xl p-6">
+                        <div className="text-center mb-8">
+                            <h2 className="text-2xl font-bold dark:text-white flex items-center justify-center gap-2 mb-2">
+                                <GraduationCap className="w-6 h-6 text-primary" /> Professor Harmony AI
+                            </h2>
+                            <p className="text-slate-500 text-sm">
+                                Your Personal Music Theory Assistant & Composition Guide
+                            </p>
                         </div>
+                        <ProfessorChat />
                     </div>
-                 )}
-                 {Object.entries(CHORD_FAMILIES).map(([family, chords]) => (
-                     <div key={family} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 p-6 shadow-lg">
-                         <h3 className="text-lg font-bold dark:text-white uppercase tracking-wider mb-6 border-b border-slate-200 dark:border-white/5 pb-2">{family}</h3>
-                         <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-6">
-                             {chords.map(chord => (<div key={chord} className="flex flex-col items-center p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-white/5 hover:border-primary/30 cursor-pointer hover:shadow-md" onClick={() => {setSearchedChord(chord); window.scrollTo({top:0, behavior:'smooth'})}}><ChordDiagram name={chord} /></div>))}
-                         </div>
-                     </div>
-                 ))}
-             </div>
-        )}
-        
-        {activeTab === 'assistant' && (
-             <div className="w-full max-w-4xl mx-auto space-y-8">
-                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 overflow-hidden shadow-xl p-6">
-                    <div className="text-center mb-8">
-                        <h2 className="text-2xl font-bold dark:text-white flex items-center justify-center gap-2 mb-2">
-                            <GraduationCap className="w-6 h-6 text-primary" /> Professor Harmony AI
-                        </h2>
-                        <p className="text-slate-500 text-sm">
-                            Your Personal Music Theory Assistant & Composition Guide
-                        </p>
-                    </div>
-
-                    <ProfessorChat />
-                </div>
-             </div>
-        )}
+                 </div>
+            )}
+        </div>
       </div>
     </div>
   );

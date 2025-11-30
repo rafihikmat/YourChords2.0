@@ -12,8 +12,6 @@ import FavoritesPage from './pages/Favorites';
 import ToolsPage from './pages/Tools';
 import ProfilePage from './pages/Profile';
 import About from './pages/About';
-import TestChordCarousel from './pages/TestChordCarousel';
-import TestAdvancedChords from './pages/TestAdvancedChords';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
 import Contact from './pages/Contact';
@@ -52,8 +50,6 @@ const AppContent: React.FC = () => {
           <Route path="/song/:id" element={<SongDetail />} />
           <Route path="/tools" element={<ToolsPage />} />
           <Route path="/about" element={<About />} />
-          <Route path="/test-chords" element={<TestChordCarousel />} />
-          <Route path="/test-advanced" element={<TestAdvancedChords />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/contact" element={<Contact />} />

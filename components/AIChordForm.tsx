@@ -1,24 +1,4 @@
 
-import React from 'react';
-import { motion } from 'framer-motion';
-import { Sparkles, Music, PenTool, AlertCircle, Save, Link as LinkIcon, BarChart, Cpu } from 'lucide-react';
-import { AIChordFormData } from '../types';
-import AudioRecorder from './AudioRecorder';
-import { useChordSheetParser } from '../lib/hooks/useChordSheetParser';
-import AIChordFormPreview from './AIChordFormPreview';
-import { useAIChordGenerator } from '../lib/hooks/useAIChordGenerator';
-
-/**
- * Extended form data interface including optional URLs and difficulty.
- */
-interface ExtendedFormData extends AIChordFormData {
-    spotifyUrl?: string;
-    youtubeUrl?: string;
-    difficulty: string;
-}
-
-/**
- * Component providing a form to generate chord sheets using AI (Gemini).
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles, Music, PenTool, AlertCircle, Save, Link as LinkIcon, BarChart, Cpu, Eye } from 'lucide-react';

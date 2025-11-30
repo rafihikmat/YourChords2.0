@@ -58,6 +58,7 @@ const GlobalBackground: React.FC = () => {
         speed="fast"
         waveOpacity={isDark ? 0.5 : 0.2} // Lower opacity for Light Mode
         waveWidth={50}
+        waveCount={3} // Optimized: Reduced from default 5
       />
     </div>
   );

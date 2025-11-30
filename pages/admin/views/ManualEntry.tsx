@@ -1,19 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { Save, Eye, Edit3, ArrowLeft } from 'lucide-react';
-import { supabase } from '../../../lib/supabase';
 import { Song } from '../../../types';
 import { cn } from '../../../lib/utils';
 import { convertToChordPro } from '../../../lib/musicUtils';
 import SongLyricsDisplay from '../../../components/SongLyricsDisplay';
 import { useChordSheetParser } from '../../../lib/hooks/useChordSheetParser';
-import * as mammoth from 'mammoth';
-import { extractTextFromPdf } from '../../../lib/pdfUtils';
 import { ImportSection } from '../../../components/admin/ManualEntry/ImportSection';
 import { SongMetadataForm } from '../../../components/admin/ManualEntry/SongMetadataForm';
 import { EditorToolbar } from '../../../components/admin/ManualEntry/EditorToolbar';
 import { QuickInsertPanel } from '../../../components/admin/ManualEntry/QuickInsertPanel';
 import { useToast } from '../../../contexts/ToastContext';
+import { useSongImporter } from '../../../lib/hooks/useSongImporter';
+import { useSongForm } from '../../../lib/hooks/useSongForm';
 
 const ManualEntry: React.FC = () => {
     const location = useLocation();
@@ -21,178 +20,74 @@ const ManualEntry: React.FC = () => {
     const [mode, setMode] = useState<'edit' | 'preview'>('edit');
     const { toast, success, error: toastError } = useToast();
 
-    // Import State
-    const [isProcessingFile, setIsProcessingFile] = useState(false);
-    const [urlInput, setUrlInput] = useState('');
-    const [isScraping, setIsScraping] = useState(false);
-    const [importStatus, setImportStatus] = useState<{ type: 'success' | 'error', msg: string } | null>(null);
+    // Custom Hooks
+    const { isProcessingFile, isScraping, importStatus, setImportStatus, processFile, scrapeUrl } = useSongImporter();
+    const { formData, setFormData, updateField, loading, error: saveError, saveSong } = useSongForm(state?.songToEdit);
 
-    const [formData, setFormData] = useState({
-        id: '',
-        title: '',
-        artist: '',
-        difficulty: 'Medium',
-        spotify_id: '',
-        youtube_id: '',
-        rawText: ''
-    });
-    const [loading, setLoading] = useState(false);
     const [selectedQuality, setSelectedQuality] = useState({ label: 'MAJOR', suffix: '' });
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     // Live Parser for Preview Mode
     const { html } = useChordSheetParser({ songData: formData.rawText });
 
-    useEffect(() => {
-        if (state?.songToEdit) {
-            const s = state.songToEdit;
-            let raw = '';
-            if (s.chords) {
-                if (Array.isArray(s.chords) && s.chords.length > 0) {
-                    if (typeof s.chords[0] === 'string') {
-                        raw = (s.chords as unknown as string[]).join('\n');
-                    } else {
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        raw = (s.chords as any[]).map((line: any) => {
-                            if (line.chords && line.chords.length > 0) {
-                                const chordStr = line.chords.map((c: string) => `[${c}]`).join('');
-                                return `${chordStr}${line.line}`;
-                            }
-                            return line.line;
-                        }).join('\n');
-                    }
-                }
-            }
-
-            setFormData({
-                id: s.id,
-                title: s.title,
-                artist: s.artist,
-                difficulty: s.difficulty,
-                spotify_id: s.spotify_track_id || '',
-                youtube_id: s.youtube_video_id || '',
-                rawText: raw || ''
-            });
-        }
-    }, [state]);
-
     const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        setIsProcessingFile(true);
-        setImportStatus(null);
-
-        try {
-            let rawContent = "";
-
-            if (file.name.toLowerCase().endsWith('.pdf')) {
-                const arrayBuffer = await file.arrayBuffer();
-                rawContent = await extractTextFromPdf(arrayBuffer);
-            }
-            else if (file.name.toLowerCase().endsWith('.docx')) {
-                const arrayBuffer = await file.arrayBuffer();
-                const result = await mammoth.extractRawText({ arrayBuffer });
-                rawContent = result.value;
-            }
-            else {
-                rawContent = await file.text();
-            }
-
-            if (!rawContent || rawContent.length < 10) throw new Error("File is empty or too short.");
-
-            // CRITICAL: Convert Spatial/Text layout to ChordPro immediately.
-            const processedText = convertToChordPro(rawContent);
-
-            const lines = rawContent.split('\n').filter(l => l.trim().length > 0);
-            const detectedTitle = lines[0]?.replace(/\[.*?\]/g, '').trim() || "";
-            const artistLine = lines.slice(0, 5).find(l => l.toLowerCase().includes('by '));
-            const detectedArtist = artistLine ? artistLine.replace(/^by\s+/i, '').trim() : "";
-
+        const result = await processFile(file);
+        if (result) {
             setFormData(prev => ({
                 ...prev,
-                rawText: processedText,
-                title: !prev.title && detectedTitle.length < 50 ? detectedTitle : prev.title,
-                artist: !prev.artist && detectedArtist.length < 50 ? detectedArtist : prev.artist
+                rawText: result.rawText,
+                title: !prev.title && result.title ? result.title : prev.title,
+                artist: !prev.artist && result.artist ? result.artist : prev.artist
             }));
-
-            setImportStatus({ type: 'success', msg: `Processed "${file.name}" successfully. Layout preserved & converted to ChordPro.` });
-            success(`Processed "${file.name}" successfully.`);
-
-        } catch (error: any) {
-            console.error(error);
-            const msg = "Failed to process file. " + (error.message || "Unknown error");
-            setImportStatus({ type: 'error', msg });
-            toastError(msg);
-        } finally {
-            setIsProcessingFile(false);
-            e.target.value = ''; // Reset input
+            success(importStatus?.msg || "File processed successfully.");
+        } else {
+            toastError(importStatus?.msg || "File processing failed.");
         }
+        e.target.value = ''; // Reset input
     };
 
     const handleUrlScrape = async (e: React.MouseEvent) => {
         e.preventDefault();
+        // We need to get the URL from the input in ImportSection. 
+        // Since ImportSection controls its own input state or we pass it down, 
+        // we need to coordinate.
+        // Refactoring note: ImportSection props might need adjustment or we lift state up.
+        // For now, let's assume ImportSection passes the URL to this handler if we change the signature,
+        // OR we keep urlInput state here.
+    };
+    
+    // Re-implementing URL input state here to pass to ImportSection
+    const [urlInput, setUrlInput] = useState('');
+
+    const onScrapeClick = async (e: React.MouseEvent) => {
+        e.preventDefault();
         if (!urlInput) return;
-        setIsScraping(true);
-        setImportStatus(null);
-
-        try {
-            const { data, error } = await supabase.functions.invoke('scrape-song', {
-                body: { url: urlInput }
-            });
-
-            if (error) throw error;
-            if (data.error) throw new Error(data.error);
-
+        
+        const result = await scrapeUrl(urlInput);
+        if (result) {
             setFormData(prev => ({
                 ...prev,
-                title: data.title || prev.title,
-                artist: data.artist || prev.artist,
-                rawText: data.rawText || prev.rawText
+                title: result.title || prev.title,
+                artist: result.artist || prev.artist,
+                rawText: result.rawText || prev.rawText
             }));
-
-            const msg = `Successfully scraped "${data.title}" from ${new URL(urlInput).hostname}`;
-            setImportStatus({ type: 'success', msg });
-            success(msg);
+            success(`Successfully scraped "${result.title}"`);
             setUrlInput('');
-        } catch (err: any) {
-            const msg = "Scrape failed: " + (err.message || "Unknown error");
-            setImportStatus({ type: 'error', msg });
-            toastError(msg);
-        } finally {
-            setIsScraping(false);
+        } else {
+            toastError("Scrape failed.");
         }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setLoading(true);
-
-        const lines = formData.rawText.split('\n');
-        const payload = {
-            title: formData.title,
-            artist: formData.artist,
-            difficulty: formData.difficulty,
-            spotify_track_id: formData.spotify_id,
-            youtube_video_id: formData.youtube_id,
-            chords: lines,
-        };
-
-        let error;
-        if (formData.id) {
-            const { error: updateError } = await supabase.from('songs').update(payload).eq('id', formData.id);
-            error = updateError;
-        } else {
-            const { error: insertError } = await supabase.from('songs').insert([{ ...payload, view_count: 0 }]);
-            error = insertError;
-        }
-
-        setLoading(false);
-        if (error) {
-            toastError('Error: ' + error.message);
-        } else {
+        const successResult = await saveSong();
+        if (successResult) {
             success(formData.id ? 'Song updated!' : 'Song added successfully!');
-            if (!formData.id) setFormData({ id: '', title: '', artist: '', difficulty: 'Medium', spotify_id: '', youtube_id: '', rawText: '' });
+        } else {
+            toastError('Error: ' + saveError);
         }
     };
 
@@ -306,7 +201,7 @@ const ManualEntry: React.FC = () => {
                     importStatus={importStatus}
                     onFileSelect={handleFileSelect}
                     onUrlChange={setUrlInput}
-                    onUrlScrape={handleUrlScrape}
+                    onUrlScrape={onScrapeClick}
                 />
             </div>
 
@@ -319,7 +214,7 @@ const ManualEntry: React.FC = () => {
                         difficulty={formData.difficulty}
                         spotifyId={formData.spotify_id}
                         youtubeId={formData.youtube_id}
-                        onChange={(field, value) => setFormData(prev => ({ ...prev, [field]: value }))}
+                        onChange={(field, value) => updateField(field as any, value)}
                     />
                 </div>
 
