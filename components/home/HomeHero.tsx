@@ -1,11 +1,12 @@
 import React from 'react';
+import { PageContent } from '../../types';
 import { motion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import { Spotlight } from '../ui/Spotlight';
 import { LayoutTextFlip } from '../ui/layout-text-flip';
 
 interface HomeHeroProps {
-    pageContent: any;
+    pageContent: PageContent['content'] | null;
     heroSubtitle: string;
 }
 

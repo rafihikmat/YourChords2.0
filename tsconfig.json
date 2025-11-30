@@ -28,5 +28,5 @@
     "noEmit": true
   },
   "include": ["**/*"],
-  "exclude": ["supabase"]
+  "exclude": ["supabase", "**/__tests__/**"]
 }

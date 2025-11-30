@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabase';
-import { Song, Album } from '../../types';
+import { Song, Album, PageContent } from '../../types';
 import { seedDatabase } from '../seeder';
 import { useNavigate } from 'react-router-dom';
 
@@ -8,8 +8,7 @@ export const useHomeData = () => {
     const [songs, setSongs] = useState<Song[]>([]);
     const [albums, setAlbums] = useState<Album[]>([]);
     const [isLoadingSongs, setIsLoadingSongs] = useState(true);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const [pageContent, setPageContent] = useState<any>(null);
+    const [pageContent, setPageContent] = useState<PageContent['content'] | null>(null);
     const [fetchError, setFetchError] = useState<string | null>(null);
     const [isSeeding, setIsSeeding] = useState(false);
     const navigate = useNavigate();
