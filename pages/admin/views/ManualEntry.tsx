@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
-import { Save, Eye, Edit3 } from 'lucide-react';
+import { useLocation, Link } from 'react-router-dom';
+import { Save, Eye, Edit3, ArrowLeft } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { Song } from '../../../types';
 import { cn } from '../../../lib/utils';
@@ -14,11 +13,13 @@ import { ImportSection } from '../../../components/admin/ManualEntry/ImportSecti
 import { SongMetadataForm } from '../../../components/admin/ManualEntry/SongMetadataForm';
 import { EditorToolbar } from '../../../components/admin/ManualEntry/EditorToolbar';
 import { QuickInsertPanel } from '../../../components/admin/ManualEntry/QuickInsertPanel';
+import { useToast } from '../../../contexts/ToastContext';
 
 const ManualEntry: React.FC = () => {
     const location = useLocation();
     const state = location.state as { songToEdit?: Song } | null;
     const [mode, setMode] = useState<'edit' | 'preview'>('edit');
+    const { toast, success, error: toastError } = useToast();
 
     // Import State
     const [isProcessingFile, setIsProcessingFile] = useState(false);
@@ -116,11 +117,13 @@ const ManualEntry: React.FC = () => {
             }));
 
             setImportStatus({ type: 'success', msg: `Processed "${file.name}" successfully. Layout preserved & converted to ChordPro.` });
+            success(`Processed "${file.name}" successfully.`);
 
-        } catch (error: unknown) {
+        } catch (error: any) {
             console.error(error);
-            if (error instanceof Error) setImportStatus({ type: 'error', msg: "Failed to process file. " + error.message });
-            else setImportStatus({ type: 'error', msg: "Failed to process file. Unknown error." });
+            const msg = "Failed to process file. " + (error.message || "Unknown error");
+            setImportStatus({ type: 'error', msg });
+            toastError(msg);
         } finally {
             setIsProcessingFile(false);
             e.target.value = ''; // Reset input
@@ -148,11 +151,14 @@ const ManualEntry: React.FC = () => {
                 rawText: data.rawText || prev.rawText
             }));
 
-            setImportStatus({ type: 'success', msg: `Successfully scraped "${data.title}" from ${new URL(urlInput).hostname}` });
+            const msg = `Successfully scraped "${data.title}" from ${new URL(urlInput).hostname}`;
+            setImportStatus({ type: 'success', msg });
+            success(msg);
             setUrlInput('');
-        } catch (err: unknown) {
-            if (err instanceof Error) setImportStatus({ type: 'error', msg: "Scrape failed: " + err.message });
-            else setImportStatus({ type: 'error', msg: "Scrape failed. Unknown error." });
+        } catch (err: any) {
+            const msg = "Scrape failed: " + (err.message || "Unknown error");
+            setImportStatus({ type: 'error', msg });
+            toastError(msg);
         } finally {
             setIsScraping(false);
         }
@@ -182,9 +188,10 @@ const ManualEntry: React.FC = () => {
         }
 
         setLoading(false);
-        if (error) alert('Error: ' + error.message);
-        else {
-            alert(formData.id ? 'Song updated!' : 'Song added successfully!');
+        if (error) {
+            toastError('Error: ' + error.message);
+        } else {
+            success(formData.id ? 'Song updated!' : 'Song added successfully!');
             if (!formData.id) setFormData({ id: '', title: '', artist: '', difficulty: 'Medium', spotify_id: '', youtube_id: '', rawText: '' });
         }
     };
@@ -213,26 +220,20 @@ const ManualEntry: React.FC = () => {
         const converted = convertToChordPro(formData.rawText);
         setFormData({ ...formData, rawText: converted });
         setImportStatus({ type: 'success', msg: 'Text structure converted to ChordPro format.' });
+        success('Converted to ChordPro format');
     };
 
     const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-        // Detect if standard "Chords Over Lyrics" format is used
-        // Heuristic: if convertToChordPro produces a significantly different result (more brackets)
         const pastedText = e.clipboardData.getData('text');
         if (!pastedText) return;
 
-        // 1. Check if it looks like it needs conversion (no brackets but potential chords)
-        // If it already has brackets [C], assume it's already ChordPro or intentional.
         const hasBrackets = /\[[A-G][#b]?[^\]]*\]/.test(pastedText);
 
         if (!hasBrackets) {
-            // Run trial conversion
             const converted = convertToChordPro(pastedText);
-            // If conversion added brackets, use it
             if (converted !== pastedText && /\[[A-G][#b]?[^\]]*\]/.test(converted)) {
                 e.preventDefault();
 
-                // Insert the CONVERTED text at cursor position
                 if (textareaRef.current) {
                     const start = textareaRef.current.selectionStart;
                     const end = textareaRef.current.selectionEnd;
@@ -241,8 +242,8 @@ const ManualEntry: React.FC = () => {
 
                     setFormData({ ...formData, rawText: newText });
                     setImportStatus({ type: 'success', msg: 'Standard text detected & auto-converted to ChordPro.' });
+                    toast('info', 'Auto-converted pasted text to ChordPro', 2000);
 
-                    // Restore cursor position (approximate)
                     setTimeout(() => {
                         if (textareaRef.current) {
                             textareaRef.current.focus();
@@ -256,16 +257,27 @@ const ManualEntry: React.FC = () => {
     };
 
     return (
-        <div className="p-8 animate-in fade-in space-y-8">
+        <div className="p-8 animate-in fade-in duration-500 space-y-8">
             <div className="flex items-center justify-between">
-                <h1 className="text-3xl font-bold text-slate-900 dark:text-white">{formData.id ? 'Edit Song' : 'Manual Song Entry'}</h1>
-                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-white/10">
+                <div className="flex items-center gap-4">
+                    <Link to="/admin/songs" className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-500 transition-colors">
+                        <ArrowLeft className="w-5 h-5" />
+                    </Link>
+                    <div>
+                        <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{formData.id ? 'Edit Song' : 'Manual Song Entry'}</h1>
+                        <p className="text-slate-500 mt-1">Create or modify song data manually.</p>
+                    </div>
+                </div>
+                
+                <div className="flex bg-white/50 dark:bg-slate-900/50 p-1.5 rounded-xl border border-slate-200/60 dark:border-white/5 backdrop-blur-sm">
                     <button
                         type="button"
                         onClick={() => setMode('edit')}
                         className={cn(
-                            "px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2 transition-all",
-                            mode === 'edit' ? "bg-white dark:bg-slate-700 shadow text-primary dark:text-white" : "text-slate-500"
+                            "px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all duration-300",
+                            mode === 'edit' 
+                                ? "bg-white dark:bg-slate-800 shadow-sm text-primary dark:text-white scale-105" 
+                                : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-300"
                         )}
                     >
                         <Edit3 className="w-4 h-4" /> Editor
@@ -274,8 +286,10 @@ const ManualEntry: React.FC = () => {
                         type="button"
                         onClick={() => setMode('preview')}
                         className={cn(
-                            "px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2 transition-all",
-                            mode === 'preview' ? "bg-white dark:bg-slate-700 shadow text-primary dark:text-white" : "text-slate-500"
+                            "px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all duration-300",
+                            mode === 'preview' 
+                                ? "bg-white dark:bg-slate-800 shadow-sm text-primary dark:text-white scale-105" 
+                                : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-300"
                         )}
                     >
                         <Eye className="w-4 h-4" /> Preview
@@ -284,44 +298,53 @@ const ManualEntry: React.FC = () => {
             </div>
 
             {/* IMPORT SECTION */}
-            <ImportSection
-                isProcessingFile={isProcessingFile}
-                isScraping={isScraping}
-                urlInput={urlInput}
-                importStatus={importStatus}
-                onFileSelect={handleFileSelect}
-                onUrlChange={setUrlInput}
-                onUrlScrape={handleUrlScrape}
-            />
+            <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-slate-200/60 dark:border-white/5 rounded-2xl p-6 shadow-sm">
+                <ImportSection
+                    isProcessingFile={isProcessingFile}
+                    isScraping={isScraping}
+                    urlInput={urlInput}
+                    importStatus={importStatus}
+                    onFileSelect={handleFileSelect}
+                    onUrlChange={setUrlInput}
+                    onUrlScrape={handleUrlScrape}
+                />
+            </div>
 
             <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <SongMetadataForm
-                    title={formData.title}
-                    artist={formData.artist}
-                    difficulty={formData.difficulty}
-                    spotifyId={formData.spotify_id}
-                    youtubeId={formData.youtube_id}
-                    onChange={(field, value) => setFormData(prev => ({ ...prev, [field]: value }))}
-                />
+                <div className="lg:col-span-1 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-slate-200/60 dark:border-white/5 rounded-2xl p-6 shadow-sm h-fit">
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Metadata</h3>
+                    <SongMetadataForm
+                        title={formData.title}
+                        artist={formData.artist}
+                        difficulty={formData.difficulty}
+                        spotifyId={formData.spotify_id}
+                        youtubeId={formData.youtube_id}
+                        onChange={(field, value) => setFormData(prev => ({ ...prev, [field]: value }))}
+                    />
+                </div>
 
-                <div className="lg:col-span-3 space-y-4">
+                <div className="lg:col-span-2 space-y-4">
                     {mode === 'edit' ? (
-                        <>
+                        <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-slate-200/60 dark:border-white/5 rounded-2xl overflow-hidden shadow-sm flex flex-col min-h-[600px]">
                             {/* Toolbar */}
-                            <EditorToolbar
-                                onAutoConvert={handleAutoConvert}
-                                onRefresh={() => {
-                                    const converted = convertToChordPro(formData.rawText);
-                                    setFormData({ ...formData, rawText: converted });
-                                }}
-                            />
+                            <div className="border-b border-slate-200/60 dark:border-white/5 bg-slate-50/50 dark:bg-slate-950/50 p-2">
+                                <EditorToolbar
+                                    onAutoConvert={handleAutoConvert}
+                                    onRefresh={() => {
+                                        const converted = convertToChordPro(formData.rawText);
+                                        setFormData({ ...formData, rawText: converted });
+                                    }}
+                                />
+                            </div>
 
                             {/* Quick Insert Panel */}
-                            <QuickInsertPanel
-                                selectedQuality={selectedQuality}
-                                onQualitySelect={setSelectedQuality}
-                                onInsert={insertAtCursor}
-                            />
+                            <div className="border-b border-slate-200/60 dark:border-white/5 bg-slate-50/30 dark:bg-slate-950/30 p-2">
+                                <QuickInsertPanel
+                                    selectedQuality={selectedQuality}
+                                    onQualitySelect={setSelectedQuality}
+                                    onInsert={insertAtCursor}
+                                />
+                            </div>
 
                             <textarea
                                 ref={textareaRef}
@@ -329,20 +352,24 @@ const ManualEntry: React.FC = () => {
                                 value={formData.rawText}
                                 onChange={e => setFormData({ ...formData, rawText: e.target.value })}
                                 onPaste={handlePaste}
-                                className="w-full p-6 rounded-b-xl border border-t-0 bg-white dark:bg-slate-900 border-slate-200 dark:border-white/10 font-mono text-sm text-slate-900 dark:text-white min-h-[500px] focus:ring-0 outline-none leading-relaxed"
+                                className="flex-1 w-full p-6 bg-transparent font-mono text-sm text-slate-900 dark:text-white focus:ring-0 outline-none leading-relaxed resize-none"
                                 placeholder="Type lyrics here. Use [Bracket] notation for chords. e.g. [C]Hello [G]World"
                             />
-                        </>
+                        </div>
                     ) : (
                         /* Live Preview Mode */
-                        <div className="relative bg-white/80 dark:bg-[#0A0F1C]/90 backdrop-blur-xl rounded-2xl border border-slate-200 dark:border-white/10 p-10 shadow-xl min-h-[500px]">
+                        <div className="relative bg-white/80 dark:bg-[#0A0F1C]/90 backdrop-blur-xl rounded-2xl border border-slate-200 dark:border-white/10 p-10 shadow-xl min-h-[600px]">
                             <SongLyricsDisplay html={html} />
                         </div>
                     )}
                 </div>
 
-                <div className="lg:col-span-3 flex justify-end">
-                    <button type="submit" disabled={loading} className="bg-primary hover:bg-primary/90 text-white px-8 py-3 rounded-lg font-bold shadow-lg transition-all flex items-center gap-2 disabled:opacity-50">
+                <div className="lg:col-span-3 flex justify-end pt-4 border-t border-slate-200/60 dark:border-white/5">
+                    <button 
+                        type="submit" 
+                        disabled={loading} 
+                        className="bg-gradient-to-r from-primary to-purple-600 hover:shadow-lg hover:shadow-primary/25 text-white px-8 py-3 rounded-xl font-bold transition-all duration-300 flex items-center gap-2 disabled:opacity-50 hover:scale-105 active:scale-95"
+                    >
                         <Save className="w-5 h-5" />
                         {loading ? 'Saving...' : 'Save Song'}
                     </button>

@@ -144,3 +144,15 @@ export interface SearchResult {
   /** External URL for the result (if applicable). */
   url?: string;
 }
+
+/**
+ * Represents dynamic page content stored in the database.
+ */
+export interface PageContent {
+  /** The page identifier (e.g., 'home', 'about', 'footer'). */
+  id: string;
+  /** The JSON content for the page. */
+  content: Record<string, any>;
+  /** Timestamp of the last update. */
+  updated_at?: string;
+}

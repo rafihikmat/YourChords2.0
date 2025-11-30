@@ -5,31 +5,13 @@ import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { calculateStrength } from '../lib/utils';
-import { AceternityAuthForm } from '../components/AceternityAuthForm';
+import { AuthForm } from '../components/AuthForm';
+import { Spotlight } from '../components/ui/Spotlight';
 
 /**
  * Auth view modes.
  */
 type AuthView = 'login' | 'register' | 'forgot_password';
-
-// --- Components ---
-
-const GridBackground = () => {
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {/* Dark Mode Grid */}
-      <div className="absolute inset-0 bg-slate-950 [mask-image:linear-gradient(to_bottom,transparent,black)] dark:block hidden" />
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:14px_24px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] dark:block hidden" />
-      
-      {/* Light Mode Grid */}
-      <div className="absolute inset-0 bg-slate-50 [mask-image:linear-gradient(to_bottom,transparent,black)] dark:hidden block" />
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#e5e7eb_1px,transparent_1px),linear-gradient(to_bottom,#e5e7eb_1px,transparent_1px)] bg-[size:14px_24px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] dark:hidden block" />
-      
-      {/* Ambient Light */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[400px] bg-primary/20 blur-[120px] rounded-full opacity-50 dark:opacity-20" />
-    </div>
-  );
-};
 
 // --- Main Page ---
 
@@ -128,8 +110,9 @@ const Auth: React.FC = () => {
   const passwordStrength = calculateStrength(password);
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden transition-colors duration-300 bg-gray-50 dark:bg-neutral-950">
-      <GridBackground />
+    <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden transition-colors duration-500">
+      {/* Background Effects */}
+      <Spotlight className="-top-40 left-0 md:left-60 md:-top-20 hidden dark:block" fill="white" />
       
       <Link 
         to="/" 
@@ -139,12 +122,12 @@ const Auth: React.FC = () => {
       </Link>
 
       <motion.div 
-        initial={{ opacity: 0, y: 20 }} 
-        animate={{ opacity: 1, y: 0 }} 
-        transition={{ duration: 0.4, ease: "easeOut" }}
+        initial={{ opacity: 0, scale: 0.95 }} 
+        animate={{ opacity: 1, scale: 1 }} 
+        transition={{ duration: 0.5, ease: "easeOut" }}
         className="relative z-10 w-full max-w-md p-4"
       >
-        <AceternityAuthForm 
+        <AuthForm 
             view={view}
             setView={setView}
             handleSubmit={handleAuth}

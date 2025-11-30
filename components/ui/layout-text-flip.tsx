@@ -31,8 +31,7 @@ export const LayoutTextFlip = ({
         </span>
       )}
       <div className="relative inline-flex overflow-hidden items-center justify-start py-2">
-        {/* Ghost element to reserve width based on the longest word */}
-        <span className="opacity-0 text-4xl md:text-7xl font-bold tracking-tight px-4">
+        <span className="opacity-0 text-4xl md:text-7xl font-bold tracking-tight px-8">
           {words.reduce((a, b) => (a.length > b.length ? a : b))}
         </span>
         
@@ -43,7 +42,7 @@ export const LayoutTextFlip = ({
             animate={{ y: "0%", opacity: 1 }}
             exit={{ y: "-100%", opacity: 0 }}
             transition={{ duration: 0.5, ease: "easeInOut" }}
-            className="absolute inset-0 flex items-center justify-center text-4xl md:text-7xl font-bold text-primary whitespace-nowrap tracking-tight"
+            className="absolute inset-0 flex items-center justify-center text-4xl md:text-7xl font-bold text-cyan-500 dark:text-cyan-400 whitespace-nowrap tracking-tight"
           >
             {words[index]}
           </motion.span>

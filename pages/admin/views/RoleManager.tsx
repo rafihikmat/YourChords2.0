@@ -1,22 +1,28 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../contexts/AuthContext';
 import { Profile } from '../../../types';
 import { cn } from '../../../lib/utils';
-import { Search, Shield, UserCog } from 'lucide-react';
-
-import { useCallback } from 'react';
-
+import { Search, Shield, UserCog, Trash2, User, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '../../../contexts/ToastContext';
+import { SearchFilterBar } from '../../../components/admin/SearchFilterBar';
+
+const ITEMS_PER_PAGE = 20;
 
 const RoleManager: React.FC = () => {
     const [users, setUsers] = useState<Profile[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [roleFilter, setRoleFilter] = useState('all');
+    
+    // Pagination
+    const [page, setPage] = useState(1);
+    const [totalCount, setTotalCount] = useState(0);
+
     const { user: currentUser, isSuperAdmin } = useAuth();
     const navigate = useNavigate();
+    const { toast, success, error: toastError } = useToast();
 
     useEffect(() => {
         if (!isSuperAdmin) {
@@ -26,33 +32,61 @@ const RoleManager: React.FC = () => {
 
     const fetchUsers = useCallback(async () => {
         setLoading(true);
-        const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
-        if (error) alert('Error fetching users: ' + error.message);
-        else setUsers(data as Profile[]);
-        setLoading(false);
-    }, []);
+        try {
+            let query = supabase
+                .from('profiles')
+                .select('*', { count: 'exact' });
+
+            // Filters
+            if (searchQuery) {
+                // Note: searching by ID or full_name
+                query = query.or(`full_name.ilike.%${searchQuery}%,id.eq.${searchQuery}`);
+            }
+            if (roleFilter !== 'all') {
+                query = query.eq('role', roleFilter);
+            }
+
+            // Pagination
+            const from = (page - 1) * ITEMS_PER_PAGE;
+            const to = from + ITEMS_PER_PAGE - 1;
+
+            const { data, error, count } = await query
+                .order('created_at', { ascending: false })
+                .range(from, to);
+
+            if (error) throw error;
+
+            setUsers(data as Profile[]);
+            setTotalCount(count || 0);
+        } catch (err: any) {
+            toastError('Error fetching users: ' + err.message);
+        } finally {
+            setLoading(false);
+        }
+    }, [page, searchQuery, roleFilter, toastError]);
 
     useEffect(() => {
         fetchUsers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [fetchUsers]);
+
+    // Reset page on filter change
+    useEffect(() => {
+        setPage(1);
+    }, [searchQuery, roleFilter]);
 
     const handleRoleChange = async (targetId: string, newRole: string) => {
-        // SECURITY: Only Super Admin can change roles
         if (!isSuperAdmin) {
-            alert("Security Protocol: Only Super Admins can modify clearance levels.");
+            toastError("Security Protocol: Only Super Admins can modify clearance levels.");
             return;
         }
 
-        // SECURITY: Prevent Self-Demotion
         if (targetId === currentUser?.id) {
-            alert("Security Protocol: You cannot modify your own clearance level to prevent lockout.");
+            toastError("Security Protocol: You cannot modify your own clearance level.");
             return;
         }
 
-        // Validate Role (ensure strictly typed)
         if (!['user', 'admin', 'super_admin'].includes(newRole)) {
-            alert("Invalid Role Assignment.");
+            toastError("Invalid Role Assignment.");
             return;
         }
         
@@ -70,11 +104,11 @@ const RoleManager: React.FC = () => {
             if (error) throw error;
 
             // Optimistic update
-            setUsers(users.map(u => u.id === targetId ? { ...u, role: newRole as Profile['role'] } : u));
-            alert(`User role updated to ${newRole.toUpperCase()}.`);
+            setUsers(prev => prev.map(u => u.id === targetId ? { ...u, role: newRole as Profile['role'] } : u));
+            success(`User role updated to ${newRole.toUpperCase()}.`);
 
         } catch (err: any) {
-            alert("Role Update Failed: " + (err.message || "Unknown error"));
+            toastError("Role Update Failed: " + (err.message || "Unknown error"));
         }
     };
 
@@ -82,11 +116,11 @@ const RoleManager: React.FC = () => {
         if (!isSuperAdmin) return;
         
         if (targetId === currentUser?.id) {
-            alert("Security Protocol: Self-termination is not permitted.");
+            toastError("Security Protocol: Self-termination is not permitted.");
             return;
         }
 
-        if (!confirm(`WARNING: Are you sure you want to PERMANENTLY DELETE user "${targetName}"?\n\nThis action cannot be undone and will remove all their data.`)) return;
+        if (!confirm(`WARNING: Are you sure you want to PERMANENTLY DELETE user "${targetName}"?`)) return;
 
         try {
             const { error } = await supabase.functions.invoke('admin-actions', {
@@ -98,128 +132,167 @@ const RoleManager: React.FC = () => {
 
             if (error) throw error;
 
-            // Optimistic update
-            setUsers(users.filter(u => u.id !== targetId));
-            alert(`User "${targetName}" has been terminated.`);
+            setUsers(prev => prev.filter(u => u.id !== targetId));
+            success(`User "${targetName}" has been terminated.`);
         } catch (err: any) {
-            alert("Deletion Failed: " + (err.message || "Unknown error"));
+            toastError("Deletion Failed: " + (err.message || "Unknown error"));
         }
     };
 
-    // Simple filter
-    const searchResults = users.filter(u => 
-        (u.full_name?.toLowerCase() || '').includes(searchQuery.toLowerCase()) || 
-        u.id.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-
-    const filteredUsers = searchResults.filter(u => 
-        roleFilter === 'all' ? true : u.role === roleFilter
-    );
+    const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
     return (
-        <div className="p-8 animate-in fade-in">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div className="p-8 animate-in fade-in duration-500">
+            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-8 gap-6">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Access Control</h1>
-                    <p className="text-slate-500">Manage user permissions and administrative privileges.</p>
+                    <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Access Control</h1>
+                    <p className="text-slate-500 mt-1">Manage user permissions and administrative privileges.</p>
                 </div>
                 
-                <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-                    <div className="relative">
-                        <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                        <input 
-                            type="text" 
-                            placeholder="Search users..." 
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full sm:w-64 pl-10 pr-4 py-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 focus:ring-2 focus:ring-primary/50 outline-none text-sm text-slate-900 dark:text-white"
-                        />
-                    </div>
-                    <select 
-                        value={roleFilter}
-                        onChange={(e) => setRoleFilter(e.target.value)}
-                        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-slate-300 outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer"
-                    >
-                        <option value="all">All Roles</option>
-                        <option value="super_admin">Super Admin</option>
-                        <option value="admin">Admin</option>
-                        <option value="user">User</option>
-                    </select>
-                </div>
+                <SearchFilterBar 
+                    searchTerm={searchQuery}
+                    onSearchChange={setSearchQuery}
+                    placeholder="Search users..."
+                    filters={[
+                        {
+                            value: roleFilter,
+                            onChange: setRoleFilter,
+                            options: [
+                                { label: 'All Roles', value: 'all' },
+                                { label: 'Super Admin', value: 'super_admin' },
+                                { label: 'Admin', value: 'admin' },
+                                { label: 'User', value: 'user' },
+                            ]
+                        }
+                    ]}
+                />
             </div>
 
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl overflow-hidden shadow-sm">
-                <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-50 dark:bg-white/5 text-slate-500 dark:text-slate-400 font-bold uppercase text-xs border-b border-slate-200 dark:border-white/5">
-                        <tr>
-                            <th className="p-4">User Identity</th>
-                            <th className="p-4">Clearance Level</th>
-                            <th className="p-4">System ID</th>
-                            <th className="p-4 text-right">Override</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200 dark:divide-white/5">
-                        {loading ? (
-                            <tr><td colSpan={4} className="p-8 text-center text-slate-500">Loading access data...</td></tr>
-                        ) : filteredUsers.length === 0 ? (
-                            <tr><td colSpan={4} className="p-8 text-center text-slate-500">No users match your query.</td></tr>
-                        ) : (
-                            filteredUsers.map(u => (
-                                <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
-                                    <td className="p-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 overflow-hidden shadow-inner">
-                                                {u.avatar_url ? <img src={u.avatar_url} alt={u.full_name || 'User'} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-xs font-bold">{u.full_name?.charAt(0) || 'U'}</div>}
-                                            </div>
-                                            <div>
-                                                <div className="font-medium text-slate-900 dark:text-white">{u.full_name || 'Unknown User'}</div>
-                                                <div className="text-[10px] text-slate-400 uppercase tracking-wider">Active</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="p-4">
-                                        <div className={cn(
-                                            "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border uppercase tracking-wide",
-                                            u.role === 'super_admin' ? "border-purple-500/20 text-purple-600 dark:text-purple-400 bg-purple-500/10 shadow-[0_0_10px_rgba(168,85,247,0.2)]" :
-                                            u.role === 'admin' ? "border-blue-500/20 text-blue-600 dark:text-blue-400 bg-blue-500/10" :
-                                            "border-slate-500/20 text-slate-600 dark:text-slate-400 bg-slate-500/10"
-                                        )}>
-                                            {u.role === 'super_admin' ? <Shield className="w-3 h-3" /> : u.role === 'admin' ? <UserCog className="w-3 h-3" /> : null}
-                                            {u.role.replace('_', ' ')}
-                                        </div>
-                                    </td>
-                                    <td className="p-4 text-xs text-slate-500 font-mono">
-                                        {u.id}
-                                    </td>
-                                    <td className="p-4 text-right">
-                                        <div className="flex items-center justify-end gap-2">
-                                            <select 
-                                                value={u.role}
-                                                onChange={(e) => handleRoleChange(u.id, e.target.value)}
-                                                disabled={u.id === currentUser?.id || !isSuperAdmin}
-                                                className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-xs rounded-lg py-1.5 px-2 focus:ring-2 focus:ring-primary/50 outline-none text-slate-900 dark:text-white cursor-pointer hover:bg-white dark:hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                            >
-                                                <option value="user">User</option>
-                                                <option value="admin">Admin</option>
-                                                <option value="super_admin">Super Admin</option>
-                                            </select>
-                                            
-                                            {isSuperAdmin && u.id !== currentUser?.id && (
-                                                <button
-                                                    onClick={() => handleDeleteUser(u.id, u.full_name || 'User')}
-                                                    className="p-1.5 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
-                                                    title="Delete User"
-                                                >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                                                </button>
-                                            )}
+            <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-slate-200/60 dark:border-white/5 rounded-2xl overflow-hidden shadow-xl shadow-slate-200/20 dark:shadow-black/20 flex flex-col min-h-[600px]">
+                <div className="overflow-x-auto flex-1">
+                    <table className="w-full text-left text-sm">
+                        <thead className="bg-slate-50/80 dark:bg-slate-950/50 text-slate-500 dark:text-slate-400 font-bold uppercase text-xs border-b border-slate-200/60 dark:border-white/5">
+                            <tr>
+                                <th className="p-5 pl-6">User Identity</th>
+                                <th className="p-5">Clearance Level</th>
+                                <th className="p-5">System ID</th>
+                                <th className="p-5 text-right pr-6">Override</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200/60 dark:divide-white/5">
+                            {loading ? (
+                                <tr>
+                                    <td colSpan={4} className="p-12 text-center text-slate-500">
+                                        <div className="flex flex-col items-center gap-2">
+                                            <RefreshCw className="w-8 h-8 animate-spin opacity-50" />
+                                            <span>Loading access data...</span>
                                         </div>
                                     </td>
                                 </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
+                            ) : users.length === 0 ? (
+                                <tr>
+                                    <td colSpan={4} className="p-12 text-center text-slate-500">
+                                        <div className="flex flex-col items-center gap-2">
+                                            <User className="w-8 h-8 opacity-20" />
+                                            <span>No users match your query.</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ) : (
+                                users.map(u => (
+                                    <tr key={u.id} className="hover:bg-slate-50/80 dark:hover:bg-white/5 transition-colors group">
+                                        <td className="p-5 pl-6">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 overflow-hidden shadow-inner ring-2 ring-white dark:ring-slate-800">
+                                                    {u.avatar_url ? (
+                                                        <img src={u.avatar_url} alt={u.full_name || 'User'} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center text-xs font-bold text-slate-500 dark:text-slate-400">
+                                                            {u.full_name?.charAt(0) || 'U'}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <div className="font-bold text-slate-900 dark:text-white">{u.full_name || 'Unknown User'}</div>
+                                                    <div className="text-[10px] text-green-500 font-bold uppercase tracking-wider flex items-center gap-1">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                                                        Active
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="p-5">
+                                            <div className={cn(
+                                                "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wide shadow-sm",
+                                                u.role === 'super_admin' ? "border-purple-500/20 text-purple-600 dark:text-purple-400 bg-purple-500/10 shadow-purple-500/10" :
+                                                u.role === 'admin' ? "border-blue-500/20 text-blue-600 dark:text-blue-400 bg-blue-500/10 shadow-blue-500/10" :
+                                                "border-slate-500/20 text-slate-600 dark:text-slate-400 bg-slate-500/10"
+                                            )}>
+                                                {u.role === 'super_admin' ? <Shield className="w-3 h-3" /> : u.role === 'admin' ? <UserCog className="w-3 h-3" /> : <User className="w-3 h-3" />}
+                                                {u.role.replace('_', ' ')}
+                                            </div>
+                                        </td>
+                                        <td className="p-5 text-xs text-slate-500 font-mono">
+                                            <span className="bg-slate-100 dark:bg-white/5 px-2 py-1 rounded border border-slate-200 dark:border-white/5">
+                                                {u.id}
+                                            </span>
+                                        </td>
+                                        <td className="p-5 pr-6 text-right">
+                                            <div className="flex items-center justify-end gap-3 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                                <select 
+                                                    value={u.role}
+                                                    onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                                                    disabled={u.id === currentUser?.id || !isSuperAdmin}
+                                                    className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-xs rounded-lg py-1.5 px-2 focus:ring-2 focus:ring-primary/50 outline-none text-slate-900 dark:text-white cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                                                >
+                                                    <option value="user">User</option>
+                                                    <option value="admin">Admin</option>
+                                                    <option value="super_admin">Super Admin</option>
+                                                </select>
+                                                
+                                                {isSuperAdmin && u.id !== currentUser?.id && (
+                                                    <button
+                                                        onClick={() => handleDeleteUser(u.id, u.full_name || 'User')}
+                                                        className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors border border-transparent hover:border-red-500/20"
+                                                        title="Delete User"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+
+                {/* Pagination Controls */}
+                <div className="p-4 border-t border-slate-200/60 dark:border-white/5 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/30">
+                    <div className="text-xs text-slate-500">
+                        Showing <span className="font-bold">{users.length > 0 ? (page - 1) * ITEMS_PER_PAGE + 1 : 0}</span> to <span className="font-bold">{Math.min(page * ITEMS_PER_PAGE, totalCount)}</span> of <span className="font-bold">{totalCount}</span> results
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button 
+                            onClick={() => setPage(p => Math.max(1, p - 1))}
+                            disabled={page === 1 || loading}
+                            className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            <ChevronLeft className="w-4 h-4" />
+                        </button>
+                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300 px-2">
+                            Page {page} of {Math.max(1, totalPages)}
+                        </span>
+                        <button 
+                            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                            disabled={page === totalPages || loading}
+                            className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            <ChevronRight className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     );

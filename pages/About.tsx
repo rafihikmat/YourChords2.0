@@ -9,8 +9,22 @@ import TabsFAQ from '../components/ui/TabsFAQ';
 import { CometCard } from '../components/ui/comet-card';
 import {
   Music2, Heart, Users, Sparkles, Target, Shield,
-  Zap, Smartphone, Layers, Mic2, ArrowLeft
+  Zap, Smartphone, Layers, Mic2, ArrowLeft, LucideIcon
 } from 'lucide-react';
+
+// Icon Mapping
+const ICON_MAP: Record<string, LucideIcon> = {
+    'Heart': Heart,
+    'Users': Users,
+    'Sparkles': Sparkles,
+    'Music2': Music2,
+    'Mic2': Mic2,
+    'Layers': Layers,
+    'Zap': Zap,
+    'Smartphone': Smartphone,
+    'Shield': Shield,
+    'Target': Target
+};
 
 /**
  * The About page component.
@@ -55,76 +69,43 @@ const About: React.FC = () => {
   const missionText = data.mission_text || "To democratize music theory and accessibility. We believe every song should be playable, every chord understood, and every musician empowered with the best tools available.";
   const foundedText = data.founded_text || "Founded in 2024 by RJ. Powered by RJ.";
 
-  // Combined Data for Bento Grid
-  // Removed hardcoded colors to allow CSS variables (Light/Dark mode) to take effect
-  const bentoItems: BentoCardProps[] = [
-    {
-      id: 'passion',
-      title: 'Passion',
-      description: 'Built by musicians, for musicians.',
-      label: 'Crafted',
-      icon: <Heart className="w-5 h-5" />
-    },
-    {
-      id: 'community',
-      title: 'Community',
-      description: 'Join thousands sharing knowledge.',
-      label: 'Active',
-      colSpan: 2,
-      icon: <Users className="w-5 h-5" />
-    },
-    {
-      id: 'ai',
-      title: 'AI Powered',
-      description: 'Leveraging Gemini 2.5 Flash.',
-      label: 'Smart',
-      icon: <Sparkles className="w-5 h-5" />
-    },
-    {
-      id: 'db',
-      title: 'Database',
-      description: 'Thousands of verified songs.',
-      label: 'Vast',
-      icon: <Music2 className="w-5 h-5" />
-    },
-    {
-      id: 'sync',
-      title: 'Sync',
-      description: 'Jam with Spotify & YouTube.',
-      label: 'Live',
-      icon: <Mic2 className="w-5 h-5" />
-    },
-    {
-      id: 'variations',
-      title: 'Variations',
-      description: 'Beginner to Pro levels.',
-      label: 'Adaptive',
-      icon: <Layers className="w-5 h-5" />
-    },
-    {
-      id: 'transpose',
-      title: 'Transposer',
-      description: 'Instant key changes.',
-      label: 'Tool',
-      icon: <Zap className="w-5 h-5" />
-    },
-    {
-      id: 'mobile',
-      title: 'Mobile',
-      description: 'Seamless on any device.',
-      label: 'Responsive',
-      colSpan: 2,
-      icon: <Smartphone className="w-5 h-5" />
-    },
-    {
-      id: 'secure',
-      title: 'Secure',
-      description: 'Enterprise-grade protection.',
-      label: 'Safe',
-      colSpan: 2,
-      icon: <Shield className="w-5 h-5" />
-    }
+  // Dynamic Bento Grid
+  const defaultBentoItems = [
+    { id: 'passion', title: 'Passion', description: 'Built by musicians, for musicians.', label: 'Crafted', icon: 'Heart' },
+    { id: 'community', title: 'Community', description: 'Join thousands sharing knowledge.', label: 'Active', colSpan: 2, icon: 'Users' },
+    { id: 'ai', title: 'AI Powered', description: 'Leveraging Gemini 2.5 Flash.', label: 'Smart', icon: 'Sparkles' },
+    { id: 'db', title: 'Database', description: 'Thousands of verified songs.', label: 'Vast', icon: 'Music2' },
+    { id: 'sync', title: 'Sync', description: 'Jam with Spotify & YouTube.', label: 'Live', icon: 'Mic2' },
+    { id: 'variations', title: 'Variations', description: 'Beginner to Pro levels.', label: 'Adaptive', icon: 'Layers' },
+    { id: 'transpose', title: 'Transposer', description: 'Instant key changes.', label: 'Tool', icon: 'Zap' },
+    { id: 'mobile', title: 'Mobile', description: 'Seamless on any device.', label: 'Responsive', colSpan: 2, icon: 'Smartphone' },
+    { id: 'secure', title: 'Secure', description: 'Enterprise-grade protection.', label: 'Safe', colSpan: 2, icon: 'Shield' }
   ];
+
+  const bentoSource = data.bento_items || defaultBentoItems;
+  
+  const bentoItems: BentoCardProps[] = bentoSource.map((item: any) => {
+      const IconComponent = ICON_MAP[item.icon] || Music2;
+      return {
+          ...item,
+          icon: <IconComponent className="w-5 h-5" />
+      };
+  });
+
+  // Dynamic Commitments
+  const commitmentsTitle = data.commitments_title || "Our Commitment";
+  const commitments = data.commitments || [
+      { title: "Content Quality", text: "We are dedicated to providing high-fidelity transcriptions. Every AI generation is scored for confidence, and our community tools allow for rapid corrections." },
+      { title: "Privacy First", text: "Your musical journey is personal. We employ enterprise-grade encryption and never sell your practice data to third parties." },
+      { title: "Continuous Innovation", text: "The platform evolves weekly. From new AI models to better UI interactions, we ship updates based on direct user feedback." },
+      { title: "Artist Support", text: "We believe in the ecosystem. We encourage users to stream original tracks via our Spotify and YouTube integrations to support the artists." }
+  ];
+
+  // Dynamic CTA
+  const ctaTitle = data.cta_title || "Join the Neural Network";
+  const ctaText = data.cta_text || "YourChords is more than a tool; it's a living library growing every day. Create an account to save your favorites, contribute corrections, and access advanced AI features.";
+  const ctaBtnPrimary = data.cta_btn_primary || "Get Started Free";
+  const ctaBtnSecondary = data.cta_btn_secondary || "Contact Support";
 
   return (
     <div className="min-h-screen pt-24 pb-12 relative overflow-hidden font-sans text-slate-900 dark:text-white transition-colors duration-300">
@@ -161,25 +142,16 @@ const About: React.FC = () => {
         <div className="mb-24">
           <h2 className="text-3xl font-bold mb-8 flex items-center gap-3">
             <Shield className="w-8 h-8 text-primary" />
-            Our Commitment
+            {commitmentsTitle}
           </h2>
           <div className="grid md:grid-cols-2 gap-8">
-            <div className="space-y-6 text-slate-600 dark:text-slate-400 leading-relaxed">
-              <p>
-                <strong className="text-slate-900 dark:text-white">Content Quality:</strong> We are dedicated to providing high-fidelity transcriptions. Every AI generation is scored for confidence, and our community tools allow for rapid corrections.
-              </p>
-              <p>
-                <strong className="text-slate-900 dark:text-white">Privacy First:</strong> Your musical journey is personal. We employ enterprise-grade encryption and never sell your practice data to third parties.
-              </p>
-            </div>
-            <div className="space-y-6 text-slate-600 dark:text-slate-400 leading-relaxed">
-              <p>
-                <strong className="text-slate-900 dark:text-white">Continuous Innovation:</strong> The platform evolves weekly. From new AI models to better UI interactions, we ship updates based on direct user feedback.
-              </p>
-              <p>
-                <strong className="text-slate-900 dark:text-white">Artist Support:</strong> We believe in the ecosystem. We encourage users to stream original tracks via our Spotify and YouTube integrations to support the artists.
-              </p>
-            </div>
+            {commitments.map((item: any, idx: number) => (
+                <div key={idx} className="space-y-6 text-slate-600 dark:text-slate-400 leading-relaxed">
+                    <p>
+                        <strong className="text-slate-900 dark:text-white">{item.title}:</strong> {item.text}
+                    </p>
+                </div>
+            ))}
           </div>
         </div>
 
@@ -207,22 +179,21 @@ const About: React.FC = () => {
                 </div>
 
                 <h1 className="relative z-50 mb-6 text-4xl font-bold text-white tracking-tight">
-                  Join the Neural Network
+                  {ctaTitle}
                 </h1>
 
                 <p className="relative z-50 mb-8 text-lg font-normal text-slate-400 max-w-xl leading-relaxed">
-                  YourChords is more than a tool; it's a living library growing every day.
-                  Create an account to save your favorites, contribute corrections, and access advanced AI features.
+                  {ctaText}
                 </p>
 
                 <div className="flex flex-wrap gap-4 relative z-50">
                   <Link to="/auth">
                     <button className="rounded-xl border border-gray-600 bg-gray-800/50 px-8 py-3 text-white hover:bg-gray-700 hover:border-gray-500 transition-all duration-300 shadow-lg font-medium">
-                      Get Started Free
+                      {ctaBtnPrimary}
                     </button>
                   </Link>
                   <button className="rounded-xl border border-transparent px-8 py-3 text-gray-400 hover:text-white transition-colors font-medium">
-                    Contact Support
+                    {ctaBtnSecondary}
                   </button>
                 </div>
               </div>

@@ -18,6 +18,7 @@ import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
 import Contact from './pages/Contact';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ToastProvider } from './contexts/ToastContext';
 import { DatabaseSetupScreen } from './components/setup/DatabaseSetupScreen';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import GlobalBackground from './components/GlobalBackground';
@@ -93,9 +94,11 @@ const App: React.FC = () => {
   return (
     <Router>
       <AuthProvider>
-        <div className="min-h-screen text-slate-900 dark:text-white font-sans selection:bg-primary/30 overflow-x-hidden transition-colors duration-300">
-          <AppContent />
-        </div>
+        <ToastProvider>
+          <div className="min-h-screen text-slate-900 dark:text-white font-sans selection:bg-primary/30 overflow-x-hidden transition-colors duration-300">
+            <AppContent />
+          </div>
+        </ToastProvider>
       </AuthProvider>
     </Router>
   );

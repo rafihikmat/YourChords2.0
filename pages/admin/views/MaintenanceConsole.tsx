@@ -1,13 +1,15 @@
-
 import React, { useState } from 'react';
-import { HardDrive, Layers, Database } from 'lucide-react';
+import { HardDrive, Layers, Database, Terminal, Play, RefreshCw } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { Song } from '../../../types';
 import { seedDatabase } from '../../../lib/seeder';
+import { cn } from '../../../lib/utils';
+import { useToast } from '../../../contexts/ToastContext';
 
 const MaintenanceConsole: React.FC = () => {
     const [status, setStatus] = useState<string>('');
     const [loading, setLoading] = useState(false);
+    const { success, error: toastError } = useToast();
 
     const handleOrphanCleanup = async () => {
         if (!confirm("This will delete files from storage that are not linked to any song in the database. Continue?")) return;
@@ -29,16 +31,22 @@ const MaintenanceConsole: React.FC = () => {
                     setStatus(`Found ${orphans.length} orphaned files. Deleting...`);
                     const pathsToRemove = orphans.map(o => o.name);
                     await supabase.storage.from('song-files').remove(pathsToRemove);
-                    setStatus(`Successfully deleted ${orphans.length} orphaned files.`);
+                    const msg = `Successfully deleted ${orphans.length} orphaned files.`;
+                    setStatus(msg);
+                    success(msg);
                 } else {
-                    setStatus('System Clean. No orphaned files found.');
+                    const msg = 'System Clean. No orphaned files found.';
+                    setStatus(msg);
+                    success(msg);
                 }
             }
         } catch (e: unknown) {
             if (e instanceof Error) {
                 setStatus('Error: ' + e.message);
+                toastError(e.message);
             } else {
                 setStatus('An unknown error occurred.');
+                toastError('Unknown error');
             }
         }
         setLoading(false);
@@ -98,13 +106,17 @@ const MaintenanceConsole: React.FC = () => {
                      }
                  }
              }
-             setStatus(`Maintenance Complete: Created ${albumsCreated} new albums from existing artist clusters.`);
+             const msg = `Maintenance Complete: Created ${albumsCreated} new albums from existing artist clusters.`;
+             setStatus(msg);
+             success(msg);
 
         } catch (e: unknown) {
              if (e instanceof Error) {
                 setStatus('Error: ' + e.message);
+                toastError(e.message);
             } else {
                 setStatus('An unknown error occurred.');
+                toastError('Unknown error');
             }
         }
         setLoading(false);
@@ -116,85 +128,117 @@ const MaintenanceConsole: React.FC = () => {
         setStatus('Seeding database with demo content...');
         try {
             const res = await seedDatabase();
-            setStatus(`Seed Complete: ${res.success} songs added, ${res.failed} skipped/failed.`);
+            const msg = `Seed Complete: ${res.success} songs added, ${res.failed} skipped/failed.`;
+            setStatus(msg);
+            success(msg);
         } catch(e: unknown) {
             if (e instanceof Error) {
                 setStatus('Error seeding: ' + e.message);
+                toastError(e.message);
             } else {
                 setStatus('An unknown error occurred.');
+                toastError('Unknown error');
             }
         }
         setLoading(false);
     };
 
     return (
-        <div className="p-8 animate-in fade-in">
+        <div className="p-8 animate-in fade-in duration-500">
             <div className="mb-8">
-                <h1 className="text-3xl font-bold text-slate-900 dark:text-white">System Maintenance</h1>
-                <p className="text-slate-500">Database optimization and storage cleanup tools.</p>
+                <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">System Maintenance</h1>
+                <p className="text-slate-500 mt-1">Database optimization and storage cleanup tools.</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 {/* Storage Cleaner */}
-                <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-white/10 shadow-sm">
+                <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl p-6 rounded-2xl border border-slate-200/60 dark:border-white/5 shadow-xl shadow-slate-200/20 dark:shadow-black/20 hover:scale-[1.02] transition-transform duration-300">
                     <div className="flex items-center gap-3 mb-4 text-orange-500">
-                        <HardDrive className="w-6 h-6" />
-                        <h3 className="font-bold text-lg">Garbage Collector</h3>
+                        <div className="p-2 bg-orange-500/10 rounded-lg">
+                            <HardDrive className="w-6 h-6" />
+                        </div>
+                        <h3 className="font-bold text-lg text-slate-900 dark:text-white">Garbage Collector</h3>
                     </div>
-                    <p className="text-sm text-slate-500 mb-6">
+                    <p className="text-sm text-slate-500 mb-6 min-h-[40px]">
                         Deletes files in storage that are not linked to any song in the DB.
                     </p>
                     <button 
                         onClick={handleOrphanCleanup}
                         disabled={loading}
-                        className="w-full py-2 bg-slate-100 dark:bg-white/5 hover:bg-orange-500 hover:text-white dark:hover:bg-orange-600 rounded-lg transition-colors text-sm font-bold"
+                        className="w-full py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl transition-all shadow-lg shadow-orange-500/20 font-bold text-sm flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
+                        {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
                         Run Cleanup
                     </button>
                 </div>
 
                 {/* Auto Album */}
-                <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-white/10 shadow-sm">
+                <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl p-6 rounded-2xl border border-slate-200/60 dark:border-white/5 shadow-xl shadow-slate-200/20 dark:shadow-black/20 hover:scale-[1.02] transition-transform duration-300">
                     <div className="flex items-center gap-3 mb-4 text-blue-500">
-                        <Layers className="w-6 h-6" />
-                        <h3 className="font-bold text-lg">Album Clustering</h3>
+                        <div className="p-2 bg-blue-500/10 rounded-lg">
+                            <Layers className="w-6 h-6" />
+                        </div>
+                        <h3 className="font-bold text-lg text-slate-900 dark:text-white">Album Clustering</h3>
                     </div>
-                    <p className="text-sm text-slate-500 mb-6">
+                    <p className="text-sm text-slate-500 mb-6 min-h-[40px]">
                         Automatically creates albums for artists with multiple songs.
                     </p>
                     <button 
                          onClick={handleAutoAlbum}
                          disabled={loading}
-                         className="w-full py-2 bg-slate-100 dark:bg-white/5 hover:bg-blue-500 hover:text-white dark:hover:bg-blue-600 rounded-lg transition-colors text-sm font-bold"
+                         className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-all shadow-lg shadow-blue-500/20 font-bold text-sm flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
+                        {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
                         Generate Albums
                     </button>
                 </div>
 
                  {/* Seeder */}
-                 <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-white/10 shadow-sm">
+                 <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl p-6 rounded-2xl border border-slate-200/60 dark:border-white/5 shadow-xl shadow-slate-200/20 dark:shadow-black/20 hover:scale-[1.02] transition-transform duration-300">
                     <div className="flex items-center gap-3 mb-4 text-green-500">
-                        <Database className="w-6 h-6" />
-                        <h3 className="font-bold text-lg">Demo Data Seeder</h3>
+                        <div className="p-2 bg-green-500/10 rounded-lg">
+                            <Database className="w-6 h-6" />
+                        </div>
+                        <h3 className="font-bold text-lg text-slate-900 dark:text-white">Demo Data Seeder</h3>
                     </div>
-                    <p className="text-sm text-slate-500 mb-6">
+                    <p className="text-sm text-slate-500 mb-6 min-h-[40px]">
                         Populates the database with 10 popular songs (Coldplay, Dewa 19, etc).
                     </p>
                     <button 
                          onClick={handleSeed}
                          disabled={loading}
-                         className="w-full py-2 bg-slate-100 dark:bg-white/5 hover:bg-green-500 hover:text-white dark:hover:bg-green-600 rounded-lg transition-colors text-sm font-bold"
+                         className="w-full py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-xl transition-all shadow-lg shadow-green-500/20 font-bold text-sm flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
+                        {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
                         Inject Demo Data
                     </button>
                 </div>
             </div>
 
             {/* Console Output */}
-            <div className="mt-8 bg-black rounded-xl p-4 font-mono text-xs text-green-400 h-40 overflow-y-auto border border-white/10 shadow-inner">
-                <div className="mb-2 opacity-50">admin@yourchords:~$ ready...</div>
-                {loading && <div className="mb-2 animate-pulse text-yellow-400">Processing...</div>}
-                {status && <div className="mb-2">{status}</div>}
+            <div className="bg-slate-950 rounded-2xl p-6 font-mono text-xs text-green-400 h-64 overflow-y-auto border border-slate-800 shadow-2xl relative group">
+                <div className="absolute top-4 right-4 opacity-50 group-hover:opacity-100 transition-opacity">
+                    <Terminal className="w-5 h-5 text-slate-600" />
+                </div>
+                <div className="mb-2 opacity-50 select-none">admin@yourchords:~$ ready...</div>
+                {loading && (
+                    <div className="mb-2 flex items-center gap-2 text-yellow-400 animate-pulse">
+                        <RefreshCw className="w-3 h-3 animate-spin" />
+                        Processing request...
+                    </div>
+                )}
+                {status && (
+                    <div className="flex items-start gap-2 animate-in slide-in-from-left-2 duration-300">
+                        <span className="text-slate-500 mt-0.5">{'>'}</span>
+                        <span className={cn(
+                            "break-all",
+                            status.startsWith('Error') ? "text-red-400" : "text-green-400"
+                        )}>
+                            {status}
+                        </span>
+                    </div>
+                )}
+                <div className="w-2 h-4 bg-green-500/50 animate-pulse mt-2 inline-block" />
             </div>
         </div>
     );

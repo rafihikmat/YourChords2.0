@@ -126,8 +126,8 @@ const Home: React.FC = () => {
             </div>
 
             <LayoutTextFlip
-                text="Master your chords in "
-                words={["Hyperspeed", "ANJAY", "Realtime"]}
+                text={pageContent?.hero_title_prefix || "Master your chords in "}
+                words={pageContent?.hero_title_words || ["Hyperspeed", "ANJAY", "Realtime"]}
                 className="mb-6"
             />
 
