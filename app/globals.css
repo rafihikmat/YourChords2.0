@@ -1,0 +1,165 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "sans-serif";
+  --font-mono: "JetBrains Mono", "monospace";
+
+  /* ══════════════════════════════════════════
+     NEON PURPLE - Premium Dark Theme
+     ══════════════════════════════════════════ */
+  --color-background: #000000;
+  --color-primary: #A855F7;       /* Electric Purple */
+  --color-primary-light: #C084FC; /* Light Purple */
+  --color-secondary: #E879F9;     /* Fuchsia */
+  --color-surface: #0A0A0F;       /* Card background */
+  --color-surface-light: #111118; /* Elevated surface */
+
+  --animate-spotlight: spotlight 2s ease 0.75s 1 forwards;
+  --animate-shimmer: shimmer 2s linear infinite;
+
+  @keyframes spotlight {
+      0% {
+          opacity: 0;
+          transform: translate(-72%, -62%) scale(0.5);
+      }
+      100% {
+          opacity: 1;
+          transform: translate(-50%, -40%) scale(1);
+      }
+  }
+
+  @keyframes shimmer {
+      from {
+          background-position: 0 0;
+      }
+      to {
+          background-position: -200% 0;
+      }
+  }
+}
+
+/* Base forced dark mode root */
+:root {
+  background-color: var(--color-background);
+  color: #ffffff;
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--color-background);
+  color: #f8fafc;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+/* Custom selection */
+::selection {
+  background: rgba(168, 85, 247, 0.3);
+  color: #fff;
+}
+
+/* Custom Scrollbar - Purple themed */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(168, 85, 247, 0.3);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(168, 85, 247, 0.5);
+}
+
+/* --- CHORD SHEET JS STYLES (Neon Purple) --- */
+.chord-sheet-container .chord-sheet,
+.chord-sheet-container .chord-sheet-table {
+  width: 100% !important;
+  border-collapse: separate !important;
+  border-spacing: 0 4px !important;
+  table-layout: auto !important;
+  display: table !important;
+}
+
+.chord-sheet-container tr {
+  display: table-row !important;
+  background: transparent !important;
+}
+
+.chord-sheet-container td,
+.chord-sheet-container .chord,
+.chord-sheet-container .lyrics {
+  display: table-cell !important;
+  vertical-align: bottom !important;
+  padding-right: 0.5em !important;
+  padding-bottom: 0.5em !important;
+  white-space: pre !important;
+  border: none !important;
+  font-size: inherit !important;
+}
+
+.chord-sheet-container .chord {
+  color: var(--color-primary);
+  font-weight: 700;
+  font-family: var(--font-mono) !important;
+  font-size: 0.9em !important;
+  line-height: 1.4;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  padding-bottom: 2px !important;
+  text-shadow: 0 0 12px rgba(168, 85, 247, 0.3);
+}
+
+.chord-sheet-container .chord:hover {
+  color: var(--color-secondary);
+  text-shadow: 0 0 20px rgba(232, 121, 249, 0.6);
+  transform: translateY(-1px);
+}
+
+.chord-sheet-container .lyrics {
+  font-family: var(--font-mono) !important;
+  color: #e2e8f0;
+  font-size: 1em !important;
+  line-height: 1.6;
+  opacity: 0.9;
+}
+
+.chord-sheet-container .comment {
+  display: inline-block;
+  margin-top: 2.5rem;
+  margin-bottom: 1rem;
+  font-family: var(--font-sans) !important;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.75em !important;
+  padding: 4px 12px;
+  border-radius: 6px;
+  background: rgba(168, 85, 247, 0.1);
+  border: 1px solid rgba(168, 85, 247, 0.2);
+  color: #A855F7;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Neon Glow Utility */
+.neon-glow {
+  box-shadow: 0 0 15px rgba(168, 85, 247, 0.4), 0 0 45px rgba(168, 85, 247, 0.15);
+}
+.neon-glow-sm {
+  box-shadow: 0 0 8px rgba(168, 85, 247, 0.3);
+}
+.neon-text {
+  text-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
+}

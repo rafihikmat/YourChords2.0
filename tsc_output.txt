@@ -1,2 +1,0 @@
-lib/hooks/__tests__/useHomeData.test.ts(1,37): error TS2307: Cannot find module '@testing-library/react' or its corresponding type declarations.
-lib/hooks/__tests__/useHomeData.test.ts(2,54): error TS2307: Cannot find module 'vitest' or its corresponding type declarations.
