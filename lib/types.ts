@@ -1,19 +1,25 @@
 /**
  * Core type definitions for YourChords 2.0
- * Salvaged and trimmed from legacy types.ts
  */
 
-/** Database row shape for the 'chords' table */
-export interface ChordEntry {
+/** Database row shape for 'songs' / 'chords' table */
+export interface Song {
   id: string;
   title: string;
   artist: string;
-  content: string;
-  source_url: string;
-  cover_url: string | null;
-  views: number;
-  created_at: string;
+  chords?: any;
+  content?: string;
+  source_url?: string | null;
+  cover_url?: string | null;
+  view_count?: number;
+  views?: number;
+  created_at?: string;
+  spotify_track_id?: string | null;
+  youtube_video_id?: string | null;
+  difficulty?: string | null;
 }
+
+export type ChordEntry = Song;
 
 /** User profile from 'profiles' table */
 export interface Profile {
@@ -22,3 +28,4 @@ export interface Profile {
   avatar_url: string | null;
   role: 'user' | 'admin' | 'super_admin';
 }
+

@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import Image from "next/image";
 import { Play, Minus, Plus, Settings2, Copy, Check, Pause, Type, Music } from "lucide-react";
 import { transposeChordLine } from "@/lib/transposer";
 
@@ -19,7 +18,7 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
   const [copied, setCopied] = useState(false);
   
   const [autoScrollSpeed, setAutoScrollSpeed] = useState(0); 
-  const scrollRef = useRef<number>();
+  const scrollRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (autoScrollSpeed > 0) {
@@ -66,17 +65,19 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
     }
   };
 
+  const coverUrl = data.cover_url || "https://images.unsplash.com/photo-1511192336575-5a79af67a629?q=80&w=600&h=600&auto=format&fit=crop";
+
   return (
     <div className="flex flex-col min-h-screen pb-40 animate-fade-in relative pt-20">
       
       {/* HEADER LAGU */}
       <div className="flex flex-col md:flex-row gap-6 md:items-end mb-12 bg-surface/50 p-6 md:p-8 rounded-xl border border-white/[0.06] backdrop-blur-sm mx-4 md:mx-8 lg:mx-12">
         <div className="relative w-28 h-28 md:w-44 md:h-44 rounded-lg overflow-hidden flex-shrink-0 bg-surface border border-white/[0.06] shadow-neon-sm">
-          <Image 
-            src={data.cover_url || "https://images.unsplash.com/photo-1511192336575-5a79af67a629?q=80&w=600&h=600&auto=format&fit=crop"} 
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img 
+            src={coverUrl} 
             alt={data.title}
-            fill
-            className="object-cover"
+            className="w-full h-full object-cover"
           />
         </div>
         <div className="flex flex-col pb-1">
@@ -112,12 +113,16 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
 
         <div className="bg-surface/80 p-5 md:p-8 rounded-xl border border-white/[0.06] overflow-x-auto backdrop-blur-sm">
           <pre 
-            className="font-mono text-slate-200 whitespace-pre-wrap sm:whitespace-pre selection:bg-primary/30 outline-none"
+            className="font-mono text-slate-200 whitespace-pre-wrap sm:whitespace-pre selection:bg-primary/30 outline-none leading-relaxed"
             style={{ fontSize: `${fontSize}px`, lineHeight: '1.9' }}
             dangerouslySetInnerHTML={{
-              __html: getTransposedText().replace(/([A-G][#b]?(?:m|maj|dim|aug|sus|add)?[0-9]*(?:\/[A-G][#b]?)?)/g, function(match) {
-                return `<span class="text-primary font-bold neon-text">${match}</span>`;
-              })
+              __html: getTransposedText()
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/\b([A-G][#b]?(?:m|maj|dim|aug|sus|add)?[0-9]*(?:\/[A-G][#b]?)?)\b/g, function(match) {
+                  return `<span class="text-primary font-bold neon-text">${match}</span>`;
+                })
             }}
           />
         </div>

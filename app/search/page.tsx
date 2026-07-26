@@ -1,56 +1,35 @@
 import React from 'react';
-import { supabase } from '@/lib/supabase';
+import { searchSongs } from '@/lib/supabase';
 import SongCard from '@/components/SongCard';
 
-export default async function SearchPage({
-  searchParams,
-}: {
-  searchParams: { q?: string };
+export default async function SearchPage(props: {
+  searchParams: Promise<{ q?: string }> | { q?: string };
 }) {
-  const query = searchParams.q;
+  const resolvedSearchParams = await props.searchParams;
+  const query = resolvedSearchParams?.q;
 
-  let results: any[] = [];
-  let errorMsg: string | null = null;
-
-  if (query) {
-    const { data, error } = await supabase
-      .from('chords')
-      .select('id, title, artist, cover_url, source_url')
-      .or(`title.ilike.%${query}%,artist.ilike.%${query}%`)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error(error);
-      errorMsg = "Gagal mengambil data pencarian dari database.";
-    } else if (data) {
-      results = data;
-    }
-  }
+  const results = query ? await searchSongs(query) : [];
 
   return (
-    <div className="flex flex-col gap-8 pb-16 animate-fade-in pt-24 px-4 md:px-8 lg:px-12">
-      <div className="border-b border-white/[0.06] pb-6 mb-4">
-        <h1 className="text-2xl font-black text-white mb-2">
+    <div className="flex flex-col gap-8 pb-16 animate-fade-in pt-24 px-4 md:px-8 lg:px-12 min-h-screen bg-black">
+      <div className="border-b border-white/[0.08] pb-6 mb-2">
+        <h1 className="text-2xl md:text-3xl font-black text-white mb-2">
           Hasil Pencarian
         </h1>
-        <p className="text-slate-500 text-sm">
+        <p className="text-slate-400 text-sm">
           {query ? (
-            <>Menampilkan hasil untuk: <span className="text-primary font-bold">&quot;{query}&quot;</span> — {results.length} ditemukan</>
+            <>Menampilkan hasil untuk: <span className="text-primary font-bold neon-text">&quot;{query}&quot;</span> — {results.length} ditemukan</>
           ) : (
-            "Ketikkan judul lagu atau nama artis di kolom pencarian."
+            "Ketikkan judul lagu atau nama artis di kolom pencarian di atas."
           )}
         </p>
       </div>
 
-      {errorMsg ? (
-        <div className="text-red-400 p-4 border border-red-500/20 bg-red-500/10 rounded-lg text-sm">
-          {errorMsg}
-        </div>
-      ) : query && results.length === 0 ? (
-        <div className="text-center py-20 text-slate-500 border border-white/[0.06] rounded-xl bg-surface">
-          <p className="text-lg">Tidak ada chord yang cocok dengan pencarian ini.</p>
-          <p className="mt-4 text-sm max-w-md mx-auto text-slate-600">
-            Hubungi Admin agar admin bisa menambahkan lagu ini ke dalam koleksi melalui halaman <a href="/admin" className="text-primary hover:underline font-medium">Admin Scraper</a>.
+      {query && results.length === 0 ? (
+        <div className="text-center py-20 text-slate-400 border border-white/[0.08] rounded-xl bg-surface/50 backdrop-blur-md">
+          <p className="text-lg font-semibold text-white">Tidak ada chord yang cocok dengan pencarian ini.</p>
+          <p className="mt-3 text-sm max-w-md mx-auto text-slate-500">
+            Hubungi Admin agar lagu ini dapat ditambahkan ke dalam koleksi melalui halaman <a href="/admin" className="text-primary hover:underline font-bold">Pusat Komando Admin</a>.
           </p>
         </div>
       ) : (
