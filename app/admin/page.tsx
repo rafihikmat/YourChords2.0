@@ -2,13 +2,14 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { 
-  Link2, Disc3, Save, Trash2, ExternalLink, Music, Eye, AlertTriangle, 
-  Users, RefreshCw, Wand2, Search, Sparkles, CheckCircle2, Activity 
+  Music, Eye, AlertTriangle, Users, RefreshCw, Wand2, Search, 
+  Sparkles, CheckCircle2, ExternalLink, Trash2
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase, normalizeSong } from "@/lib/supabase";
 import { useAuth } from "@/lib/authContext";
 import { getAdminOverviewStats, getTopMissingSongs, AdminOverviewStats, MissingSongItem } from "@/lib/adminAnalytics";
+import BatchScraper from "@/components/BatchScraper";
 import Link from "next/link";
 
 export default function AdminDashboardPage() {
@@ -25,9 +26,8 @@ export default function AdminDashboardPage() {
   const [missingSongs, setMissingSongs] = useState<MissingSongItem[]>([]);
   const [loadingAnalytics, setLoadingAnalytics] = useState(true);
 
-  // Scraper Form State
-  const [url, setUrl] = useState("");
-  const [loading, setLoading] = useState(false);
+  // Scraper prefill URL state
+  const [scraperUrl, setScraperUrl] = useState("");
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
   // Database Songs State
@@ -91,39 +91,11 @@ export default function AdminDashboardPage() {
     loadChords();
   }, [loadAnalytics, loadChords]);
 
-  // Handle Scraper Submission
-  const handleScrape = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!url.trim()) return;
-
-    setLoading(true);
-    setMessage(null);
-
-    try {
-      const res = await fetch(`/api/scrape?url=${encodeURIComponent(url.trim())}`);
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Gagal melakukan scraping.");
-      }
-
-      setMessage({ text: `Berhasil menambahkan: ${data.title} — ${data.artist}`, type: "success" });
-      setUrl("");
-      loadChords();
-      loadAnalytics();
-      router.refresh(); 
-    } catch (err: any) {
-      setMessage({ text: err.message || "Terjadi kesalahan saat scraping.", type: "error" });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Quick Action: Scrape Missing Song
   const handleQuickScrapeMissing = (query: string) => {
     // Generate Chordtela Search URL
     const searchUrl = `https://www.chordtela.com/search?q=${encodeURIComponent(query)}`;
-    setUrl(searchUrl);
+    setScraperUrl(searchUrl);
 
     // Scroll to Scraper Section
     const element = document.getElementById("scraper-section");
@@ -323,7 +295,7 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* SECTION 3: SCRAPER FORM & SONGS DATABASE COLLECTION */}
+      {/* SECTION 3: ADVANCED BATCH & MASS SCRAPER COMPONENT */}
       <div id="scraper-section" className="flex flex-col gap-6">
         
         {/* Feedback Message */}
@@ -338,46 +310,15 @@ export default function AdminDashboardPage() {
           </div>
         )}
 
-        {/* SCRAPER FORM */}
-        <form onSubmit={handleScrape} className="flex flex-col gap-4 bg-surface/80 p-6 md:p-8 rounded-2xl border border-white/10 backdrop-blur-xl shadow-2xl relative overflow-hidden">
-          <div className="flex items-center gap-3 mb-1">
-            <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center border border-primary/30 shadow-[0_0_15px_rgba(168,85,247,0.3)] text-primary">
-              <Disc3 className="w-5 h-5 animate-spin-slow" />
-            </div>
-            <div>
-              <h2 className="text-lg font-extrabold text-white">Scraper Chordtela Instant</h2>
-              <p className="text-xs text-slate-400">Sedot chord & lirik langsung dari URL Chordtela ke database Supabase</p>
-            </div>
-          </div>
-
-          <div className="relative group">
-            <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none">
-              <Link2 className="h-4 w-4 text-slate-500 group-focus-within:text-primary transition-colors" />
-            </div>
-            <input
-              type="url"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://www.chordtela.com/2021/05/chord-lagu... atau https://www.chordtela.com/search?q=..."
-              className="w-full bg-black/80 border border-white/10 rounded-xl py-3.5 pl-11 pr-4 text-white placeholder-slate-600 focus:outline-none focus:border-primary/60 focus:shadow-[0_0_15px_rgba(168,85,247,0.25)] transition-all font-mono text-xs md:text-sm"
-              required
-              pattern="https?://.*chordtela\.com/.*"
-              title="Harus berupa link dari chordtela.com"
-            />
-          </div>
-
-          <button 
-            type="submit"
-            disabled={loading}
-            className="flex items-center justify-center gap-2 bg-primary text-white font-bold py-3.5 rounded-xl hover:bg-primary-light hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all disabled:opacity-40 disabled:cursor-not-allowed text-xs md:text-sm mt-1 cursor-pointer"
-          >
-            {loading ? (
-              <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-            ) : (
-              <><Save className="w-4 h-4" /> Sedot & Simpan Ke Database</>
-            )}
-          </button>
-        </form>
+        {/* BATCH SCRAPER COMPONENT */}
+        <BatchScraper 
+          initialUrl={scraperUrl} 
+          onComplete={() => {
+            loadChords();
+            loadAnalytics();
+            router.refresh();
+          }} 
+        />
 
         {/* DATABASE SONGS COLLECTION TABLE */}
         <div className="bg-surface/80 rounded-2xl border border-white/10 overflow-hidden backdrop-blur-xl shadow-2xl">
