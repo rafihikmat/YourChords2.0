@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { verifyAdminAccess } from '@/lib/authAdmin';
-import { ShieldAlert, Disc3, Home, Sparkles, LayoutDashboard } from 'lucide-react';
+import { ShieldAlert, Disc3, Home, Sparkles, LayoutDashboard, Users } from 'lucide-react';
 import AdminSignOutButton from '@/components/AdminSignOutButton';
 
 export default async function AdminLayout({
@@ -86,6 +86,14 @@ export default async function AdminLayout({
           >
             <Sparkles className="w-3.5 h-3.5 text-primary" />
             <span className="hidden sm:inline">Kurasi Beranda</span>
+          </Link>
+
+          <Link
+            href="/admin/users"
+            className="px-3 py-1.5 text-xs font-bold text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 rounded-lg transition-all flex items-center gap-1.5 shadow-[0_0_10px_rgba(59,130,246,0.2)]"
+          >
+            <Users className="w-3.5 h-3.5 text-blue-400" />
+            <span className="hidden sm:inline">Kelola User</span>
           </Link>
 
           <div className="h-4 w-px bg-white/10 mx-0.5" />
