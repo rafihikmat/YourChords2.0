@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { verifyAdminAccess } from '@/lib/authAdmin';
-import { ShieldAlert, Disc3, Home } from 'lucide-react';
+import { ShieldAlert, Disc3, Home, Sparkles, LayoutDashboard } from 'lucide-react';
 import AdminSignOutButton from '@/components/AdminSignOutButton';
 
 export default async function AdminLayout({
@@ -71,7 +71,25 @@ export default async function AdminLayout({
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 md:gap-3">
+          <Link
+            href="/admin"
+            className="px-3 py-1.5 text-xs font-semibold text-slate-300 hover:text-white transition-colors flex items-center gap-1.5"
+          >
+            <LayoutDashboard className="w-3.5 h-3.5 text-primary" />
+            <span className="hidden sm:inline">Dashboard</span>
+          </Link>
+
+          <Link
+            href="/admin/curated"
+            className="px-3 py-1.5 text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 border border-primary/30 rounded-lg transition-all flex items-center gap-1.5 shadow-[0_0_10px_rgba(168,85,247,0.2)]"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-primary" />
+            <span className="hidden sm:inline">Kurasi Beranda</span>
+          </Link>
+
+          <div className="h-4 w-px bg-white/10 mx-0.5" />
+
           <Link
             href="/"
             className="px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-white transition-colors flex items-center gap-1.5"
@@ -91,3 +109,4 @@ export default async function AdminLayout({
     </div>
   );
 }
+

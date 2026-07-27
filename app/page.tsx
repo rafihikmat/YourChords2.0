@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import SongCard from "@/components/SongCard";
 import { fetchAllSongs } from "@/lib/supabase";
+import { getFeaturedHeroSongs } from "@/lib/adminCurated";
 import { INITIAL_FALLBACK_CHORDS } from "@/lib/fallbackData";
 import { AnimatedSection, HeroCarousel } from "@/components/HomeClientComponents";
 import { Song } from "@/lib/types";
@@ -10,15 +11,25 @@ import { Song } from "@/lib/types";
 export default function Home() {
   // Direct sync initialization with fallback data so render is INSTANT without blank screens
   const [songs, setSongs] = useState<Song[]>(INITIAL_FALLBACK_CHORDS);
+  const [featuredSongs, setFeaturedSongs] = useState<Song[]>([]);
 
   useEffect(() => {
     let mounted = true;
 
     async function loadData() {
       try {
-        const fetched = await fetchAllSongs(30);
-        if (mounted && fetched && fetched.length > 0) {
-          setSongs(fetched);
+        const [fetched, featured] = await Promise.all([
+          fetchAllSongs(30),
+          getFeaturedHeroSongs()
+        ]);
+
+        if (mounted) {
+          if (fetched && fetched.length > 0) {
+            setSongs(fetched);
+          }
+          if (featured && featured.length > 0) {
+            setFeaturedSongs(featured);
+          }
         }
       } catch (err) {
         console.warn("[HOME] Supabase fetch error, retaining fallbacks:", err);
@@ -32,8 +43,8 @@ export default function Home() {
     };
   }, []);
 
-  // Top 3 songs for Hero Carousel
-  const topTrendingSongs = songs.slice(0, 3);
+  // Use curated featured songs if set by admin, otherwise fallback to top 3
+  const heroSongs = featuredSongs.length > 0 ? featuredSongs : songs.slice(0, 3);
   
   // Sorted by views for "Paling Populer"
   const popularSongs = [...songs].sort((a, b) => (b.views || b.view_count || 0) - (a.views || a.view_count || 0)).slice(0, 15);
@@ -46,7 +57,7 @@ export default function Home() {
       <div className="flex flex-col gap-10 pb-24 pt-0 bg-black">
         
         {/* MASSIVE HERO BANNER CAROUSEL */}
-        <HeroCarousel trendingSongs={topTrendingSongs} />
+        <HeroCarousel trendingSongs={heroSongs} />
 
         {/* HORIZONTAL ROW 1 - PALING POPULER */}
         <div className="px-4 md:px-8 lg:px-12 -mt-12 relative z-20">
@@ -78,3 +89,4 @@ export default function Home() {
     </main>
   );
 }
+
