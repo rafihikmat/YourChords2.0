@@ -29,3 +29,15 @@ export interface Profile {
   role: 'user' | 'admin' | 'super_admin';
 }
 
+/** Setlist / Songbook interface */
+export interface Setlist {
+  id: string;
+  user_id: string;
+  name: string;
+  description?: string;
+  created_at?: string;
+  song_ids: string[];
+  songs?: Song[];
+}
+
+

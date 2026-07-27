@@ -64,12 +64,20 @@ export default function Navbar() {
         {/* Navigation & Auth Buttons */}
         <div className="hidden md:flex items-center gap-3">
           <Link 
+            href="/setlists" 
+            className="px-3 py-1.5 text-xs font-semibold text-slate-300 hover:text-primary transition-colors flex items-center gap-1.5"
+          >
+            📚 Setlist
+          </Link>
+
+          <Link 
             href="/admin" 
             className="px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-primary transition-colors flex items-center gap-1.5"
           >
             <Disc3 className="w-3.5 h-3.5 text-primary" />
             Admin
           </Link>
+
           
           <div className="h-4 w-px bg-white/10 mx-1" />
 
@@ -125,12 +133,20 @@ export default function Navbar() {
               Beranda
             </Link>
             <Link 
+              href="/setlists" 
+              onClick={() => setMobileMenuOpen(false)}
+              className="px-3 py-2 text-sm font-medium text-slate-200 hover:text-primary transition-colors flex items-center gap-2"
+            >
+              📚 Setlist & Songbook
+            </Link>
+            <Link 
               href="/search" 
               onClick={() => setMobileMenuOpen(false)}
               className="px-3 py-2 text-sm font-medium text-slate-200 hover:text-primary transition-colors"
             >
               Pencarian
             </Link>
+
             <Link 
               href="/admin" 
               onClick={() => setMobileMenuOpen(false)}
