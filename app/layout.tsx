@@ -1,10 +1,11 @@
 import React from "react";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
+import { AuthProvider } from "@/lib/authContext";
 
 export const metadata = {
-  title: "YourChords 2.0",
-  description: "Premium Platform to Learn and Play Guitar Chords",
+  title: "YourChords 2.0 - Platform Chord & Lirik Gitar Cyber-Zen",
+  description: "Platform Chord & Lirik Gitar AI-Powered Terdepan dengan Fitur Transpose, Auto-Scroll, dan Scraper Chordtela.",
 };
 
 export default function RootLayout({
@@ -13,24 +14,24 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className="antialiased min-h-screen flex flex-col selection:bg-primary/30">
-        
-        {/* Fixed Navbar */}
-        <Navbar />
+    <html lang="id" className="dark">
+      <body className="antialiased min-h-screen flex flex-col selection:bg-primary/30 bg-slate-950 text-slate-100">
+        <AuthProvider>
+          {/* Fixed Navbar */}
+          <Navbar />
 
-        {/* Main Content Area — pt-16 to compensate for fixed navbar */}
-        <main className="flex-grow">
-          {children}
-        </main>
+          {/* Main Content Area */}
+          <main className="flex-grow">
+            {children}
+          </main>
 
-        {/* Footer */}
-        <footer className="border-t border-white/5 bg-surface">
-          <div className="max-w-[1400px] mx-auto px-6 py-10 text-center text-sm text-slate-600">
-            <p>&copy; {new Date().getFullYear()} YourChords. All rights reserved.</p>
-          </div>
-        </footer>
-
+          {/* Footer */}
+          <footer className="border-t border-white/5 bg-surface/50 backdrop-blur-md">
+            <div className="max-w-[1400px] mx-auto px-6 py-10 text-center text-sm text-slate-500">
+              <p>&copy; {new Date().getFullYear()} YourChords. All rights reserved.</p>
+            </div>
+          </footer>
+        </AuthProvider>
       </body>
     </html>
   );

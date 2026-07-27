@@ -1,8 +1,38 @@
 import { NextResponse } from 'next/server';
 import * as cheerio from 'cheerio';
 import { supabase } from '@/lib/supabase';
+import { verifyAdminAccess } from '@/lib/authAdmin';
 
 export async function GET(request: Request) {
+  // 1. VERIFIKASI KEAMANAN HAK AKSES ADMIN
+  const authHeader = request.headers.get('authorization');
+  let token = authHeader?.replace('Bearer ', '');
+
+  if (!token) {
+    const cookieHeader = request.headers.get('cookie');
+    if (cookieHeader) {
+      const match = cookieHeader.match(/(?:sb-access-token|supabase-auth-token|auth-token)=([^;]+)/);
+      if (match) {
+        try {
+          const parsed = JSON.parse(decodeURIComponent(match[1]));
+          token = parsed?.access_token || parsed[0] || match[1];
+        } catch {
+          token = decodeURIComponent(match[1]);
+        }
+      }
+    }
+  }
+
+  const access = await verifyAdminAccess(token);
+
+  if (!access.isAdmin) {
+    return NextResponse.json(
+      { success: false, error: "Akses ditolak. Membutuhkan hak akses admin." },
+      { status: 403 }
+    );
+  }
+
+  // 2. PARSE PARAMETER URL
   const { searchParams } = new URL(request.url);
   const targetUrl = searchParams.get('url');
 
