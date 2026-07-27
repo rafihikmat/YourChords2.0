@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { 
   Music, Eye, AlertTriangle, Users, RefreshCw, Wand2, Search, 
-  Sparkles, CheckCircle2, ExternalLink, Trash2
+  Sparkles, CheckCircle2, ExternalLink, Trash2, Edit3
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase, normalizeSong } from "@/lib/supabase";
@@ -383,6 +383,14 @@ export default function AdminDashboardPage() {
                           title="Buka Detail"
                         >
                           <ExternalLink className="w-3.5 h-3.5" />
+                        </Link>
+                        <Link 
+                          href={`/admin/edit/${entry.id}`} 
+                          className="p-1.5 bg-primary/10 hover:bg-primary/30 text-primary border border-primary/20 rounded-lg transition-colors cursor-pointer flex items-center gap-1 font-bold text-[10px]" 
+                          title="Edit / Rapikan Lagu"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">Edit</span>
                         </Link>
                         <button 
                           onClick={() => handleDelete(entry.id, entry.title)} 
