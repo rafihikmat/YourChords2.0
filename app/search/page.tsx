@@ -1,5 +1,5 @@
 import React from 'react';
-import { searchSongs } from '@/lib/supabase';
+import { searchSongs, logMissingSearch } from '@/lib/supabase';
 import SongCard from '@/components/SongCard';
 
 export default async function SearchPage(props: {
@@ -9,6 +9,12 @@ export default async function SearchPage(props: {
   const query = resolvedSearchParams?.q;
 
   const results = query ? await searchSongs(query) : [];
+
+  // Jika pencarian query pengguna mengembalikan array kosong (results.length === 0),
+  // panggil logMissingSearch(query) secara otomatis di background
+  if (query && results.length === 0) {
+    await logMissingSearch(query);
+  }
 
   return (
     <div className="flex flex-col gap-8 pb-16 animate-fade-in pt-24 px-4 md:px-8 lg:px-12 min-h-screen bg-black">

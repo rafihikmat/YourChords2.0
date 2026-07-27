@@ -139,6 +139,74 @@ export async function incrementSongView(id: string, currentViews = 0) {
 }
 
 /**
+ * Mencatat pencarian kata kunci yang tidak ditemukan ke database Supabase
+ * (menggunakan 'missing_songs_log' atau 'search_logs' dengan logika UPSERT)
+ */
+export async function logMissingSearch(rawQuery: string): Promise<void> {
+  if (!rawQuery || !rawQuery.trim()) return;
+  const cleanQuery = rawQuery.trim().toLowerCase();
+
+  try {
+    // 1. Coba di tabel 'missing_songs_log'
+    const { data: existing, error: findErr } = await supabase
+      .from('missing_songs_log')
+      .select('*')
+      .eq('query', cleanQuery)
+      .maybeSingle();
+
+    if (!findErr && existing) {
+      await supabase
+        .from('missing_songs_log')
+        .update({
+          count: (existing.count || 1) + 1,
+          last_searched_at: new Date().toISOString()
+        })
+        .eq('query', cleanQuery);
+      return;
+    }
+
+    if (!findErr && !existing) {
+      const { error: insertErr } = await supabase
+        .from('missing_songs_log')
+        .insert({
+          query: cleanQuery,
+          count: 1,
+          last_searched_at: new Date().toISOString()
+        });
+
+      if (!insertErr) return;
+    }
+
+    // 2. Fallback ke tabel 'search_logs' jika 'missing_songs_log' belum dibuat
+    const { data: existingLog } = await supabase
+      .from('search_logs')
+      .select('*')
+      .eq('query', cleanQuery)
+      .maybeSingle();
+
+    if (existingLog) {
+      await supabase
+        .from('search_logs')
+        .update({
+          count: (existingLog.count || 1) + 1,
+          last_searched_at: new Date().toISOString()
+        })
+        .eq('query', cleanQuery);
+    } else {
+      await supabase
+        .from('search_logs')
+        .insert({
+          query: cleanQuery,
+          count: 1,
+          last_searched_at: new Date().toISOString()
+        });
+    }
+  } catch (err) {
+    console.error('[LOG MISSING SEARCH ERROR]:', err);
+  }
+}
+
+/**
  * Toggles favorite state in Supabase `song_favorites` or localStorage fallback.
  */
 export async function toggleSongFavorite(userId: string, songId: string): Promise<boolean> {
