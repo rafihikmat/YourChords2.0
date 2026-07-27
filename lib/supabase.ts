@@ -137,3 +137,106 @@ export async function incrementSongView(id: string, currentViews = 0) {
     // Ignore error
   }
 }
+
+/**
+ * Toggles favorite state in Supabase `song_favorites` or localStorage fallback.
+ */
+export async function toggleSongFavorite(userId: string, songId: string): Promise<boolean> {
+  if (!songId) return false;
+  
+  const localFavKey = 'yourchords_favorites';
+  
+  const getLocalFavs = (): string[] => {
+    if (typeof window === 'undefined') return [];
+    try {
+      return JSON.parse(localStorage.getItem(localFavKey) || '[]');
+    } catch { return []; }
+  };
+
+  const setLocalFavs = (favs: string[]) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(localFavKey, JSON.stringify(favs));
+    }
+  };
+
+  // If user is guest/anonymous, use localStorage
+  if (!userId || userId === 'guest' || userId === 'demo-user') {
+    const favs = getLocalFavs();
+    const isFav = favs.includes(songId);
+    let newFavs: string[];
+    if (isFav) {
+      newFavs = favs.filter(id => id !== songId);
+    } else {
+      newFavs = [...favs, songId];
+    }
+    setLocalFavs(newFavs);
+    return !isFav;
+  }
+
+  try {
+    const { data: existing } = await supabase
+      .from('song_favorites')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('song_id', songId)
+      .maybeSingle();
+
+    if (existing) {
+      await supabase
+        .from('song_favorites')
+        .delete()
+        .eq('user_id', userId)
+        .eq('song_id', songId);
+      return false;
+    } else {
+      await supabase
+        .from('song_favorites')
+        .insert({ user_id: userId, song_id: songId });
+      return true;
+    }
+  } catch (e) {
+    console.warn('[SUPABASE FAVORITE TOGGLE WARN]:', e);
+    const favs = getLocalFavs();
+    const isFav = favs.includes(songId);
+    if (isFav) {
+      setLocalFavs(favs.filter(id => id !== songId));
+      return false;
+    } else {
+      setLocalFavs([...favs, songId]);
+      return true;
+    }
+  }
+}
+
+/**
+ * Checks if song is in user's favorites.
+ */
+export async function checkIsFavorite(userId: string, songId: string): Promise<boolean> {
+  if (!songId) return false;
+
+  const localFavKey = 'yourchords_favorites';
+  const getLocalFavs = (): string[] => {
+    if (typeof window === 'undefined') return [];
+    try {
+      return JSON.parse(localStorage.getItem(localFavKey) || '[]');
+    } catch { return []; }
+  };
+
+  if (!userId || userId === 'guest' || userId === 'demo-user') {
+    return getLocalFavs().includes(songId);
+  }
+
+  try {
+    const { data } = await supabase
+      .from('song_favorites')
+      .select('song_id')
+      .eq('user_id', userId)
+      .eq('song_id', songId)
+      .maybeSingle();
+
+    if (data) return true;
+    return getLocalFavs().includes(songId);
+  } catch {
+    return getLocalFavs().includes(songId);
+  }
+}

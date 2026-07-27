@@ -42,7 +42,6 @@ export function transposeChordLine(line: string, steps: number): string {
   if (steps === 0) return line;
   
   // A robust Regex to catch valid musical chords
-  // Matches A-G followed by optional # or b, then optional modifiers like m, maj, sus, dim, numbers
   const chordRegex = /\b([A-G][#b]?(?:m|maj|dim|aug|sus|add)?[0-9]*(?:\/[A-G][#b]?)?)\b/g;
   
   return line.replace(chordRegex, (match) => {
@@ -51,14 +50,54 @@ export function transposeChordLine(line: string, steps: number): string {
 }
 
 /**
+ * Simplifies complex chord (e.g., Cmaj7 -> C, F#m7 -> F#m, Bsus4 -> B)
+ */
+export function simplifyChord(chord: string): string {
+  if (!chord) return chord;
+  const match = chord.match(/^([A-G][#b]?)(.*)$/);
+  if (!match) return chord;
+
+  const root = match[1];
+  let rest = match[2];
+
+  // Remove slash bass note for simplified view
+  if (rest.includes('/')) {
+    rest = rest.split('/')[0];
+  }
+
+  // Detect minor quality (m, min, m7, m9 but NOT maj)
+  const isMinor = /m(?!aj)/i.test(rest) || /^min/i.test(rest);
+
+  return isMinor ? `${root}m` : root;
+}
+
+/**
+ * Runs regex on a chord text line to simplify all complex chords for beginners.
+ */
+export function simplifyChordLine(line: string): string {
+  const chordRegex = /\b([A-G][#b]?(?:m|maj|dim|aug|sus|add)?[0-9]*(?:\/[A-G][#b]?)?)\b/g;
+  return line.replace(chordRegex, (match) => {
+    return simplifyChord(match);
+  });
+}
+
+/**
+ * Calculates semitone transpose offset when using a Capo.
+ * Capo on fret X raises pitch by X semitones.
+ * To play with Capo X and match original pitch, chord shapes are transposed by -X semitones.
+ */
+export function calculateCapoTranspose(originalKey: string, targetCapoFret: number): number {
+  if (!targetCapoFret || targetCapoFret <= 0) return 0;
+  return -Math.abs(targetCapoFret);
+}
+
+/**
  * Checks if a line is likely a chord line to avoid transposing lyrics.
- * Simple heuristic: If it contains many spaces or standard chords.
  */
 export function isChordLine(line: string): boolean {
   const trimmed = line.trim();
   if (trimmed.length === 0) return false;
   
-  // If the line has words longer than 5 chars not matching chord patterns, it's likely lyric
   const words = trimmed.split(/\s+/);
   let chordCount = 0;
   const chordRegex = /^([A-G][#b]?(?:m|maj|dim|aug|sus|add)?[0-9]*(?:\/[A-G][#b]?)?)$/;
@@ -69,6 +108,5 @@ export function isChordLine(line: string): boolean {
     }
   }
   
-  // If more than 30% of the words are chords, we consider it a chord line
   return chordCount / words.length >= 0.3;
 }
