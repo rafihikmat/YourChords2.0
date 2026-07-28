@@ -8,6 +8,26 @@ export interface CMSResponse<T = Song> {
 }
 
 /**
+ * Helper konversi aman untuk memastikan chords/content selalu bertipe string murni
+ */
+export function parseContentToString(rawContent: any): string {
+  if (!rawContent) return "";
+  if (typeof rawContent === "string") return rawContent;
+  if (typeof rawContent === "object") {
+    // Jika berbentuk object JSON (misal { text: "..." } atau { chords: "..." } atau { content: "..." })
+    if (rawContent.text && typeof rawContent.text === "string") return rawContent.text;
+    if (rawContent.chords && typeof rawContent.chords === "string") return rawContent.chords;
+    if (rawContent.content && typeof rawContent.content === "string") return rawContent.content;
+    try {
+      return JSON.stringify(rawContent, null, 2);
+    } catch {
+      return String(rawContent);
+    }
+  }
+  return String(rawContent);
+}
+
+/**
  * Mengambil data lagu spesifik dari tabel 'songs' Supabase berdasarkan UUID
  */
 export async function getSongForEdit(id: string): Promise<CMSResponse<Song>> {
@@ -63,7 +83,7 @@ export async function updateSongDetails(
     return { success: false, error: 'ID Lagu tidak valid.' };
   }
 
-  const chordsContent = payload.chords || payload.content || '';
+  const chordsContent = parseContentToString(payload.chords || payload.content || '');
 
   // Payload khusus untuk tabel 'songs' (HANYA berisi kolom valid: title, artist, chords, difficulty, youtube_video_id, spotify_track_id)
   const songUpdateBody: Record<string, any> = {

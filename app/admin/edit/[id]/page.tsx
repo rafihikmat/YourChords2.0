@@ -20,6 +20,23 @@ const DIFFICULTY_OPTIONS = [
 
 const QUICK_TAGS = ["[Intro]", "[Verse]", "[Pre-Chorus]", "[Reff]", "[Bridge]", "[Outro]"];
 
+function parseContentToString(rawContent: any): string {
+  if (!rawContent) return "";
+  if (typeof rawContent === "string") return rawContent;
+  if (typeof rawContent === "object") {
+    // Jika berbentuk object JSON (misal { text: "..." } atau { chords: "..." } atau { content: "..." })
+    if (rawContent.text && typeof rawContent.text === "string") return rawContent.text;
+    if (rawContent.chords && typeof rawContent.chords === "string") return rawContent.chords;
+    if (rawContent.content && typeof rawContent.content === "string") return rawContent.content;
+    try {
+      return JSON.stringify(rawContent, null, 2);
+    } catch {
+      return String(rawContent);
+    }
+  }
+  return String(rawContent);
+}
+
 export default function AdminEditSongPage() {
   const params = useParams();
   const router = useRouter();
@@ -51,7 +68,7 @@ export default function AdminEditSongPage() {
       const song = res.data;
       setTitle(song.title || "");
       setArtist(song.artist || "");
-      setContent(song.chords || song.content || "");
+      setContent(parseContentToString(song.chords || song.content));
       setCoverUrl(song.cover_url || "");
       setDifficulty(song.difficulty || "Sedang");
       setYoutubeVideoId(song.youtube_video_id || "");
@@ -378,7 +395,7 @@ export default function AdminEditSongPage() {
               <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
                 <span>Editor Teks Chord & Lirik:</span>
                 <span className="text-[10px] text-slate-500 font-mono">
-                  {content.split("\n").length} Baris Teks
+                  {parseContentToString(content).split("\n").length} Baris Teks
                 </span>
               </label>
               <textarea
@@ -444,13 +461,13 @@ export default function AdminEditSongPage() {
 
             {/* Preview Sheet Container */}
             <div className="bg-black/90 p-6 rounded-xl border border-white/10 flex-1 overflow-y-auto max-h-[600px] shadow-inner">
-              {content.trim().length === 0 ? (
+              {parseContentToString(content).trim().length === 0 ? (
                 <div className="text-center py-16 text-slate-600 text-xs italic font-mono">
                   Ketikkan chord dan lirik di kolom editor untuk melihat tampilan live preview di sini...
                 </div>
               ) : (
                 <div className="space-y-1">
-                  {content.split("\n").map((line, idx) => renderPreviewLine(line, idx))}
+                  {parseContentToString(content).split("\n").map((line, idx) => renderPreviewLine(line, idx))}
                 </div>
               )}
             </div>
