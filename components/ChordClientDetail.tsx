@@ -210,7 +210,9 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
   const coverUrl = data.cover_url || "https://images.unsplash.com/photo-1511192336575-5a79af67a629?q=80&w=600&h=600&auto=format&fit=crop";
   const processedLines = getProcessedLines();
 
-  const chordRegex = /\b([A-G][#b]?(?:m|maj|dim|aug|sus|add)?[0-9]*(?:\/[A-G][#b]?)?)\b/g;
+  // Presisi Global & Single Chord Regex untuk rendering multi-chord pada satu baris
+  const CHORD_SPLIT_REGEX = /(\b[A-G][#b]?(?:m|maj|dim|aug|sus|add)?[0-9]*(?:\/[A-G][#b]?)?\b)/g;
+  const SINGLE_CHORD_REGEX = /^([A-G][#b]?(?:m|maj|dim|aug|sus|add)?[0-9]*(?:\/[A-G][#b]?)?)$/;
 
   return (
     <div className="flex flex-col min-h-screen pb-40 animate-fade-in relative pt-20">
@@ -423,11 +425,11 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
             style={{ fontSize: `${fontSize}px`, lineHeight: '2.0' }}
           >
             {processedLines.map((line, idx) => {
-              const parts = line.split(chordRegex);
+              const parts = line.split(CHORD_SPLIT_REGEX);
               return (
                 <div key={idx} className="min-h-[1.5em]">
                   {parts.map((part, partIdx) => {
-                    if (part.match(chordRegex)) {
+                    if (SINGLE_CHORD_REGEX.test(part)) {
                       return (
                         <button
                           key={partIdx}

@@ -109,7 +109,9 @@ export default function AdminEditSongPage() {
   };
 
   // Chord Parser for Live Preview
-  const chordRegex = /\b([A-G][#b]?(?:m|maj|dim|aug|sus|add)?[0-9]*(?:\/[A-G][#b]?)?)\b/g;
+  const CHORD_REGEX_GLOBAL = /\b([A-G][#b]?(?:m|maj|dim|aug|sus|add)?[0-9]*(?:\/[A-G][#b]?)?)\b/g;
+  const CHORD_SPLIT_REGEX = /(\b[A-G][#b]?(?:m|maj|dim|aug|sus|add)?[0-9]*(?:\/[A-G][#b]?)?\b)/g;
+  const SINGLE_CHORD_REGEX = /^([A-G][#b]?(?:m|maj|dim|aug|sus|add)?[0-9]*(?:\/[A-G][#b]?)?)$/;
 
   const renderPreviewLine = (line: string, lineIdx: number) => {
     const trimmed = line.trim();
@@ -124,34 +126,31 @@ export default function AdminEditSongPage() {
       );
     }
 
-    // Check if line looks like a chord line (high ratio of chord tokens)
-    const matches = line.match(chordRegex);
+    // Check if line looks like a chord line
+    const matches = line.match(CHORD_REGEX_GLOBAL);
     const nonSpaceChars = line.replace(/\s/g, '').length;
     const matchChars = matches ? matches.join('').length : 0;
-    const isChordLine = matches && matches.length > 0 && (matchChars / (nonSpaceChars || 1) > 0.4);
+    const isChordLine = matches && matches.length > 0 && (matchChars / (nonSpaceChars || 1) > 0.35);
 
-    if (isChordLine && matches) {
-      // Split line keeping spaces
-      const tokens = line.split(/(\s+)/);
+    if (isChordLine) {
+      // Split line keeping exact chords and spaces/delimiters
+      const parts = line.split(CHORD_SPLIT_REGEX);
       return (
         <div key={lineIdx} className="font-mono text-sm py-1 font-bold flex flex-wrap items-center">
-          {tokens.map((tok, tIdx) => {
-            if (/^\s+$/.test(tok)) {
-              return <span key={tIdx} className="whitespace-pre">{tok}</span>;
-            }
-            if (chordRegex.test(tok)) {
+          {parts.map((part, pIdx) => {
+            if (SINGLE_CHORD_REGEX.test(part)) {
               return (
                 <span
-                  key={tIdx}
-                  onClick={() => setSelectedChord(tok.trim())}
-                  className="inline-block px-1.5 py-0.5 rounded bg-primary/20 text-primary font-bold border border-primary/30 cursor-pointer hover:bg-primary hover:text-white transition-all font-mono text-xs shadow-[0_0_8px_rgba(168,85,247,0.3)] hover:scale-105 my-0.5"
-                  title={`Klik untuk melihat diagram chord ${tok.trim()}`}
+                  key={pIdx}
+                  onClick={() => setSelectedChord(part.trim())}
+                  className="inline-block px-1.5 py-0.5 rounded bg-primary/20 text-primary font-bold border border-primary/30 cursor-pointer hover:bg-primary hover:text-white transition-all font-mono text-xs shadow-[0_0_8px_rgba(168,85,247,0.3)] hover:scale-105 my-0.5 mx-0.5"
+                  title={`Klik untuk melihat diagram chord ${part.trim()}`}
                 >
-                  {tok}
+                  {part}
                 </span>
               );
             }
-            return <span key={tIdx} className="text-slate-300">{tok}</span>;
+            return <span key={pIdx} className="whitespace-pre text-slate-300">{part}</span>;
           })}
         </div>
       );

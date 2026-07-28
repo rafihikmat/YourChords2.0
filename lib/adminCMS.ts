@@ -65,11 +65,11 @@ export async function updateSongDetails(
 
   const chordsContent = payload.chords || payload.content || '';
 
-  const updateBody: Record<string, any> = {
+  // Payload khusus untuk tabel 'songs' (HANYA menggunakan kolom 'chords', HAPUS 'content')
+  const songUpdateBody: Record<string, any> = {
     title: payload.title?.trim(),
     artist: payload.artist?.trim(),
     chords: chordsContent,
-    content: chordsContent,
     cover_url: payload.cover_url || null,
     difficulty: payload.difficulty || null,
     youtube_video_id: payload.youtube_video_id || null,
@@ -78,10 +78,10 @@ export async function updateSongDetails(
   };
 
   try {
-    // 1. Attempt update in 'songs' table
+    // 1. Attempt update in 'songs' table (tanpa properti 'content')
     const { data: updatedSong, error: songsErr } = await supabase
       .from('songs')
-      .update(updateBody)
+      .update(songUpdateBody)
       .eq('id', id)
       .select('*')
       .maybeSingle();
@@ -90,10 +90,21 @@ export async function updateSongDetails(
       return { success: true, data: normalizeSong(updatedSong) };
     }
 
-    // 2. Attempt update in 'chords' table
+    // 2. Fallback: Attempt update in 'chords' table
+    const chordUpdateBody: Record<string, any> = {
+      title: payload.title?.trim(),
+      artist: payload.artist?.trim(),
+      content: chordsContent,
+      cover_url: payload.cover_url || null,
+      difficulty: payload.difficulty || null,
+      youtube_video_id: payload.youtube_video_id || null,
+      spotify_track_id: payload.spotify_track_id || null,
+      updated_at: new Date().toISOString(),
+    };
+
     const { data: updatedChord, error: chordsErr } = await supabase
       .from('chords')
-      .update(updateBody)
+      .update(chordUpdateBody)
       .eq('id', id)
       .select('*')
       .maybeSingle();
@@ -102,12 +113,12 @@ export async function updateSongDetails(
       return { success: true, data: normalizeSong(updatedChord) };
     }
 
-    // 3. If neither table updated (e.g. record was only in fallback), insert into 'songs' table with given ID
+    // 3. Jika tidak ada di kedua tabel, lakukan upsert ke tabel 'songs' dengan songUpdateBody
     const { data: insertedSong, error: insertErr } = await supabase
       .from('songs')
       .upsert({
         id,
-        ...updateBody,
+        ...songUpdateBody,
         view_count: payload.view_count || payload.views || 0,
       })
       .select('*')
