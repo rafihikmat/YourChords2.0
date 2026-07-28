@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { 
   Play, Minus, Plus, Settings2, Copy, Check, Pause, Type, Music, Heart, Wand2, 
-  Sparkles, Keyboard, X, Youtube, FolderPlus, FileText, Save, CheckCircle2, PlusCircle, Printer, Music2 
+  Sparkles, Keyboard, X, Youtube, FolderPlus, FileText, Save, CheckCircle2, PlusCircle, Printer, Music2, Edit3 
 } from "lucide-react";
 import { transposeChordLine, simplifyChordLine, calculateCapoTranspose } from "@/lib/transposer";
 import { 
@@ -14,6 +14,8 @@ import { getVideoTutorials, VideoTutorial } from "@/lib/adminCurated";
 import FretboardModal from "@/components/FretboardModal";
 import FloatingYouTubePlayer from "@/components/FloatingYouTubePlayer";
 import Metronome from "@/components/Metronome";
+import SongRating from "@/components/SongRating";
+import ChordCorrectionModal from "@/components/ChordCorrectionModal";
 import { Setlist } from "@/lib/types";
 
 type ChordData = {
@@ -23,6 +25,7 @@ type ChordData = {
   cover_url?: string;
   content: string;
   youtube_video_id?: string | null;
+  difficulty?: string | null;
 };
 
 export default function ChordClientDetail({ data }: { data: ChordData }) {
@@ -36,6 +39,7 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
   const [selectedChordForDiagram, setSelectedChordForDiagram] = useState<string | null>(null);
   const [showShortcutsGuide, setShowShortcutsGuide] = useState(false);
   const [showMetronome, setShowMetronome] = useState(false);
+  const [showCorrectionModal, setShowCorrectionModal] = useState(false);
 
   // Floating YouTube Player State
   const [showYouTubePlayer, setShowYouTubePlayer] = useState(false);
@@ -478,6 +482,11 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
             })}
           </div>
         </div>
+
+        {/* SONG RATING & COMMUNITY DIFFICULTY VOTING */}
+        <div className="mt-6">
+          <SongRating songId={data.id} songTitle={data.title} initialDifficulty={data.difficulty} />
+        </div>
       </div>
 
       {/* VIDEO TUTORIALS SECTION */}
@@ -691,7 +700,32 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
           </button>
         </div>
 
+        <div className="w-px h-8 bg-white/10"></div>
+
+        {/* Tool: Chord Correction Modal */}
+        <div className="flex flex-col items-center gap-1">
+          <span className="text-[9px] text-slate-400 font-bold tracking-[0.15em] uppercase">Edit</span>
+          <button
+            onClick={() => setShowCorrectionModal(true)}
+            className="p-1.5 px-2.5 rounded-lg border border-white/10 bg-white/5 text-slate-300 hover:text-white hover:bg-primary/20 hover:border-primary/50 text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
+            title="Saran Perbaikan Lirik & Chord"
+          >
+            <Edit3 className="w-3.5 h-3.5 text-primary" />
+            <span className="hidden sm:inline">Perbaiki</span>
+          </button>
+        </div>
+
       </div>
+
+      {/* CHORD CORRECTION MODAL */}
+      <ChordCorrectionModal
+        isOpen={showCorrectionModal}
+        onClose={() => setShowCorrectionModal(false)}
+        songId={data.id}
+        songTitle={data.title}
+        songArtist={data.artist}
+        currentContent={data.content}
+      />
 
       {/* FLOATING METRONOME WIDGET */}
       {showMetronome && (
