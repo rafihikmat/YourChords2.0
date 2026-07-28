@@ -3,9 +3,10 @@ import { Song } from '@/lib/types';
 
 export interface VideoTutorial {
   id: string;
-  song_id: string;
+  song_id?: string;
   video_id: string;
   title: string;
+  thumbnail_url?: string;
   is_active?: boolean;
   created_at?: string;
   song_title?: string;
@@ -164,38 +165,64 @@ export async function reorderHeroSongs(songIds: string[]): Promise<CuratedRespon
 }
 
 /**
- * Mengambil daftar video tutorial dari tabel 'video_tutorials'.
+ * Mengambil daftar video tutorial dari tabel 'page_content' (id: 'song_video_tutorials').
  * Opsi: Filter berdasarkan songId.
  */
 export async function getVideoTutorials(songId?: string): Promise<VideoTutorial[]> {
   try {
-    let query = supabase.from('video_tutorials').select('*');
+    const { data: pageContent, error } = await supabase
+      .from('page_content')
+      .select('content')
+      .eq('id', 'song_video_tutorials')
+      .maybeSingle();
 
-    if (songId) {
-      query = query.eq('song_id', songId);
+    if (error) {
+      console.error('[GET VIDEO TUTORIALS ERROR]:', error);
+      return [];
     }
 
-    const { data, error } = await query.order('created_at', { ascending: false });
+    const songTutorials = pageContent?.content?.song_tutorials || {};
 
-    if (!error && data) {
-      return data.map((item: any) => ({
+    if (songId) {
+      const list = songTutorials[songId] || [];
+      return list.map((item: any) => ({
         id: item.id || item.video_id,
-        song_id: item.song_id,
+        song_id: songId,
         video_id: item.video_id,
         title: item.title || 'Tutorial Gitar',
+        thumbnail_url: item.thumbnail_url || `https://img.youtube.com/vi/${item.video_id}/hqdefault.jpg`,
         is_active: item.is_active ?? true,
         created_at: item.created_at || new Date().toISOString()
       }));
     }
+
+    // Accumulate all song tutorials
+    const allTutorials: VideoTutorial[] = [];
+    Object.keys(songTutorials).forEach(sId => {
+      if (Array.isArray(songTutorials[sId])) {
+        songTutorials[sId].forEach((item: any) => {
+          allTutorials.push({
+            id: item.id || item.video_id,
+            song_id: sId,
+            video_id: item.video_id,
+            title: item.title || 'Tutorial Gitar',
+            thumbnail_url: item.thumbnail_url || `https://img.youtube.com/vi/${item.video_id}/hqdefault.jpg`,
+            is_active: item.is_active ?? true,
+            created_at: item.created_at || new Date().toISOString()
+          });
+        });
+      }
+    });
+
+    return allTutorials;
   } catch (err) {
     console.error('[GET VIDEO TUTORIALS ERROR]:', err);
+    return [];
   }
-
-  return [];
 }
 
 /**
- * Menambahkan video tutorial gitar baru untuk lagu tertentu.
+ * Menambahkan video tutorial gitar baru untuk lagu tertentu ke tabel 'page_content'.
  */
 export async function addVideoTutorial(
   songId: string, 
@@ -216,35 +243,44 @@ export async function addVideoTutorial(
   }
 
   try {
-    const newRecord = {
+    const { data: pageContent } = await supabase
+      .from('page_content')
+      .select('content')
+      .eq('id', 'song_video_tutorials')
+      .maybeSingle();
+
+    const content = pageContent?.content || { song_tutorials: {} };
+    if (!content.song_tutorials) {
+      content.song_tutorials = {};
+    }
+
+    const currentSongList = content.song_tutorials[songId] || [];
+
+    const newTutorial: VideoTutorial = {
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `tut_${Date.now()}_${Math.random().toString(36).substring(2,7)}`,
       song_id: songId,
       video_id: cleanVideoId,
       title: title.trim(),
+      thumbnail_url: `https://img.youtube.com/vi/${cleanVideoId}/hqdefault.jpg`,
       is_active: true,
       created_at: new Date().toISOString()
     };
 
-    const { data, error } = await supabase
-      .from('video_tutorials')
-      .insert([newRecord])
-      .select('*')
-      .maybeSingle();
+    content.song_tutorials[songId] = [newTutorial, ...currentSongList];
 
-    if (!error) {
-      return { 
-        success: true, 
-        data: {
-          id: data?.id || cleanVideoId,
-          song_id: songId,
-          video_id: cleanVideoId,
-          title: title.trim(),
-          is_active: true,
-          created_at: data?.created_at || new Date().toISOString()
-        } 
-      };
+    const { error: upsertErr } = await supabase
+      .from('page_content')
+      .upsert({
+        id: 'song_video_tutorials',
+        content,
+        updated_at: new Date().toISOString()
+      });
+
+    if (upsertErr) {
+      return { success: false, error: upsertErr.message };
     }
 
-    return { success: false, error: error.message || 'Gagal menyimpan video tutorial ke database.' };
+    return { success: true, data: newTutorial };
   } catch (err: any) {
     console.error('[ADD VIDEO TUTORIAL ERROR]:', err);
     return { success: false, error: err?.message || 'Terjadi kesalahan sistem saat menyimpan tutorial.' };
@@ -252,29 +288,55 @@ export async function addVideoTutorial(
 }
 
 /**
- * Menghapus video tutorial berdasarkan ID
+ * Menghapus video tutorial berdasarkan ID dari tabel 'page_content'
  */
-export async function deleteVideoTutorial(tutorialId: string): Promise<CuratedResponse> {
-  if (!tutorialId) {
+export async function deleteVideoTutorial(
+  songIdOrTutorialId: string,
+  optionalTutorialId?: string
+): Promise<CuratedResponse> {
+  const songId = optionalTutorialId ? songIdOrTutorialId : undefined;
+  const targetId = optionalTutorialId || songIdOrTutorialId;
+
+  if (!targetId) {
     return { success: false, error: 'ID Tutorial tidak valid.' };
   }
 
   try {
-    const { error } = await supabase
-      .from('video_tutorials')
-      .delete()
-      .eq('id', tutorialId);
+    const { data: pageContent } = await supabase
+      .from('page_content')
+      .select('content')
+      .eq('id', 'song_video_tutorials')
+      .maybeSingle();
 
-    if (error) {
-      // Fallback try matching by video_id
-      const { error: err2 } = await supabase
-        .from('video_tutorials')
-        .delete()
-        .eq('video_id', tutorialId);
+    const content = pageContent?.content || { song_tutorials: {} };
+    const songTutorials = content.song_tutorials || {};
 
-      if (err2) {
-        return { success: false, error: err2.message };
-      }
+    if (songId && songTutorials[songId]) {
+      songTutorials[songId] = songTutorials[songId].filter(
+        (item: any) => item.id !== targetId && item.video_id !== targetId
+      );
+    } else {
+      Object.keys(songTutorials).forEach(sId => {
+        if (Array.isArray(songTutorials[sId])) {
+          songTutorials[sId] = songTutorials[sId].filter(
+            (item: any) => item.id !== targetId && item.video_id !== targetId
+          );
+        }
+      });
+    }
+
+    content.song_tutorials = songTutorials;
+
+    const { error: upsertErr } = await supabase
+      .from('page_content')
+      .upsert({
+        id: 'song_video_tutorials',
+        content,
+        updated_at: new Date().toISOString()
+      });
+
+    if (upsertErr) {
+      return { success: false, error: upsertErr.message };
     }
 
     return { success: true };

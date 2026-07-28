@@ -10,6 +10,7 @@ import {
   toggleSongFavorite, checkIsFavorite, getUserSongNote, saveUserSongNote, 
   getUserSetlists, addSongToSetlist, createSetlist 
 } from "@/lib/supabase";
+import { getVideoTutorials, VideoTutorial } from "@/lib/adminCurated";
 import FretboardModal from "@/components/FretboardModal";
 import FloatingYouTubePlayer from "@/components/FloatingYouTubePlayer";
 import { Setlist } from "@/lib/types";
@@ -36,6 +37,7 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
 
   // Floating YouTube Player State
   const [showYouTubePlayer, setShowYouTubePlayer] = useState(false);
+  const [videoTutorials, setVideoTutorials] = useState<VideoTutorial[]>([]);
 
   // Personal Notes & Strumming State
   const [userNote, setUserNote] = useState("");
@@ -54,11 +56,12 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
 
   const userId = "guest"; // Default user context
 
-  // Check Favorite Status & Personal Note on Load
+  // Check Favorite Status, Personal Note & Video Tutorials on Load
   useEffect(() => {
     if (data?.id) {
       checkIsFavorite(userId, data.id).then(fav => setIsFavorite(fav));
       getUserSongNote(userId, data.id).then(note => setUserNote(note));
+      getVideoTutorials(data.id).then(tuts => setVideoTutorials(tuts));
     }
   }, [data?.id]);
 
@@ -450,6 +453,51 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
           </div>
         </div>
       </div>
+
+      {/* VIDEO TUTORIALS SECTION */}
+      {videoTutorials.length > 0 && (
+        <div className="w-full max-w-4xl mx-auto px-4 md:px-0 mb-12">
+          <div className="bg-surface/70 border border-white/10 rounded-2xl p-6 backdrop-blur-md shadow-lg space-y-4">
+            <div className="flex items-center gap-3 border-b border-white/10 pb-3">
+              <div className="p-2 rounded-xl bg-red-600/20 text-red-500 border border-red-500/30">
+                <Youtube className="w-5 h-5 fill-current" />
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold text-white">Video Tutorial Gitar</h3>
+                <p className="text-xs text-slate-400">Panduan belajar dan kunci gitar untuk lagu ini</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+              {videoTutorials.map((tutorial) => (
+                <div key={tutorial.id} className="bg-black/60 rounded-xl border border-white/10 p-3 flex flex-col gap-3 hover:border-primary/40 transition-all group">
+                  <div className="relative aspect-video rounded-lg overflow-hidden bg-slate-900 border border-white/10">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={tutorial.thumbnail_url || `https://img.youtube.com/vi/${tutorial.video_id}/hqdefault.jpg`}
+                      alt={tutorial.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                    <a
+                      href={`https://www.youtube.com/watch?v=${tutorial.video_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="absolute inset-0 bg-black/40 group-hover:bg-black/20 flex items-center justify-center transition-colors cursor-pointer"
+                    >
+                      <div className="w-12 h-12 rounded-full bg-red-600 text-white flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform">
+                        <Play className="w-6 h-6 fill-current translate-x-0.5" />
+                      </div>
+                    </a>
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-white line-clamp-2">{tutorial.title}</h4>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* FLOATING YOUTUBE PLAY-ALONG WIDGET */}
       {showYouTubePlayer && (
