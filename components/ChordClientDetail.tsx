@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { 
   Play, Minus, Plus, Settings2, Copy, Check, Pause, Type, Music, Heart, Wand2, 
-  Sparkles, Keyboard, X, Youtube, FolderPlus, FileText, Save, CheckCircle2, PlusCircle
+  Sparkles, Keyboard, X, Youtube, FolderPlus, FileText, Save, CheckCircle2, PlusCircle, Printer, Music2 
 } from "lucide-react";
 import { transposeChordLine, simplifyChordLine, calculateCapoTranspose } from "@/lib/transposer";
 import { 
@@ -13,6 +13,7 @@ import {
 import { getVideoTutorials, VideoTutorial } from "@/lib/adminCurated";
 import FretboardModal from "@/components/FretboardModal";
 import FloatingYouTubePlayer from "@/components/FloatingYouTubePlayer";
+import Metronome from "@/components/Metronome";
 import { Setlist } from "@/lib/types";
 
 type ChordData = {
@@ -34,6 +35,7 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
   
   const [selectedChordForDiagram, setSelectedChordForDiagram] = useState<string | null>(null);
   const [showShortcutsGuide, setShowShortcutsGuide] = useState(false);
+  const [showMetronome, setShowMetronome] = useState(false);
 
   // Floating YouTube Player State
   const [showYouTubePlayer, setShowYouTubePlayer] = useState(false);
@@ -655,7 +657,48 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
           </div>
         </div>
 
+        <div className="w-px h-8 bg-white/10"></div>
+
+        {/* Tool: Metronome Toggle */}
+        <div className="flex flex-col items-center gap-1">
+          <span className="text-[9px] text-slate-400 font-bold tracking-[0.15em] uppercase">Beat</span>
+          <button
+            onClick={() => setShowMetronome(prev => !prev)}
+            className={`p-1.5 px-2.5 rounded-lg border text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+              showMetronome 
+                ? 'bg-primary text-white border-primary shadow-[0_0_15px_rgba(168,85,247,0.5)]' 
+                : 'bg-white/5 border-white/10 text-slate-300 hover:text-white'
+            }`}
+            title="Buka Metronom AI"
+          >
+            <Music2 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Metronom</span>
+          </button>
+        </div>
+
+        <div className="w-px h-8 bg-white/10"></div>
+
+        {/* Tool: Print / Export PDF */}
+        <div className="flex flex-col items-center gap-1">
+          <span className="text-[9px] text-slate-400 font-bold tracking-[0.15em] uppercase">PDF</span>
+          <button
+            onClick={() => window.print()}
+            className="p-1.5 px-2.5 rounded-lg border border-white/10 bg-white/5 text-slate-300 hover:text-white hover:bg-primary/20 hover:border-primary/50 text-xs font-bold transition-all cursor-pointer flex items-center gap-1 printable-button"
+            title="Cetak / Export PDF Lagu Ini"
+          >
+            <Printer className="w-3.5 h-3.5 text-primary" />
+            <span className="hidden sm:inline">Cetak</span>
+          </button>
+        </div>
+
       </div>
+
+      {/* FLOATING METRONOME WIDGET */}
+      {showMetronome && (
+        <div className="fixed bottom-24 right-4 z-[90] animate-fade-in no-print">
+          <Metronome onClose={() => setShowMetronome(false)} />
+        </div>
+      )}
 
       {/* CHORD FRETBOARD DIAGRAM POPUP MODAL */}
       <FretboardModal 

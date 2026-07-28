@@ -163,3 +163,63 @@ body {
 .neon-text {
   text-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
 }
+
+/* ══════════════════════════════════════════
+   PRINT & PDF EXPORT STYLES
+   ══════════════════════════════════════════ */
+@media print {
+  /* Hide UI components not needed on printed paper / PDF */
+  .navbar,
+  .footer,
+  .sidebar,
+  .floating-controls,
+  .metronome-widget,
+  .ad-banner,
+  .no-print,
+  button:not(.printable-button),
+  nav,
+  footer {
+    display: none !important;
+  }
+
+  body, html, main {
+    background: #ffffff !important;
+    color: #000000 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .chord-sheet-container {
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .chord-sheet-container .chord {
+    color: #000000 !important;
+    font-weight: 800 !important;
+    text-shadow: none !important;
+  }
+
+  .chord-sheet-container .lyrics {
+    color: #222222 !important;
+    text-shadow: none !important;
+  }
+
+  .chord-sheet-container .comment {
+    background: #f1f5f9 !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #000000 !important;
+  }
+
+  /* Prevent page breaks inside song sections */
+  tr, .chord-sheet-container tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+}

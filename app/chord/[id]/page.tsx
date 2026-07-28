@@ -27,13 +27,28 @@ export async function generateMetadata(
   const cleanText = (songData.content || "").replace(/[^a-zA-Z0-9\s]/g, '');
   const snippet = cleanText.substring(0, 120).trim() + "...";
 
+  const ogImageUrl = `/api/og?title=${encodeURIComponent(songData.title)}&artist=${encodeURIComponent(songData.artist)}&cover=${encodeURIComponent(songData.cover_url || '')}`;
+
   return {
     title: `Chord ${songData.title} - ${songData.artist} | YourChords`,
     description: `Mainkan chord gitar dasar dan lirik lagu ${songData.title} oleh ${songData.artist}. ${snippet}`,
     openGraph: {
       title: `Chord ${songData.title} - ${songData.artist}`,
       description: `Lirik dan Chord gitar termudah ${songData.title} - ${songData.artist}`,
-      images: songData.cover_url ? [songData.cover_url] : [],
+      images: [
+        {
+          url: ogImageUrl,
+          width: 1200,
+          height: 630,
+          alt: `Chord ${songData.title} - ${songData.artist}`,
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `Chord ${songData.title} - ${songData.artist}`,
+      description: `Lirik dan Chord gitar termudah ${songData.title} - ${songData.artist}`,
+      images: [ogImageUrl],
     },
   };
 }
