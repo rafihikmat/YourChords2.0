@@ -65,20 +65,18 @@ export async function updateSongDetails(
 
   const chordsContent = payload.chords || payload.content || '';
 
-  // Payload khusus untuk tabel 'songs' (HANYA menggunakan kolom 'chords', HAPUS 'content')
+  // Payload khusus untuk tabel 'songs' (HANYA berisi kolom valid: title, artist, chords, difficulty, youtube_video_id, spotify_track_id)
   const songUpdateBody: Record<string, any> = {
     title: payload.title?.trim(),
     artist: payload.artist?.trim(),
     chords: chordsContent,
-    cover_url: payload.cover_url || null,
     difficulty: payload.difficulty || null,
     youtube_video_id: payload.youtube_video_id || null,
     spotify_track_id: payload.spotify_track_id || null,
-    updated_at: new Date().toISOString(),
   };
 
   try {
-    // 1. Attempt update in 'songs' table (tanpa properti 'content')
+    // 1. Attempt update in 'songs' table (Strictly matching 'songs' schema without cover_url / content)
     const { data: updatedSong, error: songsErr } = await supabase
       .from('songs')
       .update(songUpdateBody)

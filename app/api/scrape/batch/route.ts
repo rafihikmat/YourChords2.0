@@ -131,55 +131,91 @@ export async function POST(request: Request) {
         continue;
       }
 
-      // Fetch HTML target URL with Chrome 126 headers & 403 fallback
-      const fetchWithFallback = async (url: string) => {
+      // Helper function for fetching URL with 3-Tier Multi-Proxy Fallback
+      const fetchHtmlContent = async (url: string): Promise<string> => {
         const primaryHeaders = {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
           'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
+          'Referer': 'https://www.google.com/',
           'Sec-Ch-Ua': '"Not/A)Brand";v="8", "Chromium";v="126", "Google Chrome";v="126"',
           'Sec-Ch-Ua-Mobile': '?0',
           'Sec-Ch-Ua-Platform': '"Windows"',
           'Sec-Fetch-Dest': 'document',
           'Sec-Fetch-Mode': 'navigate',
-          'Sec-Fetch-Site': 'none',
+          'Sec-Fetch-Site': 'cross-site',
           'Sec-Fetch-User': '?1',
           'Upgrade-Insecure-Requests': '1',
         };
 
-        let res = await fetch(url, {
-          method: 'GET',
-          headers: primaryHeaders,
-          cache: 'no-store',
-        });
-
-        if (res.status === 403) {
-          console.warn(`[BATCH SCRAPER 403 WARN]: 403 Forbidden for ${url}. Executing fallback retry...`);
-          const cleanedUrl = url.split('?')[0].split('#')[0].trim();
-          const fallbackHeaders = {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
-            'Cache-Control': 'no-cache',
-          };
-
-          res = await fetch(cleanedUrl, {
+        // LAPIS 1: Direct Request
+        try {
+          const res = await fetch(url, {
             method: 'GET',
-            headers: fallbackHeaders,
+            headers: primaryHeaders,
             cache: 'no-store',
           });
+
+          if (res.ok) {
+            const html = await res.text();
+            if (html && html.trim().length > 100) {
+              return html;
+            }
+          } else {
+            console.warn(`[BATCH SCRAPER TIER 1 WARN]: Direct fetch failed HTTP ${res.status}. Trying Tier 2 (AllOrigins)...`);
+          }
+        } catch (err: any) {
+          console.warn(`[BATCH SCRAPER TIER 1 ERROR]: Direct fetch error: ${err?.message}. Trying Tier 2 (AllOrigins)...`);
         }
 
-        return res;
+        // LAPIS 2: AllOrigins Proxy Fallback
+        try {
+          const allOriginsUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+          const res = await fetch(allOriginsUrl, {
+            method: 'GET',
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+            },
+            cache: 'no-store',
+          });
+
+          if (res.ok) {
+            const html = await res.text();
+            if (html && html.trim().length > 100) {
+              return html;
+            }
+          } else {
+            console.warn(`[BATCH SCRAPER TIER 2 WARN]: AllOrigins failed HTTP ${res.status}. Trying Tier 3 (CorsProxy)...`);
+          }
+        } catch (err: any) {
+          console.warn(`[BATCH SCRAPER TIER 2 ERROR]: AllOrigins error: ${err?.message}. Trying Tier 3 (CorsProxy)...`);
+        }
+
+        // LAPIS 3: CorsProxy Fallback
+        try {
+          const corsProxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+          const res = await fetch(corsProxyUrl, {
+            method: 'GET',
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+            },
+            cache: 'no-store',
+          });
+
+          if (res.ok) {
+            const html = await res.text();
+            if (html && html.trim().length > 100) {
+              return html;
+            }
+          }
+          throw new Error(`CorsProxy HTTP ${res.status}`);
+        } catch (err: any) {
+          console.error(`[BATCH SCRAPER TIER 3 ERROR]: CorsProxy error: ${err?.message}`);
+          throw new Error(`Gagal menyedot halaman dari URL target via direct maupun proxy (${err?.message || '403 Forbidden'}).`);
+        }
       };
 
-      const response = await fetchWithFallback(targetUrl);
-
-      if (!response.ok) {
-        throw new Error(`Respons server HTTP ${response.status}`);
-      }
-
-      const html = await response.text();
+      const html = await fetchHtmlContent(targetUrl);
       const $ = cheerio.load(html);
 
       const pageTitleRaw =
@@ -210,13 +246,11 @@ export async function POST(request: Request) {
       const finalCover =
         'https://images.unsplash.com/photo-1511192336575-5a79af67a629?q=80&w=600&h=600&auto=format&fit=crop';
 
-      // Insert new row to 'songs'
+      // Insert new row to 'songs' (using valid columns only)
       const { error: songsError } = await supabase.from('songs').insert({
         title: finalTitle,
         artist: finalArtist,
         chords: finalChord,
-        source_url: targetUrl,
-        cover_url: finalCover,
         view_count: 0,
       });
 

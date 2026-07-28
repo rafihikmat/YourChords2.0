@@ -51,7 +51,7 @@ export default function AdminEditSongPage() {
       const song = res.data;
       setTitle(song.title || "");
       setArtist(song.artist || "");
-      setContent(song.content || song.chords || "");
+      setContent(song.chords || song.content || "");
       setCoverUrl(song.cover_url || "");
       setDifficulty(song.difficulty || "Sedang");
       setYoutubeVideoId(song.youtube_video_id || "");
