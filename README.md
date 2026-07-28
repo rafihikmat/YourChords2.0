@@ -36,6 +36,7 @@ lightning-fast chord transposing and auto-scrolling tools.
 ---
 
 ## ⚡ Key Features
+
 - ⚡ **Sub-0.2s Fast Database Fetch:** High-performance SSR and client caching
   querying Supabase PostgreSQL using pure UUIDs for instantaneous song loading.
 - 🥷 **Admin Control Center (`/admin`):** Exclusive command center for
