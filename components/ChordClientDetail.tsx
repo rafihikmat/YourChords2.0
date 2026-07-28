@@ -16,6 +16,7 @@ import FloatingYouTubePlayer from "@/components/FloatingYouTubePlayer";
 import Metronome from "@/components/Metronome";
 import SongRating from "@/components/SongRating";
 import ChordCorrectionModal from "@/components/ChordCorrectionModal";
+import { saveSongToOfflineCache } from "@/lib/offlineCache";
 import { Setlist } from "@/lib/types";
 
 type ChordData = {
@@ -64,14 +65,25 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
 
   const userId = "guest"; // Default user context
 
-  // Check Favorite Status, Personal Note & Video Tutorials on Load
+  // Check Favorite Status, Personal Note & Video Tutorials on Load & Save to Offline Cache
   useEffect(() => {
     if (data?.id) {
       checkIsFavorite(userId, data.id).then(fav => setIsFavorite(fav));
       getUserSongNote(userId, data.id).then(note => setUserNote(note));
       getVideoTutorials(data.id).then(tuts => setVideoTutorials(tuts));
+
+      // Automate offline caching
+      saveSongToOfflineCache({
+        id: data.id,
+        title: data.title,
+        artist: data.artist,
+        chords: data.content,
+        content: data.content,
+        difficulty: data.difficulty,
+        cover_url: data.cover_url,
+      });
     }
-  }, [data?.id]);
+  }, [data]);
 
   // Load Setlists when Setlist Modal opens
   const handleOpenSetlistModal = async () => {

@@ -2,10 +2,19 @@ import React from "react";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import { AuthProvider } from "@/lib/authContext";
+import OfflineGuard from "@/components/OfflineGuard";
+import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 
 export const metadata = {
   title: "YourChords 2.0 - Platform Chord & Lirik Gitar Cyber-Zen",
   description: "Platform Chord & Lirik Gitar AI-Powered Terdepan dengan Fitur Transpose, Auto-Scroll, dan Scraper Chordtela.",
+  manifest: "/manifest.json",
+  themeColor: "#8b5cf6",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "YourChords 2.0",
+  },
 };
 
 export default function RootLayout({
@@ -17,6 +26,9 @@ export default function RootLayout({
     <html lang="id" className="dark">
       <body className="antialiased min-h-screen flex flex-col selection:bg-primary/30 bg-slate-950 text-slate-100">
         <AuthProvider>
+          {/* Offline Guard Indicator */}
+          <OfflineGuard />
+
           {/* Fixed Navbar */}
           <Navbar />
 
@@ -24,6 +36,9 @@ export default function RootLayout({
           <main className="flex-grow">
             {children}
           </main>
+
+          {/* PWA Installation Floating Banner */}
+          <PWAInstallPrompt />
 
           {/* Footer */}
           <footer className="border-t border-white/5 bg-surface/50 backdrop-blur-md">

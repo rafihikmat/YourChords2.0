@@ -1,0 +1,25 @@
+{
+  "name": "YourChords 2.0 - Ultimate Guitar & Chord Platform",
+  "short_name": "YourChords",
+  "description": "Platform chord gitar dan lirik lagu presisi dengan AI Transcriber, Metronom, & Offline Mode.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#8b5cf6",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "https://images.unsplash.com/photo-1511192336575-5a79af67a629?w=192&h=192&fit=crop",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://images.unsplash.com/photo-1511192336575-5a79af67a629?w=512&h=512&fit=crop",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["music", "utilities", "entertainment"]
+}
