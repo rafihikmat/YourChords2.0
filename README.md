@@ -37,9 +37,6 @@ lightning-fast chord transposing and auto-scrolling tools.
 
 ## ⚡ Key Features
 
-- 🍿 **IDLIX-Style Cinematic Interface:** Rotating Hero Banner Carousel
-  showcasing trending songs with view counters alongside smooth horizontal
-  scrolling rows of 3:4 album cover cards.
 - ⚡ **Sub-0.2s Fast Database Fetch:** High-performance SSR and client caching
   querying Supabase PostgreSQL using pure UUIDs for instantaneous song loading.
 - 🥷 **Admin Control Center (`/admin`):** Exclusive command center for
