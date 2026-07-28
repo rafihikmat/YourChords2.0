@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from "react";
 import { 
   Link2, Disc3, Save, CheckCircle2, AlertTriangle, XCircle, 
-  RotateCcw, Wand2, Layers, FileText, Sparkles, RefreshCw, Play
+  RotateCcw, Wand2, Layers, FileText, Sparkles, RefreshCw, Play, Edit3, ClipboardList
 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 export interface ScrapeResultItem {
   url: string;
@@ -20,12 +21,18 @@ interface BatchScraperProps {
 }
 
 export default function BatchScraper({ initialUrl = "", onComplete }: BatchScraperProps) {
-  // Mode: 'single' vs 'batch'
-  const [mode, setMode] = useState<'single' | 'batch'>('single');
+  // Mode: 'single' | 'batch' | 'manual'
+  const [mode, setMode] = useState<'single' | 'batch' | 'manual'>('single');
 
   // Input states
   const [singleUrl, setSingleUrl] = useState(initialUrl);
   const [batchText, setBatchText] = useState("");
+
+  // Manual import states
+  const [manualTitle, setManualTitle] = useState("");
+  const [manualArtist, setManualArtist] = useState("");
+  const [manualChords, setManualChords] = useState("");
+  const [manualDifficulty, setManualDifficulty] = useState("Pemula");
 
   // Process states
   const [loading, setLoading] = useState(false);
@@ -179,6 +186,70 @@ export default function BatchScraper({ initialUrl = "", onComplete }: BatchScrap
     }
   };
 
+  // Manual Import / Paste Lyric Handler
+  const handleManualImport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualTitle.trim() || !manualArtist.trim() || !manualChords.trim()) {
+      alert("Harap lengkapi Judul Lagu, Nama Artis, dan Isi Lirik/Chord.");
+      return;
+    }
+
+    setLoading(true);
+    setProgress(40);
+    setStatusMessage("Menyimpan lagu manual ke database...");
+
+    try {
+      const cleanTitle = manualTitle.trim();
+      const cleanArtist = manualArtist.trim();
+      const cleanChords = manualChords.trim();
+
+      const { data: newSong, error: songsError } = await supabase
+        .from('songs')
+        .insert({
+          title: cleanTitle,
+          artist: cleanArtist,
+          chords: cleanChords,
+          difficulty: manualDifficulty,
+          view_count: 0
+        })
+        .select('id')
+        .maybeSingle();
+
+      if (songsError) {
+        console.warn('[MANUAL IMPORT FALLBACK TO CHORDS]:', songsError.message);
+        await supabase
+          .from('chords')
+          .insert({
+            title: cleanTitle,
+            artist: cleanArtist,
+            content: cleanChords,
+            views: 0
+          });
+      }
+
+      setProgress(100);
+      setStatusMessage(`Berhasil menyimpan: "${cleanTitle}" oleh ${cleanArtist}`);
+      
+      setLogResults(prev => [{
+        url: "Manual Import / Paste",
+        status: 'success',
+        title: cleanTitle,
+        artist: cleanArtist
+      }, ...prev]);
+
+      setManualTitle("");
+      setManualArtist("");
+      setManualChords("");
+
+      if (onComplete) onComplete();
+    } catch (err: any) {
+      setProgress(100);
+      setStatusMessage(err?.message || "Gagal menyimpan lagu manual.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6 bg-surface/80 p-6 md:p-8 rounded-2xl border border-white/10 backdrop-blur-xl shadow-2xl relative overflow-hidden">
       
@@ -196,36 +267,48 @@ export default function BatchScraper({ initialUrl = "", onComplete }: BatchScrap
               </span>
             </h2>
             <p className="text-xs text-slate-400">
-              Sedot chord & lirik langsung dari URL Chordtela (Single atau Massal Batch)
+              Sedot chord & lirik dari URL Chordtela atau Import Manual via Paste Text
             </p>
           </div>
         </div>
 
         {/* MODE TAB SWITCHER */}
-        <div className="flex items-center bg-black/60 border border-white/10 p-1 rounded-xl self-start sm:self-auto">
+        <div className="flex items-center bg-black/60 border border-white/10 p-1 rounded-xl self-start sm:self-auto flex-wrap gap-1">
           <button
             type="button"
             onClick={() => setMode('single')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
               mode === 'single'
                 ? "bg-primary text-white shadow-[0_0_10px_rgba(168,85,247,0.4)]"
                 : "text-slate-400 hover:text-white"
             }`}
           >
             <FileText className="w-3.5 h-3.5" />
-            <span>Single Scraper</span>
+            <span>Single</span>
           </button>
           <button
             type="button"
             onClick={() => setMode('batch')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
               mode === 'batch'
                 ? "bg-primary text-white shadow-[0_0_10px_rgba(168,85,247,0.4)]"
                 : "text-slate-400 hover:text-white"
             }`}
           >
             <Layers className="w-3.5 h-3.5" />
-            <span>Mass / Batch Scraper</span>
+            <span>Batch</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('manual')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              mode === 'manual'
+                ? "bg-primary text-white shadow-[0_0_10px_rgba(168,85,247,0.4)]"
+                : "text-slate-400 hover:text-white"
+            }`}
+          >
+            <ClipboardList className="w-3.5 h-3.5" />
+            <span>Paste Lirik / Manual</span>
           </button>
         </div>
       </div>
@@ -297,6 +380,91 @@ export default function BatchScraper({ initialUrl = "", onComplete }: BatchScrap
               </div>
             ) : (
               <><Play className="w-4 h-4 fill-current" /> Jalankan Mass Batch Scraper</>
+            )}
+          </button>
+        </form>
+      )}
+
+      {/* MODE 3: PASTE LIRIK / MANUAL IMPORT FORM */}
+      {mode === 'manual' && (
+        <form onSubmit={handleManualImport} className="flex flex-col gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-slate-300">
+                Judul Lagu <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="text"
+                value={manualTitle}
+                onChange={(e) => setManualTitle(e.target.value)}
+                placeholder="Contoh: Kangen"
+                className="bg-black/80 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-primary/60 text-xs font-mono"
+                required
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-slate-300">
+                Nama Artis / Band <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="text"
+                value={manualArtist}
+                onChange={(e) => setManualArtist(e.target.value)}
+                placeholder="Contoh: Dewa 19"
+                className="bg-black/80 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-primary/60 text-xs font-mono"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-slate-300">
+              Tingkat Kesulitan Chord
+            </label>
+            <select
+              value={manualDifficulty}
+              onChange={(e) => setManualDifficulty(e.target.value)}
+              className="bg-black/80 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-primary/60 text-xs font-mono"
+            >
+              <option value="Pemula">Pemula</option>
+              <option value="Menengah">Menengah</option>
+              <option value="Mahir">Mahir</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                <ClipboardList className="w-3.5 h-3.5 text-primary" />
+                <span>Paste Lirik & Chord Di Sini <span className="text-red-400">*</span>:</span>
+              </label>
+              <span className="text-[10px] text-slate-500 font-mono">
+                Tempelkan teks lirik dan chord langsung dari browser
+              </span>
+            </div>
+            <textarea
+              value={manualChords}
+              onChange={(e) => setManualChords(e.target.value)}
+              rows={8}
+              placeholder={`Intro : C  G  Am  F\n\nC         G\nKutuliskan kenangan tentang\nAm        F\nCaraku menemukan dirimu...\n\nChorus :\nC          G          Am\nBila rasaku ini rasamu...`}
+              className="w-full bg-black/80 border border-white/10 rounded-xl p-4 text-white placeholder-slate-600 focus:outline-none focus:border-primary/60 focus:shadow-[0_0_15px_rgba(168,85,247,0.25)] transition-all font-mono text-xs leading-relaxed whitespace-pre"
+              required
+            />
+          </div>
+
+          <button 
+            type="submit"
+            disabled={loading}
+            className="flex items-center justify-center gap-2 bg-primary text-white font-bold py-3.5 rounded-xl hover:bg-primary-light hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all disabled:opacity-40 disabled:cursor-not-allowed text-xs md:text-sm cursor-pointer"
+          >
+            {loading ? (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                <span>Menyimpan Lagu...</span>
+              </div>
+            ) : (
+              <><Save className="w-4 h-4" /> Simpan Lagu Ke Database</>
             )}
           </button>
         </form>

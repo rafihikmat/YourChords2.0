@@ -131,28 +131,17 @@ export async function POST(request: Request) {
         continue;
       }
 
-      // Helper function for fetching URL with 3-Tier Multi-Proxy Fallback
+      // Helper function for fetching URL with 4-Tier Multi-Proxy Fallback
       const fetchHtmlContent = async (url: string): Promise<string> => {
-        const primaryHeaders = {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-          'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
-          'Referer': 'https://www.google.com/',
-          'Sec-Ch-Ua': '"Not/A)Brand";v="8", "Chromium";v="126", "Google Chrome";v="126"',
-          'Sec-Ch-Ua-Mobile': '?0',
-          'Sec-Ch-Ua-Platform': '"Windows"',
-          'Sec-Fetch-Dest': 'document',
-          'Sec-Fetch-Mode': 'navigate',
-          'Sec-Fetch-Site': 'cross-site',
-          'Sec-Fetch-User': '?1',
-          'Upgrade-Insecure-Requests': '1',
-        };
-
-        // LAPIS 1: Direct Request
+        // TIER 1: Googlebot Crawler Bypass
         try {
           const res = await fetch(url, {
             method: 'GET',
-            headers: primaryHeaders,
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+              'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
+            },
             cache: 'no-store',
           });
 
@@ -162,42 +151,60 @@ export async function POST(request: Request) {
               return html;
             }
           } else {
-            console.warn(`[BATCH SCRAPER TIER 1 WARN]: Direct fetch failed HTTP ${res.status}. Trying Tier 2 (AllOrigins)...`);
+            console.warn(`[BATCH SCRAPER TIER 1 WARN]: Googlebot direct fetch failed HTTP ${res.status}. Trying Tier 2 (CodeTabs)...`);
           }
         } catch (err: any) {
-          console.warn(`[BATCH SCRAPER TIER 1 ERROR]: Direct fetch error: ${err?.message}. Trying Tier 2 (AllOrigins)...`);
+          console.warn(`[BATCH SCRAPER TIER 1 ERROR]: Googlebot fetch error: ${err?.message}. Trying Tier 2 (CodeTabs)...`);
         }
 
-        // LAPIS 2: AllOrigins Proxy Fallback
+        // TIER 2: CodeTabs Proxy
         try {
-          const allOriginsUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+          const codeTabsUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`;
+          const res = await fetch(codeTabsUrl, {
+            method: 'GET',
+            cache: 'no-store',
+          });
+
+          if (res.ok) {
+            const html = await res.text();
+            if (html && html.trim().length > 100) {
+              return html;
+            }
+          } else {
+            console.warn(`[BATCH SCRAPER TIER 2 WARN]: CodeTabs failed HTTP ${res.status}. Trying Tier 3 (AllOrigins JSON)...`);
+          }
+        } catch (err: any) {
+          console.warn(`[BATCH SCRAPER TIER 2 ERROR]: CodeTabs error: ${err?.message}. Trying Tier 3 (AllOrigins JSON)...`);
+        }
+
+        // TIER 3: AllOrigins JSON Proxy
+        try {
+          const allOriginsUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
           const res = await fetch(allOriginsUrl, {
             method: 'GET',
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-            },
             cache: 'no-store',
           });
 
           if (res.ok) {
-            const html = await res.text();
-            if (html && html.trim().length > 100) {
-              return html;
+            const json = await res.json();
+            if (json?.contents && json.contents.trim().length > 100) {
+              return json.contents;
             }
           } else {
-            console.warn(`[BATCH SCRAPER TIER 2 WARN]: AllOrigins failed HTTP ${res.status}. Trying Tier 3 (CorsProxy)...`);
+            console.warn(`[BATCH SCRAPER TIER 3 WARN]: AllOrigins failed HTTP ${res.status}. Trying Tier 4 (Bingbot)...`);
           }
         } catch (err: any) {
-          console.warn(`[BATCH SCRAPER TIER 2 ERROR]: AllOrigins error: ${err?.message}. Trying Tier 3 (CorsProxy)...`);
+          console.warn(`[BATCH SCRAPER TIER 3 ERROR]: AllOrigins error: ${err?.message}. Trying Tier 4 (Bingbot)...`);
         }
 
-        // LAPIS 3: CorsProxy Fallback
+        // TIER 4: Bingbot Fallback
         try {
-          const corsProxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-          const res = await fetch(corsProxyUrl, {
+          const res = await fetch(url, {
             method: 'GET',
             headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+              'User-Agent': 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)',
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+              'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
             },
             cache: 'no-store',
           });
@@ -208,10 +215,10 @@ export async function POST(request: Request) {
               return html;
             }
           }
-          throw new Error(`CorsProxy HTTP ${res.status}`);
+          throw new Error(`Bingbot HTTP ${res.status}`);
         } catch (err: any) {
-          console.error(`[BATCH SCRAPER TIER 3 ERROR]: CorsProxy error: ${err?.message}`);
-          throw new Error(`Gagal menyedot halaman dari URL target via direct maupun proxy (${err?.message || '403 Forbidden'}).`);
+          console.error(`[BATCH SCRAPER TIER 4 ERROR]: Bingbot error: ${err?.message}`);
+          throw new Error(`Gagal menyedot halaman dari URL target via Googlebot/Bingbot maupun Proxy CodeTabs/AllOrigins (${err?.message || '403 Forbidden'}).`);
         }
       };
 
@@ -234,15 +241,26 @@ export async function POST(request: Request) {
           .trim();
       }
 
-      const preContent = $('pre').first().text();
+      artist = artist.replace(/Chord Kunci Gitar\s*/i, '').replace(/^Chord\s+/i, '').trim();
+      title = title.replace(/Chord Kunci Gitar\s*/i, '').replace(/\s*-\s*Chordtela.*/i, '').replace(/\s*Chordtela\.com.*/i, '').trim();
 
-      if (!preContent || preContent.trim() === '') {
+      let rawChord = $('pre').first().text();
+      if (!rawChord || rawChord.trim() === '') {
+        rawChord = $('div.entry-content pre').text() || $('div.entry-content').text();
+      }
+
+      if (!rawChord || rawChord.trim() === '') {
         throw new Error('Konten chord (<pre>) tidak ditemukan pada halaman.');
       }
 
+      const cleanedChord = rawChord
+        .replace(/Autoscroll\s*Stop\s*Start/gi, '')
+        .replace(/Transpose\s*:\s*\[.*?\]/gi, '')
+        .trim();
+
       const finalTitle = title || 'Tanpa Judul';
       const finalArtist = artist || 'Unknown Artist';
-      const finalChord = preContent.trim();
+      const finalChord = cleanedChord;
       const finalCover =
         'https://images.unsplash.com/photo-1511192336575-5a79af67a629?q=80&w=600&h=600&auto=format&fit=crop';
 
