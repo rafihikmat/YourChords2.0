@@ -7,7 +7,7 @@ import {
   RefreshCw, CheckCircle2, AlertTriangle, X, Play, Music, Layout, ArrowUp, ArrowDown
 } from "lucide-react";
 import { 
-  getFeaturedHeroSongs, toggleSongFeaturedStatus, 
+  getFeaturedHeroSongs, toggleSongFeaturedStatus, reorderHeroSongs,
   getVideoTutorials, addVideoTutorial, deleteVideoTutorial, VideoTutorial 
 } from "@/lib/adminCurated";
 import { fetchAllSongs, searchSongs } from "@/lib/supabase";
@@ -69,27 +69,36 @@ export default function AdminCuratedPage() {
 
   // Handle Pin Song to Hero
   const handlePinSong = async (song: Song) => {
-    const nextOrder = featuredSongs.length + 1;
-    const res = await toggleSongFeaturedStatus(song.id, true, nextOrder);
+    // Instant UI update
+    if (!featuredSongs.some(s => s.id === song.id)) {
+      setFeaturedSongs(prev => [...prev, song]);
+    }
+
+    const res = await toggleSongFeaturedStatus(song.id, true);
 
     if (res.success) {
-      setToast({ text: `Berhasil menambahkan "${song.title}" ke Hero Carousel!`, type: "success" });
+      setToast({ text: "Lagu berhasil di-pin ke Hero Banner Beranda!", type: "success" });
       setIsPinModalOpen(false);
       loadHeroSongs();
     } else {
       setToast({ text: res.error || "Gagal pin lagu.", type: "error" });
+      loadHeroSongs();
     }
   };
 
   // Handle Unpin Song from Hero
   const handleUnpinSong = async (song: Song) => {
-    const res = await toggleSongFeaturedStatus(song.id, false, 0);
+    // Instant UI update
+    setFeaturedSongs(prev => prev.filter(s => s.id !== song.id));
+
+    const res = await toggleSongFeaturedStatus(song.id, false);
 
     if (res.success) {
-      setToast({ text: `Lagu "${song.title}" telah dilepas dari Hero Carousel.`, type: "success" });
+      setToast({ text: `Lagu "${song.title}" telah dilepas dari Hero Banner Beranda.`, type: "success" });
       loadHeroSongs();
     } else {
       setToast({ text: res.error || "Gagal unpin lagu.", type: "error" });
+      loadHeroSongs();
     }
   };
 
@@ -98,15 +107,21 @@ export default function AdminCuratedPage() {
     const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
     if (targetIndex < 0 || targetIndex >= featuredSongs.length) return;
 
-    const otherSong = featuredSongs[targetIndex];
-    const order1 = targetIndex + 1;
-    const order2 = currentIndex + 1;
+    const newFeatured = [...featuredSongs];
+    const [movedSong] = newFeatured.splice(currentIndex, 1);
+    newFeatured.splice(targetIndex, 0, movedSong);
 
-    await toggleSongFeaturedStatus(song.id, true, order1);
-    await toggleSongFeaturedStatus(otherSong.id, true, order2);
+    setFeaturedSongs(newFeatured);
+
+    const newIds = newFeatured.map(s => s.id);
+    const res = await reorderHeroSongs(newIds);
     
-    setToast({ text: "Urutan Hero Carousel berhasil diperbarui!", type: "success" });
-    loadHeroSongs();
+    if (res.success) {
+      setToast({ text: "Urutan Hero Carousel berhasil diperbarui!", type: "success" });
+    } else {
+      setToast({ text: res.error || "Gagal mengubah urutan.", type: "error" });
+      loadHeroSongs();
+    }
   };
 
   // Handle Select Song for Video Tutorial Management

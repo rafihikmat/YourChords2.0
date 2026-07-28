@@ -42,32 +42,48 @@ export function extractYoutubeId(input: string): string {
 }
 
 /**
- * Mengambil daftar lagu yang ditandai 'is_featured' = true untuk Hero Carousel Beranda.
+ * Mengambil daftar lagu yang di-pin ke Hero Carousel dari tabel 'page_content' (id: 'hero_carousel').
  */
 export async function getFeaturedHeroSongs(): Promise<Song[]> {
   try {
-    // 1. Query 'songs' table
-    const { data: songsData, error: songsErr } = await supabase
-      .from('songs')
-      .select('*, albums(cover_url)')
-      .eq('is_featured', true)
-      .order('featured_order', { ascending: true, nullsFirst: false })
-      .order('created_at', { ascending: false });
+    // 1. Fetch record from 'page_content' where id = 'hero_carousel'
+    const { data: pageContent, error: pcErr } = await supabase
+      .from('page_content')
+      .select('content')
+      .eq('id', 'hero_carousel')
+      .maybeSingle();
 
-    if (!songsErr && songsData && songsData.length > 0) {
-      return songsData.map(normalizeSong);
+    const songIds: string[] = pageContent?.content?.song_ids || [];
+
+    if (songIds.length > 0) {
+      // Fetch songs from 'songs' with album JOIN
+      const { data: songsData, error: songsErr } = await supabase
+        .from('songs')
+        .select('*, albums(cover_url)')
+        .in('id', songIds);
+
+      if (!songsErr && songsData && songsData.length > 0) {
+        const normalized = songsData.map(normalizeSong);
+        // Order according to position in songIds array
+        const sorted = songIds
+          .map(id => normalized.find(s => s.id === id))
+          .filter((s): s is Song => Boolean(s));
+
+        if (sorted.length > 0) {
+          return sorted;
+        }
+      }
     }
 
-    // 2. Fallback to 'chords' table if 'songs' table has no featured items
-    const { data: chordsData, error: chordsErr } = await supabase
-      .from('chords')
-      .select('*')
-      .eq('is_featured', true)
-      .order('featured_order', { ascending: true, nullsFirst: false })
-      .order('created_at', { ascending: false });
+    // Fallback: If page_content is empty or no songs found, fetch top 5 songs by view_count
+    const { data: fallbackData } = await supabase
+      .from('songs')
+      .select('*, albums(cover_url)')
+      .order('view_count', { ascending: false, nullsFirst: false })
+      .limit(5);
 
-    if (!chordsErr && chordsData && chordsData.length > 0) {
-      return chordsData.map(normalizeSong);
+    if (fallbackData && fallbackData.length > 0) {
+      return fallbackData.map(normalizeSong);
     }
   } catch (err) {
     console.error('[GET FEATURED HERO SONGS ERROR]:', err);
@@ -77,55 +93,73 @@ export async function getFeaturedHeroSongs(): Promise<Song[]> {
 }
 
 /**
- * Mengubah status featured/pin lagu untuk Hero Carousel Beranda.
+ * Mengubah status featured/pin lagu untuk Hero Carousel Beranda via tabel 'page_content'.
  */
 export async function toggleSongFeaturedStatus(
   songId: string, 
-  isFeatured: boolean, 
-  order: number = 1
+  isFeatured: boolean
 ): Promise<CuratedResponse<Song>> {
   if (!songId) {
     return { success: false, error: 'ID Lagu tidak valid.' };
   }
 
-  const updateBody = {
-    is_featured: isFeatured,
-    featured_order: order,
-    updated_at: new Date().toISOString()
-  };
-
   try {
-    // 1. Try updating in 'songs' table
-    const { data: updatedSong, error: songErr } = await supabase
-      .from('songs')
-      .update(updateBody)
-      .eq('id', songId)
-      .select('*')
+    // 1. Fetch existing 'hero_carousel' record from 'page_content'
+    const { data: pageContent } = await supabase
+      .from('page_content')
+      .select('content')
+      .eq('id', 'hero_carousel')
       .maybeSingle();
 
-    if (!songErr && updatedSong) {
-      return { success: true, data: normalizeSong(updatedSong) };
+    let currentIds: string[] = pageContent?.content?.song_ids || [];
+
+    if (isFeatured) {
+      if (!currentIds.includes(songId)) {
+        currentIds.push(songId);
+      }
+    } else {
+      currentIds = currentIds.filter(id => id !== songId);
     }
 
-    // 2. Try updating in 'chords' table
-    const { data: updatedChord, error: chordErr } = await supabase
-      .from('chords')
-      .update(updateBody)
-      .eq('id', songId)
-      .select('*')
-      .maybeSingle();
+    // 2. Upsert to 'page_content'
+    const { error: upsertErr } = await supabase
+      .from('page_content')
+      .upsert({
+        id: 'hero_carousel',
+        content: { song_ids: currentIds },
+        updated_at: new Date().toISOString()
+      });
 
-    if (!chordErr && updatedChord) {
-      return { success: true, data: normalizeSong(updatedChord) };
+    if (upsertErr) {
+      return { success: false, error: upsertErr.message };
     }
 
-    return { 
-      success: false, 
-      error: songErr?.message || chordErr?.message || 'Gagal mengubah status Hero Carousel lagu.' 
-    };
+    return { success: true };
   } catch (err: any) {
     console.error('[TOGGLE FEATURED STATUS ERROR]:', err);
     return { success: false, error: err?.message || 'Terjadi kesalahan sistem.' };
+  }
+}
+
+/**
+ * Memperbarui urutan lagu Hero Carousel pada tabel 'page_content'.
+ */
+export async function reorderHeroSongs(songIds: string[]): Promise<CuratedResponse> {
+  try {
+    const { error } = await supabase
+      .from('page_content')
+      .upsert({
+        id: 'hero_carousel',
+        content: { song_ids: songIds },
+        updated_at: new Date().toISOString()
+      });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Gagal memperbarui urutan Hero Carousel.' };
   }
 }
 
