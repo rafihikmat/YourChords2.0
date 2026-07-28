@@ -10,6 +10,50 @@ export interface AdminAccessResult {
 }
 
 /**
+ * Helper internal untuk mengambil token dari cookie/header pada Server Environment (Next.js)
+ */
+async function getServerAuthToken(): Promise<string | null> {
+  if (typeof window !== 'undefined') return null;
+
+  try {
+    const { cookies, headers } = await import('next/headers');
+    const cookieStore = await cookies();
+    
+    // 1. Cek cookie khusus sb-access-token
+    const sbAccessToken = cookieStore.get('sb-access-token')?.value;
+    if (sbAccessToken) return sbAccessToken;
+
+    // 2. Cek cookie Supabase bawaan
+    const allCookies = cookieStore.getAll();
+    const sbCookie = allCookies.find(c => 
+      c.name.includes('-auth-token') || 
+      c.name.includes('sb-access-token') || 
+      c.name === 'supabase-auth-token'
+    );
+
+    if (sbCookie) {
+      try {
+        const parsed = JSON.parse(sbCookie.value);
+        return parsed?.access_token || parsed[0] || sbCookie.value;
+      } catch {
+        return sbCookie.value;
+      }
+    }
+
+    // 3. Cek Authorization Header
+    const headerStore = await headers();
+    const authHeader = headerStore.get('authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      return authHeader.substring(7);
+    }
+  } catch (err) {
+    console.warn('[getServerAuthToken Warn]:', err);
+  }
+
+  return null;
+}
+
+/**
  * Mengambil session pengguna aktif dari Supabase
  */
 export async function getAdminSession(): Promise<Session | null> {
@@ -29,30 +73,44 @@ export async function getAdminSession(): Promise<Session | null> {
 export async function verifyAdminAccess(userIdOrToken?: string): Promise<AdminAccessResult> {
   let targetUserId = userIdOrToken;
   let activeUser: User | null = null;
+  let tokenToUse: string | null = null;
 
-  // Jika input adalah token JWT Supabase
+  // Jika parameter langsung berupa JWT Token
   if (userIdOrToken && (userIdOrToken.startsWith('ey') || userIdOrToken.length > 50)) {
+    tokenToUse = userIdOrToken;
+  } else if (!targetUserId && typeof window === 'undefined') {
+    tokenToUse = await getServerAuthToken();
+  }
+
+  // Jika token ditemukan, dapatkan user dari Supabase Auth
+  if (tokenToUse) {
     try {
-      const { data: { user } } = await supabase.auth.getUser(userIdOrToken);
+      const { data: { user } } = await supabase.auth.getUser(tokenToUse);
       if (user) {
         targetUserId = user.id;
         activeUser = user;
       }
     } catch {
-      // Fallback
+      // Fallback lanjut ke getAdminSession
     }
   }
 
+  // Fallback ke Client Session jika belum dapat
   if (!targetUserId) {
     const session = await getAdminSession();
-    if (!session?.user) {
-      return { isAdmin: false, isSuperAdmin: false, user: null, profile: null };
+    if (session?.user) {
+      targetUserId = session.user.id;
+      activeUser = session.user;
     }
-    targetUserId = session.user.id;
-    activeUser = session.user;
+  }
+
+  // Jika tidak ada user terautentikasi -> Return false
+  if (!targetUserId) {
+    return { isAdmin: false, isSuperAdmin: false, user: null, profile: null };
   }
 
   try {
+    // Ambil profile dari tabel profiles
     const { data: profile, error } = await supabase
       .from('profiles')
       .select('*')
@@ -60,6 +118,17 @@ export async function verifyAdminAccess(userIdOrToken?: string): Promise<AdminAc
       .maybeSingle();
 
     if (error || !profile) {
+      // Cek fallback metadata jika profile DB belum/gagal ter-sync
+      const userRole = activeUser?.user_metadata?.role || activeUser?.app_metadata?.role;
+      if (userRole === 'admin' || userRole === 'super_admin') {
+        const isSuperAdmin = userRole === 'super_admin';
+        return {
+          isAdmin: true,
+          isSuperAdmin,
+          user: activeUser,
+          profile: null,
+        };
+      }
       return { isAdmin: false, isSuperAdmin: false, user: activeUser, profile: null };
     }
 

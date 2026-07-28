@@ -12,13 +12,21 @@ export async function middleware(request: NextRequest) {
 
     let token: string | undefined = undefined;
 
-    // Cek header Authorization
+    // 1. Cek Header Authorization
     const authHeader = request.headers.get('authorization');
     if (authHeader && authHeader.startsWith('Bearer ')) {
       token = authHeader.substring(7);
     }
 
-    // Jika tidak ada di header, cari cookie Supabase
+    // 2. Cek Cookie khusus sb-access-token
+    if (!token) {
+      const sbAccessToken = request.cookies.get('sb-access-token')?.value;
+      if (sbAccessToken) {
+        token = sbAccessToken;
+      }
+    }
+
+    // 3. Cek Cookie Supabase bawaan
     if (!token) {
       const cookies = request.cookies.getAll();
       const sbCookie = cookies.find(c => 
@@ -37,7 +45,7 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // Cek Autentikasi: Jika tidak ada token/session -> Redirect ke /auth/signin?redirectTo=/admin
+    // Jika tidak ada token -> Redirect ke /auth/signin?redirectTo=/admin
     if (!token) {
       const loginUrl = new URL('/auth/signin', request.url);
       loginUrl.searchParams.set('redirectTo', '/admin');
@@ -65,9 +73,9 @@ export async function middleware(request: NextRequest) {
         .eq('id', user.id)
         .maybeSingle();
 
-      const role = profile?.role;
+      const role = profile?.role || user.user_metadata?.role || user.app_metadata?.role;
 
-      // Jika role bukan admin/super_admin -> Redirect ke beranda dengan ?error=unauthorized
+      // Jika role bukan admin / super_admin -> Redirect ke beranda dengan ?error=unauthorized
       if (role !== 'admin' && role !== 'super_admin') {
         const homeUrl = new URL('/', request.url);
         homeUrl.searchParams.set('error', 'unauthorized');

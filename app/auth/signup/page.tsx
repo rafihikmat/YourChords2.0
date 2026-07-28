@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { Mail, Lock, Eye, EyeOff, User, ArrowRight } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { Mail, Lock, Eye, EyeOff, User, ArrowRight, ShieldCheck, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
@@ -16,11 +16,81 @@ export default function SignUpPage() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const router = useRouter();
 
+  // 1. Honeypot trap state
+  const [honeypot, setHoneypot] = useState("");
+
+  // 2. Time-based bot detection timestamp
+  const formMountedTime = useRef<number>(Date.now());
+
+  // 3. Interactive Math Verification & Anti-bot Checkbox
+  const [mathNum1, setMathNum1] = useState(0);
+  const [mathNum2, setMathNum2] = useState(0);
+  const [userMathAnswer, setUserMathAnswer] = useState("");
+  const [isHumanChecked, setIsHumanChecked] = useState(false);
+
+  const generateMathPuzzle = () => {
+    const n1 = Math.floor(Math.random() * 8) + 2; // 2..9
+    const n2 = Math.floor(Math.random() * 8) + 2; // 2..9
+    setMathNum1(n1);
+    setMathNum2(n2);
+    setUserMathAnswer("");
+  };
+
+  useEffect(() => {
+    formMountedTime.current = Date.now();
+    generateMathPuzzle();
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setErrorMsg(null);
     setSuccessMsg(null);
+
+    // [SECURITY 1]: HONEYPOT TRAP CHECK
+    if (honeypot && honeypot.trim().length > 0) {
+      console.warn("[SECURITY] Honeypot field filled. Bot submission blocked.");
+      // Fake success response to confuse bot without creating account
+      setSuccessMsg("Pendaftaran berhasil! Mengalihkan ke halaman utama...");
+      setTimeout(() => {
+        router.push("/");
+      }, 1500);
+      return;
+    }
+
+    // [SECURITY 2]: TIME-BASED BOT DETECTION (<2.5s)
+    const timeElapsed = Date.now() - formMountedTime.current;
+    if (timeElapsed < 2500) {
+      setErrorMsg("Aktivitas terdeteksi terlalu cepat. Harap coba lagi.");
+      return;
+    }
+
+    // [SECURITY 3]: CLIENT-SIDE RATE LIMITER (60 Seconds)
+    const lastSignupStr = typeof window !== "undefined" ? localStorage.getItem("last_signup_timestamp") : null;
+    if (lastSignupStr) {
+      const lastSignup = parseInt(lastSignupStr, 10);
+      const timeSinceLastSignup = (Date.now() - lastSignup) / 1000;
+      if (timeSinceLastSignup < 60) {
+        const remaining = Math.ceil(60 - timeSinceLastSignup);
+        setErrorMsg(`Tunggu ${remaining} detik sebelum mencoba mendaftar lagi.`);
+        return;
+      }
+    }
+
+    // [SECURITY 4]: HUMAN VERIFICATION CHECK
+    if (!isHumanChecked) {
+      setErrorMsg("Harap centang verifikasi 'Saya bukan robot'.");
+      return;
+    }
+
+    const expectedAnswer = mathNum1 + mathNum2;
+    if (parseInt(userMathAnswer.trim(), 10) !== expectedAnswer) {
+      setErrorMsg("Jawaban verifikasi matematika salah. Silakan coba lagi.");
+      generateMathPuzzle();
+      return;
+    }
+
+    // ALL SECURITY CHECKS PASSED -> PROCEED TO SUPABASE SIGNUP
+    setLoading(true);
 
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -37,6 +107,18 @@ export default function SignUpPage() {
         throw new Error(error.message);
       }
 
+      // Save timestamp to LocalStorage for Rate Limiting
+      if (typeof window !== "undefined") {
+        localStorage.setItem("last_signup_timestamp", Date.now().toString());
+      }
+
+      // Sync cookies if session is immediately returned
+      if (data?.session) {
+        const maxAge = 604800; // 7 hari
+        document.cookie = `sb-access-token=${data.session.access_token}; path=/; max-age=${maxAge}; SameSite=Lax`;
+        document.cookie = `sb-refresh-token=${data.session.refresh_token}; path=/; max-age=${maxAge}; SameSite=Lax`;
+      }
+
       setSuccessMsg("Pendaftaran berhasil! Mengalihkan ke halaman utama...");
       setTimeout(() => {
         router.push("/");
@@ -44,6 +126,7 @@ export default function SignUpPage() {
       }, 1000);
     } catch (err: any) {
       setErrorMsg(err.message || "Gagal mendaftar. Periksa kembali informasi Anda.");
+      generateMathPuzzle();
     } finally {
       setLoading(false);
     }
@@ -64,7 +147,7 @@ export default function SignUpPage() {
       </div>
 
       {/* IDLIX-style Centered Glassmorphism Card */}
-      <div className="relative z-10 w-full max-w-md bg-surface-light/70 backdrop-blur-2xl border border-white/10 rounded-2xl p-8 md:p-10 shadow-[0_20px_80px_rgba(0,0,0,0.9)] animate-fade-in">
+      <div className="relative z-10 w-full max-w-md bg-surface-light/70 backdrop-blur-2xl border border-white/10 rounded-2xl p-8 md:p-10 shadow-[0_20px_80px_rgba(0,0,0,0.9)] animate-fade-in my-8">
         
         {/* Header */}
         <div className="text-center mb-8">
@@ -90,7 +173,22 @@ export default function SignUpPage() {
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          
+          {/* Honeypot Trap Input (Hidden from real users) */}
+          <div className="opacity-0 absolute pointer-events-none -z-10 h-0 w-0 overflow-hidden" aria-hidden="true">
+            <label htmlFor="website_url_hp">Website URL</label>
+            <input
+              id="website_url_hp"
+              type="text"
+              name="website_url_hp"
+              value={honeypot}
+              onChange={(e) => setHoneypot(e.target.value)}
+              tabIndex={-1}
+              autoComplete="off"
+            />
+          </div>
+
           {/* Name */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Nama Lengkap</label>
@@ -147,11 +245,53 @@ export default function SignUpPage() {
             </div>
           </div>
 
+          {/* Human Puzzle & Bot Check */}
+          <div className="p-3.5 bg-black/60 border border-white/10 rounded-xl space-y-3 mt-1">
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-primary" />
+                Verifikasi Keamanan (Anti-Bot)
+              </label>
+              <span className="text-[11px] font-mono font-extrabold text-primary">
+                {mathNum1} + {mathNum2} = ?
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                value={userMathAnswer}
+                onChange={(e) => setUserMathAnswer(e.target.value)}
+                placeholder="Jawaban angka..."
+                className="flex-1 bg-surface-dark border border-white/10 rounded-lg px-3 py-2 text-white text-xs placeholder-slate-600 focus:outline-none focus:border-primary/60 font-mono"
+                required
+              />
+              <button
+                type="button"
+                onClick={generateMathPuzzle}
+                className="p-2 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-lg transition-colors text-xs flex items-center gap-1"
+                title="Ganti Soal"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <label className="flex items-center gap-2.5 pt-1 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={isHumanChecked}
+                onChange={(e) => setIsHumanChecked(e.target.checked)}
+                className="w-4 h-4 rounded border-white/20 bg-black/80 text-primary focus:ring-primary focus:ring-offset-0 cursor-pointer"
+              />
+              <span className="text-xs text-slate-300 font-medium">Saya bukan robot (Human Check)</span>
+            </label>
+          </div>
+
           {/* Submit */}
           <button 
             type="submit"
             disabled={loading}
-            className="flex items-center justify-center gap-2 bg-primary text-white font-bold py-3.5 rounded-xl hover:bg-primary-light hover:shadow-[0_0_25px_rgba(168,85,247,0.5)] transition-all disabled:opacity-40 text-xs uppercase tracking-wider mt-1"
+            className="flex items-center justify-center gap-2 bg-primary text-white font-bold py-3.5 rounded-xl hover:bg-primary-light hover:shadow-[0_0_25px_rgba(168,85,247,0.5)] transition-all disabled:opacity-40 text-xs uppercase tracking-wider mt-2 cursor-pointer"
           >
             {loading ? (
               <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />

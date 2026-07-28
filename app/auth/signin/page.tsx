@@ -31,11 +31,29 @@ export default function SignInPage() {
         throw new Error(error.message);
       }
 
+      // Sync Session Token to Cookies for Middleware & Server Components
+      if (data?.session) {
+        const maxAge = 604800; // 7 hari
+        document.cookie = `sb-access-token=${data.session.access_token}; path=/; max-age=${maxAge}; SameSite=Lax`;
+        document.cookie = `sb-refresh-token=${data.session.refresh_token}; path=/; max-age=${maxAge}; SameSite=Lax`;
+      }
+
+      // Check for redirectTo query parameter
+      const params = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
+      const redirectTo = params.get("redirectTo") || "/";
+
       setSuccessMsg("Berhasil masuk! Mengalihkan...");
+      
+      router.refresh();
+
       setTimeout(() => {
-        router.push("/");
-        router.refresh();
-      }, 800);
+        if (redirectTo.startsWith("/admin")) {
+          window.location.href = redirectTo;
+        } else {
+          router.push(redirectTo);
+          router.refresh();
+        }
+      }, 600);
     } catch (err: any) {
       setErrorMsg(err.message || "Gagal masuk. Periksa kembali email dan password.");
     } finally {
