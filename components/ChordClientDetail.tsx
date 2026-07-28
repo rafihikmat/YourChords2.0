@@ -52,6 +52,8 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
   const [addedSetlistIds, setAddedSetlistIds] = useState<string[]>([]);
 
   const [autoScrollSpeed, setAutoScrollSpeed] = useState(0); 
+  const lastActiveSpeedRef = useRef(1.0);
+  const scrollAccumulatorRef = useRef(0);
   const scrollRef = useRef<number | null>(null);
 
   const userId = "guest"; // Default user context
@@ -120,20 +122,32 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
     });
   };
 
-  // Auto Scroll Engine
+  // Sub-Pixel Accumulator Auto-Scroll Engine (0.3x - 5.0x Range)
   useEffect(() => {
     if (autoScrollSpeed > 0) {
-      const scrollSpeed = autoScrollSpeed * 0.45; 
+      lastActiveSpeedRef.current = autoScrollSpeed;
 
       const scrollLoop = () => {
-        window.scrollBy({ top: scrollSpeed, behavior: 'instant' });
+        // Accumulate sub-pixels per frame (at ~60 FPS)
+        scrollAccumulatorRef.current += autoScrollSpeed;
+
+        if (scrollAccumulatorRef.current >= 1) {
+          const pixelsToScroll = Math.floor(scrollAccumulatorRef.current);
+          window.scrollBy({ top: pixelsToScroll, behavior: 'instant' });
+          scrollAccumulatorRef.current -= pixelsToScroll;
+        }
+
         if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 5) {
           setAutoScrollSpeed(0);
+          scrollAccumulatorRef.current = 0;
         } else {
           scrollRef.current = requestAnimationFrame(scrollLoop);
         }
       };
+
       scrollRef.current = requestAnimationFrame(scrollLoop);
+    } else {
+      scrollAccumulatorRef.current = 0;
     }
 
     return () => {
@@ -152,13 +166,23 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
 
       if (e.code === 'Space') {
         e.preventDefault();
-        setAutoScrollSpeed(prev => (prev > 0 ? 0 : 1));
-      } else if (e.code === 'ArrowUp') {
+        setAutoScrollSpeed(prev => (prev > 0 ? 0 : lastActiveSpeedRef.current));
+      } else if (e.code === 'ArrowUp' || e.key === '+' || e.key === '=') {
         e.preventDefault();
-        setAutoScrollSpeed(prev => Math.min(5, prev + 1));
-      } else if (e.code === 'ArrowDown') {
+        setAutoScrollSpeed(prev => {
+          const current = prev > 0 ? prev : lastActiveSpeedRef.current;
+          const updated = Number(Math.min(5.0, current + 0.2).toFixed(1));
+          lastActiveSpeedRef.current = updated;
+          return prev > 0 ? updated : 0;
+        });
+      } else if (e.code === 'ArrowDown' || e.key === '-') {
         e.preventDefault();
-        setAutoScrollSpeed(prev => Math.max(0, prev - 1));
+        setAutoScrollSpeed(prev => {
+          const current = prev > 0 ? prev : lastActiveSpeedRef.current;
+          const updated = Number(Math.max(0.3, current - 0.2).toFixed(1));
+          lastActiveSpeedRef.current = updated;
+          return prev > 0 ? updated : 0;
+        });
       } else if (e.code === 'ArrowRight') {
         e.preventDefault();
         setTranspose(prev => prev + 1);
@@ -568,32 +592,66 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
         <div className="w-px h-8 bg-white/10"></div>
 
         {/* Tool: Auto Scroll */}
-        <div className="flex flex-col items-center md:items-start gap-1 flex-1 md:flex-none max-w-[140px]">
-          <span className="text-[9px] text-slate-400 font-bold tracking-[0.15em] uppercase flex items-center gap-1 w-full justify-between">
-            <span className="flex items-center gap-1"><Settings2 className="w-2.5 h-2.5" /> Scroll</span>
-            <span className="text-primary font-bold text-[10px]">{autoScrollSpeed > 0 ? `${autoScrollSpeed}x` : 'Off'}</span>
-          </span>
+        <div className="flex flex-col items-center md:items-start gap-1 flex-1 md:flex-none min-w-[150px] max-w-[210px]">
+          <div className="flex items-center justify-between w-full">
+            <span className="text-[9px] text-slate-400 font-bold tracking-[0.15em] uppercase flex items-center gap-1">
+              <Settings2 className="w-2.5 h-2.5 text-primary" /> Scroll
+            </span>
+            <span className={`text-[10px] font-mono font-extrabold px-1.5 py-0.5 rounded transition-all ${
+              autoScrollSpeed > 0 
+                ? 'text-primary bg-primary/20 border border-primary/40 shadow-[0_0_12px_rgba(168,85,247,0.4)]' 
+                : 'text-slate-500 bg-white/5 border border-white/5'
+            }`}>
+              {autoScrollSpeed > 0 ? `${autoScrollSpeed.toFixed(1)}x` : 'Off'}
+            </span>
+          </div>
+
           <div className="flex items-center gap-2 w-full">
-            <input 
-              type="range" 
-              min="0" 
-              max="5" 
-              step="1"
-              value={autoScrollSpeed}
-              onChange={(e) => setAutoScrollSpeed(Number(e.target.value))}
-              className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-primary"
-            />
             <button 
-              onClick={() => setAutoScrollSpeed(prev => prev === 0 ? 1 : 0)}
-              className={`p-2 rounded-lg transition-all flex-shrink-0 cursor-pointer ${
+              onClick={() => setAutoScrollSpeed(prev => prev > 0 ? 0 : lastActiveSpeedRef.current)}
+              className={`p-1.5 rounded-lg transition-all flex-shrink-0 cursor-pointer ${
                 autoScrollSpeed > 0 
                   ? 'bg-primary text-white shadow-neon-sm scale-105' 
                   : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'
               }`}
               title={autoScrollSpeed > 0 ? "Jeda Auto-Scroll (Spacebar)" : "Mulai Auto-Scroll (Spacebar)"}
             >
-              {autoScrollSpeed > 0 ? <Pause className="w-3 h-3" fill="currentColor" /> : <Play className="w-3 h-3" fill="currentColor" />}
+              {autoScrollSpeed > 0 ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current translate-x-0.5" />}
             </button>
+
+            <input 
+              type="range" 
+              min="0.3" 
+              max="5.0" 
+              step="0.1"
+              value={autoScrollSpeed > 0 ? autoScrollSpeed : lastActiveSpeedRef.current}
+              onChange={(e) => {
+                const val = Number(parseFloat(e.target.value).toFixed(1));
+                lastActiveSpeedRef.current = val;
+                setAutoScrollSpeed(val);
+              }}
+              className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-primary"
+            />
+          </div>
+
+          {/* Quick Preset Buttons: 0.5x, 1.0x, 2.5x, 5.0x */}
+          <div className="flex items-center justify-between w-full gap-1 pt-0.5">
+            {[0.5, 1.0, 2.5, 5.0].map((preset) => (
+              <button
+                key={preset}
+                onClick={() => {
+                  lastActiveSpeedRef.current = preset;
+                  setAutoScrollSpeed(preset);
+                }}
+                className={`text-[9px] font-mono px-1.5 py-0.5 rounded border transition-all cursor-pointer ${
+                  autoScrollSpeed === preset
+                    ? 'bg-primary text-white border-primary shadow-neon-sm font-bold scale-105'
+                    : 'bg-white/5 border-white/10 text-slate-400 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                {preset.toFixed(1)}x
+              </button>
+            ))}
           </div>
         </div>
 
