@@ -11,6 +11,18 @@ export function normalizeSong(row: any): Song {
   if (!row) return row;
   const rawContent = row.content || (typeof row.chords === 'string' ? row.chords : row.chords ? JSON.stringify(row.chords) : '');
   const views = row.view_count ?? row.views ?? 0;
+
+  let albumCover: string | undefined = undefined;
+  if (row.albums) {
+    if (Array.isArray(row.albums)) {
+      albumCover = row.albums[0]?.cover_url;
+    } else if (typeof row.albums === 'object') {
+      albumCover = row.albums.cover_url;
+    }
+  }
+
+  const coverUrl = albumCover || row.cover_url || "https://images.unsplash.com/photo-1511192336575-5a79af67a629?q=80&w=600&h=600&auto=format&fit=crop";
+
   return {
     ...row,
     id: row.id || String(row.title || 'song').toLowerCase().replace(/\s+/g, '-'),
@@ -20,7 +32,7 @@ export function normalizeSong(row: any): Song {
     chords: row.chords || rawContent,
     views: views,
     view_count: views,
-    cover_url: row.cover_url || "https://images.unsplash.com/photo-1511192336575-5a79af67a629?q=80&w=600&h=600&auto=format&fit=crop",
+    cover_url: coverUrl,
     source_url: row.source_url || ""
   };
 }
@@ -30,7 +42,7 @@ export async function fetchAllSongs(limit = 20): Promise<Song[]> {
     // 1. Query 'songs' table (PRIMARY)
     const { data: songsData, error: songsErr } = await supabase
       .from('songs')
-      .select('*')
+      .select('*, albums(cover_url)')
       .order('view_count', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false })
       .limit(limit);
@@ -63,7 +75,7 @@ export async function fetchSongById(id: string): Promise<Song | null> {
     // 1. Query 'songs'
     const { data: songData, error: songErr } = await supabase
       .from('songs')
-      .select('*')
+      .select('*, albums(cover_url)')
       .eq('id', id)
       .single();
 
@@ -95,7 +107,7 @@ export async function searchSongs(query: string): Promise<Song[]> {
   try {
     const { data: songsData, error: songsErr } = await supabase
       .from('songs')
-      .select('*')
+      .select('*, albums(cover_url)')
       .or(`title.ilike.%${q}%,artist.ilike.%${q}%`)
       .order('created_at', { ascending: false });
 

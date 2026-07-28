@@ -36,10 +36,10 @@ export async function getSongForEdit(id: string): Promise<CMSResponse<Song>> {
   }
 
   try {
-    // 1. Coba ambil dari tabel 'songs'
+    // 1. Coba ambil dari tabel 'songs' dengan JOIN ke 'albums'
     const { data: songData, error: songErr } = await supabase
       .from('songs')
-      .select('*')
+      .select('*, albums(cover_url)')
       .eq('id', id)
       .maybeSingle();
 
@@ -84,11 +84,14 @@ export async function updateSongDetails(
   }
 
   const chordsContent = parseContentToString(payload.chords || payload.content || '');
+  const cleanTitle = payload.title?.trim();
+  const cleanArtist = payload.artist?.trim();
+  const cleanCoverUrl = payload.cover_url?.trim();
 
-  // Payload khusus untuk tabel 'songs' (HANYA berisi kolom valid: title, artist, chords, difficulty, youtube_video_id, spotify_track_id)
+  // Payload khusus untuk tabel 'songs' (HANYA berisi kolom valid: title, artist, chords, difficulty, youtube_video_id, spotify_track_id, album_id)
   const songUpdateBody: Record<string, any> = {
-    title: payload.title?.trim(),
-    artist: payload.artist?.trim(),
+    title: cleanTitle,
+    artist: cleanArtist,
     chords: chordsContent,
     difficulty: payload.difficulty || null,
     youtube_video_id: payload.youtube_video_id || null,
@@ -96,12 +99,49 @@ export async function updateSongDetails(
   };
 
   try {
-    // 1. Attempt update in 'songs' table (Strictly matching 'songs' schema without cover_url / content)
+    // Handling album & cover_url di tabel 'albums'
+    if (cleanCoverUrl) {
+      // Cek apakah lagu ini sudah memiliki album_id di tabel 'songs'
+      const { data: existingSong } = await supabase
+        .from('songs')
+        .select('album_id')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (existingSong?.album_id) {
+        // Update cover_url pada baris album yang ada
+        await supabase
+          .from('albums')
+          .update({
+            cover_url: cleanCoverUrl,
+            title: cleanTitle || 'Album',
+            artist: cleanArtist || 'Artist',
+          })
+          .eq('id', existingSong.album_id);
+      } else {
+        // Buat album baru di tabel 'albums'
+        const { data: newAlbum } = await supabase
+          .from('albums')
+          .insert({
+            title: cleanTitle || 'Single Album',
+            artist: cleanArtist || 'Unknown Artist',
+            cover_url: cleanCoverUrl,
+          })
+          .select('id')
+          .maybeSingle();
+
+        if (newAlbum?.id) {
+          songUpdateBody.album_id = newAlbum.id;
+        }
+      }
+    }
+
+    // 1. Attempt update in 'songs' table dengan JOIN ke 'albums'
     const { data: updatedSong, error: songsErr } = await supabase
       .from('songs')
       .update(songUpdateBody)
       .eq('id', id)
-      .select('*')
+      .select('*, albums(cover_url)')
       .maybeSingle();
 
     if (!songsErr && updatedSong) {
@@ -110,10 +150,10 @@ export async function updateSongDetails(
 
     // 2. Fallback: Attempt update in 'chords' table
     const chordUpdateBody: Record<string, any> = {
-      title: payload.title?.trim(),
-      artist: payload.artist?.trim(),
+      title: cleanTitle,
+      artist: cleanArtist,
       content: chordsContent,
-      cover_url: payload.cover_url || null,
+      cover_url: cleanCoverUrl || null,
       difficulty: payload.difficulty || null,
       youtube_video_id: payload.youtube_video_id || null,
       spotify_track_id: payload.spotify_track_id || null,
@@ -139,7 +179,7 @@ export async function updateSongDetails(
         ...songUpdateBody,
         view_count: payload.view_count || payload.views || 0,
       })
-      .select('*')
+      .select('*, albums(cover_url)')
       .maybeSingle();
 
     if (!insertErr && insertedSong) {

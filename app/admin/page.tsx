@@ -59,7 +59,7 @@ export default function AdminDashboardPage() {
       // 1. Try fetching 'songs'
       const { data: songsData, error: songsErr } = await supabase
         .from('songs')
-        .select('*')
+        .select('*, albums(cover_url)')
         .order('created_at', { ascending: false });
 
       if (!songsErr && songsData && songsData.length > 0) {

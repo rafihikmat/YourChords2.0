@@ -49,7 +49,7 @@ export async function getFeaturedHeroSongs(): Promise<Song[]> {
     // 1. Query 'songs' table
     const { data: songsData, error: songsErr } = await supabase
       .from('songs')
-      .select('*')
+      .select('*, albums(cover_url)')
       .eq('is_featured', true)
       .order('featured_order', { ascending: true, nullsFirst: false })
       .order('created_at', { ascending: false });

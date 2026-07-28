@@ -69,7 +69,7 @@ export default function AdminEditSongPage() {
       setTitle(song.title || "");
       setArtist(song.artist || "");
       setContent(parseContentToString(song.chords || song.content));
-      setCoverUrl(song.cover_url || "");
+      setCoverUrl(song.cover_url || (song as any).albums?.cover_url || "");
       setDifficulty(song.difficulty || "Sedang");
       setYoutubeVideoId(song.youtube_video_id || "");
       setSpotifyTrackId(song.spotify_track_id || "");
@@ -359,13 +359,28 @@ export default function AdminEditSongPage() {
                 <label className="text-xs font-bold text-slate-300 mb-1.5 flex items-center gap-1.5">
                   <ImageIcon className="w-3.5 h-3.5 text-blue-400" /> Cover Image URL
                 </label>
-                <input
-                  type="url"
-                  value={coverUrl}
-                  onChange={(e) => setCoverUrl(e.target.value)}
-                  placeholder="https://..."
-                  className="w-full bg-black/80 border border-white/10 rounded-xl px-3.5 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-primary/60 text-xs font-mono"
-                />
+                <div className="flex items-center gap-3">
+                  <input
+                    type="url"
+                    value={coverUrl}
+                    onChange={(e) => setCoverUrl(e.target.value)}
+                    placeholder="https://..."
+                    className="flex-1 bg-black/80 border border-white/10 rounded-xl px-3.5 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-primary/60 text-xs font-mono"
+                  />
+                  {coverUrl.trim() && (
+                    <div className="w-10 h-10 rounded-lg overflow-hidden border border-white/20 flex-shrink-0 bg-slate-900 relative shadow-md">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={coverUrl}
+                        alt="Preview"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1511192336575-5a79af67a629?q=80&w=600&h=600&auto=format&fit=crop";
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
