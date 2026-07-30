@@ -101,6 +101,15 @@ export default function FretboardModal({ chordName, onClose }: FretboardModalPro
             {chordName}
           </h2>
 
+          {/* Chord Type Badge from Hybrid Engine */}
+          {position.chordType && (
+            <div className="mt-1">
+              <span className="text-[10px] font-mono font-bold bg-white/5 border border-white/10 text-slate-300 px-2.5 py-0.5 rounded-full inline-block">
+                {position.chordType}
+              </span>
+            </div>
+          )}
+
           {/* Slash chord info indicator */}
           {isSlashChord && (
             <p className="text-xs text-amber-300 font-medium mt-1 bg-amber-500/10 border border-amber-500/20 px-3 py-0.5 rounded-full inline-block">
