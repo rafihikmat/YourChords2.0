@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { X, Minimize2, Maximize2, Youtube, ExternalLink, RefreshCw } from "lucide-react";
+import { extractYouTubeId } from "@/lib/youtube";
 
 interface FloatingYouTubePlayerProps {
   title: string;
@@ -17,23 +18,16 @@ export default function FloatingYouTubePlayer({
   onClose,
 }: FloatingYouTubePlayerProps) {
   const [isMinimized, setIsMinimized] = useState(false);
-  const [customVideoId, setCustomVideoId] = useState<string | null>(youtubeVideoId || null);
+  const initialCleanId = extractYouTubeId(youtubeVideoId);
+  const [customVideoId, setCustomVideoId] = useState<string | null>(initialCleanId || null);
   const [isEditingUrl, setIsEditingUrl] = useState(false);
   const [inputUrl, setInputUrl] = useState("");
 
-  // Extract YouTube ID from string or URL
-  const extractYouTubeId = (urlOrId: string) => {
-    if (!urlOrId) return null;
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-    const match = urlOrId.match(regExp);
-    return match && match[2].length === 11 ? match[2] : urlOrId.trim();
-  };
+  const activeVideoId = customVideoId || extractYouTubeId(youtubeVideoId);
 
-  const activeVideoId = customVideoId || extractYouTubeId(youtubeVideoId || "");
-
-  // Build Embed URL
+  // Build Embed URL with clean YouTube video ID
   const embedUrl = activeVideoId
-    ? `https://www.youtube-nocookie.com/embed/${activeVideoId}?autoplay=1&enablejsapi=1`
+    ? `https://www.youtube-nocookie.com/embed/${activeVideoId}?autoplay=0&enablejsapi=1&rel=0`
     : `https://www.youtube-nocookie.com/embed?listType=search&list=${encodeURIComponent(artist + " " + title + " official audio")}`;
 
   const handleSaveCustomUrl = (e: React.FormEvent) => {

@@ -10,6 +10,7 @@ import {
 import { getSongForEdit, updateSongDetails } from "@/lib/adminCMS";
 import FretboardModal from "@/components/FretboardModal";
 import { Song } from "@/lib/types";
+import { extractYouTubeId } from "@/lib/youtube";
 
 const DIFFICULTY_OPTIONS = [
   { value: "Sangat Mudah", label: "Sangat Mudah", color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
@@ -71,7 +72,7 @@ export default function AdminEditSongPage() {
       setContent(parseContentToString(song.chords || song.content));
       setCoverUrl(song.cover_url || (song as any).albums?.cover_url || "");
       setDifficulty(song.difficulty || "Sedang");
-      setYoutubeVideoId(song.youtube_video_id || "");
+      setYoutubeVideoId(extractYouTubeId(song.youtube_video_id) || "");
       setSpotifyTrackId(song.spotify_track_id || "");
     } else {
       setToast({ text: res.error || "Gagal memuat data lagu.", type: "error" });
@@ -94,6 +95,9 @@ export default function AdminEditSongPage() {
     setSaving(true);
     setToast(null);
 
+    const cleanYtId = extractYouTubeId(youtubeVideoId);
+    setYoutubeVideoId(cleanYtId);
+
     const payload: Partial<Song> = {
       title,
       artist,
@@ -101,7 +105,7 @@ export default function AdminEditSongPage() {
       chords: content,
       cover_url: coverUrl,
       difficulty,
-      youtube_video_id: youtubeVideoId,
+      youtube_video_id: cleanYtId,
       spotify_track_id: spotifyTrackId,
     };
 

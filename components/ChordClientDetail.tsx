@@ -18,6 +18,7 @@ import SongRating from "@/components/SongRating";
 import ChordCorrectionModal from "@/components/ChordCorrectionModal";
 import { saveSongToOfflineCache } from "@/lib/offlineCache";
 import { Setlist } from "@/lib/types";
+import { extractYouTubeId } from "@/lib/youtube";
 
 type ChordData = {
   id: string;
@@ -64,6 +65,7 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
   const scrollRef = useRef<number | null>(null);
 
   const userId = "guest"; // Default user context
+  const cleanVideoId = extractYouTubeId(data?.youtube_video_id);
 
   // Check Favorite Status, Personal Note & Video Tutorials on Load & Save to Offline Cache
   useEffect(() => {
@@ -547,11 +549,11 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
       )}
 
       {/* FLOATING YOUTUBE PLAY-ALONG WIDGET */}
-      {showYouTubePlayer && (
+      {showYouTubePlayer && cleanVideoId && (
         <FloatingYouTubePlayer
           title={data.title}
           artist={data.artist}
-          youtubeVideoId={data.youtube_video_id}
+          youtubeVideoId={cleanVideoId}
           onClose={() => setShowYouTubePlayer(false)}
         />
       )}

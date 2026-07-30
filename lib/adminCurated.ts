@@ -1,5 +1,6 @@
 import { supabase, normalizeSong } from '@/lib/supabase';
 import { Song } from '@/lib/types';
+import { extractYouTubeId } from '@/lib/youtube';
 
 export interface VideoTutorial {
   id: string;
@@ -23,23 +24,7 @@ export interface CuratedResponse<T = any> {
  * Extracts standard 11-character YouTube Video ID from various URL formats or raw ID.
  */
 export function extractYoutubeId(input: string): string {
-  if (!input) return '';
-  const trimmed = input.trim();
-  
-  // If it's already an 11-char ID without slashes or query strings
-  if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
-    return trimmed;
-  }
-
-  // Regex patterns for standard YouTube URLs
-  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-  const match = trimmed.match(regExp);
-
-  if (match && match[2].length === 11) {
-    return match[2];
-  }
-
-  return trimmed;
+  return extractYouTubeId(input);
 }
 
 /**

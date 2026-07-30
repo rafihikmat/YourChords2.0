@@ -1,5 +1,6 @@
 import { supabase, normalizeSong } from '@/lib/supabase';
 import { Song } from '@/lib/types';
+import { extractYouTubeId } from '@/lib/youtube';
 
 export interface CMSResponse<T = Song> {
   success: boolean;
@@ -87,6 +88,7 @@ export async function updateSongDetails(
   const cleanTitle = payload.title?.trim();
   const cleanArtist = payload.artist?.trim();
   const cleanCoverUrl = payload.cover_url?.trim();
+  const cleanYouTubeId = extractYouTubeId(payload.youtube_video_id) || null;
 
   // Payload khusus untuk tabel 'songs' (HANYA berisi kolom valid: title, artist, chords, difficulty, youtube_video_id, spotify_track_id, album_id)
   const songUpdateBody: Record<string, any> = {
@@ -94,7 +96,7 @@ export async function updateSongDetails(
     artist: cleanArtist,
     chords: chordsContent,
     difficulty: payload.difficulty || null,
-    youtube_video_id: payload.youtube_video_id || null,
+    youtube_video_id: cleanYouTubeId,
     spotify_track_id: payload.spotify_track_id || null,
   };
 
@@ -155,7 +157,7 @@ export async function updateSongDetails(
       content: chordsContent,
       cover_url: cleanCoverUrl || null,
       difficulty: payload.difficulty || null,
-      youtube_video_id: payload.youtube_video_id || null,
+      youtube_video_id: cleanYouTubeId,
       spotify_track_id: payload.spotify_track_id || null,
       updated_at: new Date().toISOString(),
     };
