@@ -16,6 +16,7 @@ import FloatingYouTubePlayer from "@/components/FloatingYouTubePlayer";
 import Metronome from "@/components/Metronome";
 import SongRating from "@/components/SongRating";
 import ChordCorrectionModal from "@/components/ChordCorrectionModal";
+import VideoTutorialModal from "@/components/VideoTutorialModal";
 import { saveSongToOfflineCache } from "@/lib/offlineCache";
 import { Setlist } from "@/lib/types";
 import { extractYouTubeId } from "@/lib/youtube";
@@ -46,6 +47,7 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
   // Floating YouTube Player State
   const [showYouTubePlayer, setShowYouTubePlayer] = useState(false);
   const [videoTutorials, setVideoTutorials] = useState<VideoTutorial[]>([]);
+  const [selectedTutorial, setSelectedTutorial] = useState<VideoTutorial | null>(null);
 
   // Personal Notes & Strumming State
   const [userNote, setUserNote] = useState("");
@@ -519,34 +521,43 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
               {videoTutorials.map((tutorial) => (
-                <div key={tutorial.id} className="bg-black/60 rounded-xl border border-white/10 p-3 flex flex-col gap-3 hover:border-primary/40 transition-all group">
-                  <div className="relative aspect-video rounded-lg overflow-hidden bg-slate-900 border border-white/10">
+                <button
+                  key={tutorial.id}
+                  onClick={() => setSelectedTutorial(tutorial)}
+                  className="bg-black/60 rounded-xl border border-white/10 p-3 flex flex-col gap-3 hover:border-red-500/50 transition-all group text-left cursor-pointer w-full"
+                >
+                  <div className="relative aspect-video rounded-lg overflow-hidden bg-slate-900 border border-white/10 w-full">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={tutorial.thumbnail_url || `https://img.youtube.com/vi/${tutorial.video_id}/hqdefault.jpg`}
+                      src={tutorial.thumbnail_url || `https://img.youtube.com/vi/${extractYouTubeId(tutorial.video_id) || tutorial.video_id}/hqdefault.jpg`}
                       alt={tutorial.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
-                    <a
-                      href={`https://www.youtube.com/watch?v=${tutorial.video_id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="absolute inset-0 bg-black/40 group-hover:bg-black/20 flex items-center justify-center transition-colors cursor-pointer"
-                    >
+                    <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 flex items-center justify-center transition-colors">
                       <div className="w-12 h-12 rounded-full bg-red-600 text-white flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform">
                         <Play className="w-6 h-6 fill-current translate-x-0.5" />
                       </div>
-                    </a>
+                    </div>
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold text-white line-clamp-2">{tutorial.title}</h4>
+                    <h4 className="text-xs font-bold text-white line-clamp-2 group-hover:text-red-400 transition-colors">{tutorial.title}</h4>
+                    {tutorial.channel_title && (
+                      <p className="text-[11px] text-slate-400 mt-1">{tutorial.channel_title}</p>
+                    )}
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           </div>
         </div>
       )}
+
+      {/* POPUP MODAL FOR VIDEO TUTORIALS */}
+      <VideoTutorialModal
+        isOpen={!!selectedTutorial}
+        onClose={() => setSelectedTutorial(null)}
+        tutorial={selectedTutorial}
+      />
 
       {/* FLOATING YOUTUBE PLAY-ALONG WIDGET */}
       {showYouTubePlayer && cleanVideoId && (

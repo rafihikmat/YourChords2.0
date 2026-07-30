@@ -7,6 +7,7 @@ export interface VideoTutorial {
   song_id?: string;
   video_id: string;
   title: string;
+  channel_title?: string;
   thumbnail_url?: string;
   is_active?: boolean;
   created_at?: string;
