@@ -29,6 +29,7 @@ type ChordData = {
   content: string;
   youtube_video_id?: string | null;
   difficulty?: string | null;
+  key?: string | null;
 };
 
 export default function ChordClientDetail({ data }: { data: ChordData }) {
@@ -262,8 +263,20 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
   return (
     <div className="flex flex-col min-h-screen pb-40 animate-fade-in relative pt-20">
       
+      {/* PRINT HEADER (Hanya Tampil Saat Cetak / Export PDF) */}
+      <div className="print-header hidden print:block mb-6">
+        <h1 className="text-2xl font-bold">{data.title}</h1>
+        <h2 className="text-lg text-gray-700">{data.artist}</h2>
+        <div className="text-xs text-gray-600 mt-2 flex flex-wrap gap-4 border-t border-gray-300 pt-2">
+          <span><strong>Key:</strong> {data.key || "Original"}</span>
+          <span><strong>Capo:</strong> {capoFret > 0 ? `Fret ${capoFret}` : "Tanpa Capo"}</span>
+          <span><strong>Transpose:</strong> {transpose > 0 ? `+${transpose}` : transpose}</span>
+          <span><strong>Platform:</strong> YourChords</span>
+        </div>
+      </div>
+
       {/* HEADER LAGU & TOOLS */}
-      <div className="flex flex-col md:flex-row gap-6 md:items-end mb-6 bg-surface/60 p-6 md:p-8 rounded-2xl border border-white/10 backdrop-blur-md mx-4 md:mx-8 lg:mx-12 shadow-2xl">
+      <div className="no-print flex flex-col md:flex-row gap-6 md:items-end mb-6 bg-surface/60 p-6 md:p-8 rounded-2xl border border-white/10 backdrop-blur-md mx-4 md:mx-8 lg:mx-12 shadow-2xl">
         <div className="relative w-28 h-28 md:w-44 md:h-44 rounded-xl overflow-hidden flex-shrink-0 bg-surface border border-white/10 shadow-[0_0_30px_rgba(168,85,247,0.2)] group">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img 
@@ -380,7 +393,7 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
       </div>
 
       {/* PERSONAL NOTES & STRUMMING PATTERN ENGINE */}
-      <div className="w-full max-w-4xl mx-auto px-4 md:px-0 mb-6">
+      <div className="no-print personal-notes-container w-full max-w-4xl mx-auto px-4 md:px-0 mb-6">
         <div className="bg-surface/70 border border-white/10 rounded-2xl p-5 backdrop-blur-md shadow-lg">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
             <div className="flex items-center gap-2">
@@ -443,7 +456,7 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
         
         {/* CAPO INSTRUCTION BANNER */}
         {capoFret > 0 && (
-          <div className="mb-4 bg-primary/15 border border-primary/40 text-primary-light rounded-xl p-3.5 px-5 flex items-center gap-3 backdrop-blur-md shadow-[0_0_20px_rgba(168,85,247,0.25)] animate-fade-in">
+          <div className="no-print mb-4 bg-primary/15 border border-primary/40 text-primary-light rounded-xl p-3.5 px-5 flex items-center gap-3 backdrop-blur-md shadow-[0_0_20px_rgba(168,85,247,0.25)] animate-fade-in">
             <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center text-primary flex-shrink-0 font-bold text-lg">
               📌
             </div>
@@ -457,14 +470,14 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
         {/* COPY BUTTON */}
         <button 
           onClick={copyToClipboard}
-          className="absolute -top-12 right-4 md:top-3 md:-right-14 p-2.5 bg-surface hover:bg-surface-light rounded-lg border border-white/10 text-slate-400 hover:text-primary transition-all z-30 flex items-center gap-2 text-xs font-bold cursor-pointer"
+          className="no-print absolute -top-12 right-4 md:top-3 md:-right-14 p-2.5 bg-surface hover:bg-surface-light rounded-lg border border-white/10 text-slate-400 hover:text-primary transition-all z-30 flex items-center gap-2 text-xs font-bold cursor-pointer"
           title="Salin Chord"
         >
           {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
         </button>
 
         {/* CHORD SHEET CONTAINER */}
-        <div className="bg-surface/80 p-5 md:p-8 rounded-2xl border border-white/10 overflow-x-auto backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.8)]">
+        <div className="chord-sheet-container bg-surface/80 p-5 md:p-8 rounded-2xl border border-white/10 overflow-x-auto backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.8)]">
           <div 
             className="font-mono text-slate-200 whitespace-pre leading-relaxed select-text"
             style={{ fontSize: `${fontSize}px`, lineHeight: '2.0' }}
@@ -472,7 +485,7 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
             {processedLines.map((line, idx) => {
               const parts = line.split(CHORD_REGEX);
               return (
-                <div key={idx} className="min-h-[1.5em]">
+                <div key={idx} className="song-section-block lyric-line min-h-[1.5em]">
                   {parts.map((part, partIdx) => {
                     if (SINGLE_CHORD_REGEX.test(part)) {
                       return (
@@ -496,14 +509,14 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
         </div>
 
         {/* SONG RATING & COMMUNITY DIFFICULTY VOTING */}
-        <div className="mt-6">
+        <div className="no-print rating-section mt-6">
           <SongRating songId={data.id} songTitle={data.title} initialDifficulty={data.difficulty} />
         </div>
       </div>
 
       {/* VIDEO TUTORIALS SECTION */}
       {videoTutorials.length > 0 && (
-        <div className="w-full max-w-4xl mx-auto px-4 md:px-0 mb-12">
+        <div className="no-print video-tutorial-section w-full max-w-4xl mx-auto px-4 md:px-0 mb-12">
           <div className="bg-surface/70 border border-white/10 rounded-2xl p-6 backdrop-blur-md shadow-lg space-y-4">
             <div className="flex items-center gap-3 border-b border-white/10 pb-3">
               <div className="p-2 rounded-xl bg-red-600/20 text-red-500 border border-red-500/30">
@@ -566,7 +579,7 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
       )}
 
       {/* STICKY CONTROL PANEL */}
-      <div className="fixed bottom-5 left-1/2 -translate-x-1/2 w-[94%] md:w-auto min-w-[320px] max-w-3xl bg-slate-950/90 backdrop-blur-2xl border border-white/15 rounded-2xl px-5 py-3.5 shadow-[0_10px_50px_rgba(0,0,0,0.95)] z-50 flex items-center justify-between gap-3 md:gap-5 transition-all">
+      <div className="no-print floating-controls fixed bottom-5 left-1/2 -translate-x-1/2 w-[94%] md:w-auto min-w-[320px] max-w-3xl bg-slate-950/90 backdrop-blur-2xl border border-white/15 rounded-2xl px-5 py-3.5 shadow-[0_10px_50px_rgba(0,0,0,0.95)] z-50 flex items-center justify-between gap-3 md:gap-5 transition-all">
         
         {/* Tool: Font Size */}
         <div className="flex flex-col items-center gap-1">
@@ -617,7 +630,7 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
             title="Sederhanakan Chord (S)"
           >
             <Wand2 className="w-3 h-3" />
-            <span className="hidden sm:inline">{isSimplified ? 'ON' : 'OFF'}</span>
+            <span>{isSimplified ? 'ON' : 'OFF'}</span>
           </button>
         </div>
 

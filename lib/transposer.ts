@@ -52,7 +52,16 @@ export function transposeChordLine(line: string, steps: number): string {
 }
 
 /**
- * Simplifies complex chord (e.g., Cmaj7 -> C, F#m7 -> F#m, Bsus4 -> B)
+ * Simplifies complex chord (e.g., Cmaj7 -> C, F#m7 -> F#m, Bsus4 -> B, A/C# -> A)
+ * Rules:
+ * 1. Remove slash bass note: A/C# -> A, G/B -> G, D/F# -> D, F/A -> F
+ * 2. Convert 7th, maj7, Extended (9, 11, 13, add9), Suspended (sus2, sus4), Dim/Aug to Basic Major/Minor
+ *    - Cmaj7 / C7 / Csus4 / Csus2 / Cadd9 -> C
+ *    - Am7 / Am9 / Asus4 -> Am
+ *    - F#m7 / F#m7b5 -> F#m
+ *    - Bm7 -> Bm
+ *    - Fdim7 / Faug -> F
+ * 3. Preserve basic Major and Minor chords (C, Dm, Em, F, G, Am, B, F#m, etc.)
  */
 export function simplifyChord(chord: string): string {
   if (!chord) return chord;
@@ -62,13 +71,13 @@ export function simplifyChord(chord: string): string {
   const root = match[1];
   let rest = match[2];
 
-  // Remove slash bass note for simplified view
+  // 1. Remove slash bass note for simplified view
   if (rest.includes('/')) {
     rest = rest.split('/')[0];
   }
 
-  // Detect minor quality (m, min, m7, m9 but NOT maj)
-  const isMinor = /m(?!aj)/i.test(rest) || /^min/i.test(rest);
+  // 2. Detect minor quality (starts with 'm' but NOT 'maj', or 'min')
+  const isMinor = /^(m(?!aj)|min)/i.test(rest);
 
   return isMinor ? `${root}m` : root;
 }
