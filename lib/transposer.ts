@@ -1,6 +1,11 @@
 const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const FLATS = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
 
+// Comprehensive Chord RegEx with lookbehind/lookahead to correctly handle sharps (#) and slash (/) chords
+export const CHORD_REGEX = /(?<![a-zA-Z0-9_#])([A-G][#b]?(?:m|maj|min|dim|aug|sus|add|7|9|11|13|b5|#5|b9|#9)*(?:\/[A-G][#b]?)?)(?![a-zA-Z0-9_#])/g;
+
+export const SINGLE_CHORD_REGEX = /^([A-G][#b]?(?:m|maj|min|dim|aug|sus|add|7|9|11|13|b5|#5|b9|#9)*(?:\/[A-G][#b]?)?)$/;
+
 function getNoteIndex(note: string): number {
   let idx = NOTES.indexOf(note);
   if (idx === -1) idx = FLATS.indexOf(note);
@@ -8,7 +13,7 @@ function getNoteIndex(note: string): number {
 }
 
 export function transposeChord(chord: string, steps: number): string {
-  // Regex to extract Root Note (e.g. C#, B, Eb) and the Suffix (e.g. m7, maj9, /F#)
+  // Regex to extract Root Note (e.g. C#, B, Eb, F#) and the Suffix (e.g. m7, maj9, /F#)
   const regex = /^([A-G][#b]?)(.*)$/;
   const match = chord.match(regex);
   if (!match) return chord; // Not a standard chord
@@ -16,11 +21,11 @@ export function transposeChord(chord: string, steps: number): string {
   const root = match[1];
   let suffix = match[2];
 
-  // Process Bass note if it's a slash chord (e.g. C/E -> E is bass)
+  // Process Bass note if it's a slash chord (e.g. C/E -> E is bass, D/F# -> F# is bass)
   if (suffix.includes('/')) {
     const parts = suffix.split('/');
-    if (parts.length === 2 && getNoteIndex(parts[1]) !== -1) {
-      const bassTransposed = transposeChordLine(parts[1], steps); // recursive but just for single note
+    if (parts.length === 2 && parts[1]) {
+      const bassTransposed = transposeChordLine(parts[1], steps); // recursive for bass note
       suffix = parts[0] + '/' + bassTransposed;
     }
   }
@@ -41,10 +46,7 @@ export function transposeChord(chord: string, steps: number): string {
 export function transposeChordLine(line: string, steps: number): string {
   if (steps === 0) return line;
   
-  // A robust Regex to catch valid musical chords
-  const chordRegex = /\b([A-G][#b]?(?:m|maj|dim|aug|sus|add)?[0-9]*(?:\/[A-G][#b]?)?)\b/g;
-  
-  return line.replace(chordRegex, (match) => {
+  return line.replace(CHORD_REGEX, (match) => {
     return transposeChord(match, steps);
   });
 }
@@ -75,8 +77,7 @@ export function simplifyChord(chord: string): string {
  * Runs regex on a chord text line to simplify all complex chords for beginners.
  */
 export function simplifyChordLine(line: string): string {
-  const chordRegex = /\b([A-G][#b]?(?:m|maj|dim|aug|sus|add)?[0-9]*(?:\/[A-G][#b]?)?)\b/g;
-  return line.replace(chordRegex, (match) => {
+  return line.replace(CHORD_REGEX, (match) => {
     return simplifyChord(match);
   });
 }
@@ -100,10 +101,10 @@ export function isChordLine(line: string): boolean {
   
   const words = trimmed.split(/\s+/);
   let chordCount = 0;
-  const chordRegex = /^([A-G][#b]?(?:m|maj|dim|aug|sus|add)?[0-9]*(?:\/[A-G][#b]?)?)$/;
   
   for (const word of words) {
-    if (chordRegex.test(word)) {
+    const cleanWord = word.replace(/^[\[\(\{]+|[\]\)\}]+$/g, '');
+    if (SINGLE_CHORD_REGEX.test(cleanWord)) {
       chordCount++;
     }
   }

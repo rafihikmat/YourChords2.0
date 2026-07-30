@@ -5,7 +5,7 @@ import {
   Play, Minus, Plus, Settings2, Copy, Check, Pause, Type, Music, Heart, Wand2, 
   Sparkles, Keyboard, X, Youtube, FolderPlus, FileText, Save, CheckCircle2, PlusCircle, Printer, Music2, Edit3 
 } from "lucide-react";
-import { transposeChordLine, simplifyChordLine, calculateCapoTranspose } from "@/lib/transposer";
+import { transposeChordLine, simplifyChordLine, calculateCapoTranspose, CHORD_REGEX, SINGLE_CHORD_REGEX } from "@/lib/transposer";
 import { 
   toggleSongFavorite, checkIsFavorite, getUserSongNote, saveUserSongNote, 
   getUserSetlists, addSongToSetlist, createSetlist 
@@ -259,10 +259,6 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
   const coverUrl = data.cover_url || "https://images.unsplash.com/photo-1511192336575-5a79af67a629?q=80&w=600&h=600&auto=format&fit=crop";
   const processedLines = getProcessedLines();
 
-  // Presisi Global & Single Chord Regex untuk rendering multi-chord pada satu baris
-  const CHORD_SPLIT_REGEX = /(\b[A-G][#b]?(?:m|maj|dim|aug|sus|add)?[0-9]*(?:\/[A-G][#b]?)?\b)/g;
-  const SINGLE_CHORD_REGEX = /^([A-G][#b]?(?:m|maj|dim|aug|sus|add)?[0-9]*(?:\/[A-G][#b]?)?)$/;
-
   return (
     <div className="flex flex-col min-h-screen pb-40 animate-fade-in relative pt-20">
       
@@ -474,7 +470,7 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
             style={{ fontSize: `${fontSize}px`, lineHeight: '2.0' }}
           >
             {processedLines.map((line, idx) => {
-              const parts = line.split(CHORD_SPLIT_REGEX);
+              const parts = line.split(CHORD_REGEX);
               return (
                 <div key={idx} className="min-h-[1.5em]">
                   {parts.map((part, partIdx) => {
@@ -483,7 +479,7 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
                         <button
                           key={partIdx}
                           onClick={() => setSelectedChordForDiagram(part)}
-                          className="text-primary font-black cursor-pointer hover:text-white transition-all bg-primary/10 hover:bg-primary/30 px-2 py-0.5 rounded-md border border-primary/40 hover:border-primary mx-0.5 inline-block shadow-[0_0_10px_rgba(168,85,247,0.2)] hover:shadow-[0_0_15px_rgba(168,85,247,0.5)] hover:scale-105"
+                          className="chord-badge text-primary font-black cursor-pointer hover:text-white transition-all bg-primary/10 hover:bg-primary/30 px-2 py-0.5 rounded-md border border-primary/40 hover:border-primary mx-0.5 inline-block shadow-[0_0_10px_rgba(168,85,247,0.2)] hover:shadow-[0_0_15px_rgba(168,85,247,0.5)] hover:scale-105"
                           title={`Klik untuk melihat diagram fretboard chord ${part}`}
                         >
                           {part}
