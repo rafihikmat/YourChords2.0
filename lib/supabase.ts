@@ -37,9 +37,12 @@ export function normalizeSong(row: any): Song {
   };
 }
 
-export async function fetchAllSongs(limit = 20): Promise<Song[]> {
+export async function getAllSongs(limit = 30): Promise<Song[]> {
+  return fetchAllSongs(limit);
+}
+
+export async function getTrendingSongs(limit = 15): Promise<Song[]> {
   try {
-    // 1. Query 'songs' table (PRIMARY)
     const { data: songsData, error: songsErr } = await supabase
       .from('songs')
       .select('*, albums(cover_url)')
@@ -51,7 +54,6 @@ export async function fetchAllSongs(limit = 20): Promise<Song[]> {
       return songsData.map(normalizeSong);
     }
 
-    // 2. Query 'chords' table as backup if 'songs' table doesn't have rows
     const { data: chordsData, error: chordsErr } = await supabase
       .from('chords')
       .select('*')
@@ -63,16 +65,87 @@ export async function fetchAllSongs(limit = 20): Promise<Song[]> {
       return chordsData.map(normalizeSong);
     }
   } catch (e) {
+    console.error('[SUPABASE GET TRENDING SONGS ERROR]:', e);
+  }
+
+  return [];
+}
+
+export async function getFeaturedHeroSongs(): Promise<Song[]> {
+  try {
+    const { data: pageContent } = await supabase
+      .from('page_content')
+      .select('content')
+      .eq('id', 'hero_carousel')
+      .maybeSingle();
+
+    const songIds: string[] = pageContent?.content?.song_ids || [];
+
+    if (songIds.length > 0) {
+      const { data: songsData, error: songsErr } = await supabase
+        .from('songs')
+        .select('*, albums(cover_url)')
+        .in('id', songIds);
+
+      if (!songsErr && songsData && songsData.length > 0) {
+        const normalized = songsData.map(normalizeSong);
+        const sorted = songIds
+          .map(id => normalized.find(s => s.id === id))
+          .filter((s): s is Song => Boolean(s));
+
+        if (sorted.length > 0) {
+          return sorted;
+        }
+      }
+    }
+
+    const { data: fallbackData } = await supabase
+      .from('songs')
+      .select('*, albums(cover_url)')
+      .order('view_count', { ascending: false, nullsFirst: false })
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    if (fallbackData && fallbackData.length > 0) {
+      return fallbackData.map(normalizeSong);
+    }
+  } catch (err) {
+    console.error('[GET FEATURED HERO SONGS ERROR]:', err);
+  }
+
+  return [];
+}
+
+export async function fetchAllSongs(limit = 30): Promise<Song[]> {
+  try {
+    const { data: songsData, error: songsErr } = await supabase
+      .from('songs')
+      .select('*, albums(cover_url)')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (!songsErr && songsData && songsData.length > 0) {
+      return songsData.map(normalizeSong);
+    }
+
+    const { data: chordsData, error: chordsErr } = await supabase
+      .from('chords')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (!chordsErr && chordsData && chordsData.length > 0) {
+      return chordsData.map(normalizeSong);
+    }
+  } catch (e) {
     console.error('[SUPABASE FETCH SONGS ERROR]:', e);
   }
 
-  // System Guard Fallback
-  return INITIAL_FALLBACK_CHORDS.slice(0, limit);
+  return [];
 }
 
 export async function fetchSongById(id: string): Promise<Song | null> {
   try {
-    // 1. Query 'songs'
     const { data: songData, error: songErr } = await supabase
       .from('songs')
       .select('*, albums(cover_url)')
@@ -83,7 +156,6 @@ export async function fetchSongById(id: string): Promise<Song | null> {
       return normalizeSong(songData);
     }
 
-    // 2. Query 'chords'
     const { data: chordData, error: chordErr } = await supabase
       .from('chords')
       .select('*')
@@ -97,7 +169,7 @@ export async function fetchSongById(id: string): Promise<Song | null> {
     console.error('[SUPABASE FETCH SONG BY ID ERROR]:', e);
   }
 
-  return getFallbackChordById(id);
+  return null;
 }
 
 export async function searchSongs(query: string): Promise<Song[]> {
@@ -128,7 +200,7 @@ export async function searchSongs(query: string): Promise<Song[]> {
     console.error('[SUPABASE SEARCH SONGS ERROR]:', e);
   }
 
-  return getFallbackChords(q);
+  return [];
 }
 
 export async function incrementSongView(id: string, currentViews = 0) {
