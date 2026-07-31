@@ -368,15 +368,37 @@ export async function getAdminRatingsOverview(): Promise<SongRatingModerationIte
 /**
  * Reset all ratings and difficulty votes for a specific song (Admin Moderation).
  */
-export async function resetSongRatingsAndVotes(songId: string): Promise<boolean> {
+export async function resetSongRatingsAndVotes(songId: string): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
-    await Promise.all([
-      supabase.from('song_ratings').delete().eq('song_id', songId),
-      supabase.from('song_difficulty_votes').delete().eq('song_id', songId),
-    ]);
-    return true;
-  } catch (err) {
-    console.error('[RESET RATINGS ERROR]:', err);
-    return false;
+    if (!songId) throw new Error('Song ID wajib diisi.');
+
+    // 1. Coba panggil fungsi RPC Supabase
+    const { error: rpcError } = await supabase.rpc('reset_song_ratings_and_votes', {
+      target_song_id: songId,
+    });
+
+    // 2. Fallback: Hapus langsung jika RPC belum terpasang
+    if (rpcError) {
+      console.warn('[RESET RATING RPC WARNING, FALLBACK TO DIRECT DELETE]:', rpcError.message);
+
+      const { error: err1 } = await supabase
+        .from('song_ratings')
+        .delete()
+        .eq('song_id', songId);
+
+      const { error: err2 } = await supabase
+        .from('song_difficulty_votes')
+        .delete()
+        .eq('song_id', songId);
+
+      if (err1 || err2) {
+        throw new Error((err1?.message || '') + ' ' + (err2?.message || ''));
+      }
+    }
+
+    return { success: true, message: 'Data rating & vote kesulitan berhasil di-reset!' };
+  } catch (err: any) {
+    console.error('[RESET RATING ERROR]:', err.message || err);
+    return { success: false, error: err.message || 'Gagal mereset data rating.' };
   }
 }
