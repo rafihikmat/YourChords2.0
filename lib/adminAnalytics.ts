@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { supabase } from '@/lib/supabase';
 
 export interface AdminOverviewStats {
   totalSongs: number;
@@ -7,12 +7,16 @@ export interface AdminOverviewStats {
   totalUsers: number;
 }
 
-export interface MissingSongItem {
+export interface MissingSongLogItem {
   id?: string;
-  query: string;
-  count: number;
+  keyword: string;
+  query?: string;
+  search_count: number;
+  count?: number;
   last_searched_at: string;
 }
+
+export type MissingSongItem = MissingSongLogItem;
 
 /**
  * PURE REAL-TIME STATS ENGINE:
@@ -30,83 +34,74 @@ export async function getAdminOverviewStats(): Promise<AdminOverviewStats> {
   try {
     // 1. TOTAL KOLEKSI LAGU
     const { count: songsCount, error: songsCountErr } = await supabase
-      .from("songs")
-      .select("*", { count: "exact", head: true });
+      .from('songs')
+      .select('*', { count: 'exact', head: true });
 
     if (!songsCountErr && songsCount !== null) {
       totalSongs = songsCount;
     } else {
-      // Fallback ke tabel 'chords'
       const { count: chordsCount } = await supabase
-        .from("chords")
-        .select("*", { count: "exact", head: true });
+        .from('chords')
+        .select('*', { count: 'exact', head: true });
       if (chordsCount !== null) totalSongs = chordsCount;
     }
 
-    // 2. TOTAL VIEW LAGU (Akumulasi Pembaca Chord)
+    // 2. TOTAL VIEW LAGU
     const { data: songsViewsData } = await supabase
-      .from("songs")
-      .select("view_count");
+      .from('songs')
+      .select('view_count');
 
     if (songsViewsData && songsViewsData.length > 0) {
-      totalViews = songsViewsData.reduce(
-        (acc, curr) => acc + (Number(curr.view_count) || 0),
-        0,
-      );
+      totalViews = songsViewsData.reduce((acc, curr) => acc + (Number(curr.view_count) || 0), 0);
     } else {
       const { data: chordsViewsData } = await supabase
-        .from("chords")
-        .select("views");
+        .from('chords')
+        .select('views');
       if (chordsViewsData && chordsViewsData.length > 0) {
-        totalViews = chordsViewsData.reduce(
-          (acc, curr) => acc + (Number(curr.views) || 0),
-          0,
-        );
+        totalViews = chordsViewsData.reduce((acc, curr) => acc + (Number(curr.views) || 0), 0);
       }
     }
 
     // 3. PERMINTAAN LAGU KOSONG (Missing Search Requests)
     const { count: missingCount, error: missingErr } = await supabase
-      .from("missing_songs_log")
-      .select("*", { count: "exact", head: true });
+      .from('missing_songs_log')
+      .select('*', { count: 'exact', head: true });
 
     if (!missingErr && missingCount !== null) {
       totalMissingRequests = missingCount;
     } else {
       const { data: missingSumData } = await supabase
-        .from("missing_songs_log")
-        .select("search_count, count");
+        .from('missing_songs_log')
+        .select('search_count, count');
 
       if (missingSumData && missingSumData.length > 0) {
         totalMissingRequests = missingSumData.reduce(
           (acc, curr) => acc + (Number(curr.search_count || curr.count) || 1),
-          0,
+          0
         );
       } else {
         const { count: searchCount } = await supabase
-          .from("search_logs")
-          .select("*", { count: "exact", head: true });
+          .from('search_logs')
+          .select('*', { count: 'exact', head: true });
         if (searchCount !== null) totalMissingRequests = searchCount;
       }
     }
 
     // 4. PENGGUNA TERDAFTAR (Registered Members)
     const { count: usersCount, error: usersErr } = await supabase
-      .from("profiles")
-      .select("*", { count: "exact", head: true });
+      .from('profiles')
+      .select('*', { count: 'exact', head: true });
 
     if (!usersErr && usersCount !== null) {
       totalUsers = usersCount;
     } else {
-      const { data: profilesData } = await supabase.from("profiles").select(
-        "id",
-      );
+      const { data: profilesData } = await supabase.from('profiles').select('id');
       if (profilesData) {
         totalUsers = profilesData.length;
       }
     }
   } catch (err) {
-    console.error("[ADMIN OVERVIEW STATS ERROR]:", err);
+    console.error('[ADMIN OVERVIEW STATS ERROR]:', err);
   }
 
   return {
@@ -118,26 +113,21 @@ export async function getAdminOverviewStats(): Promise<AdminOverviewStats> {
 }
 
 /**
- * Mengambil daftar kata kunci pencarian yang paling banyak dicari pengguna tetapi belum ada di database,
- * diurutkan berdasarkan 'search_count' / 'count' tertinggi.
+ * Fetch all missing songs requests ordered by search_count descending.
  */
-export async function getTopMissingSongs(
-  limit = 10,
-): Promise<MissingSongItem[]> {
+export async function getMissingSongsLog(limit = 50): Promise<MissingSongLogItem[]> {
   try {
-    // 1. Coba di tabel 'missing_songs_log' dengan order search_count
     let { data: missingData, error: missingErr } = await supabase
-      .from("missing_songs_log")
-      .select("*")
-      .order("search_count", { ascending: false })
+      .from('missing_songs_log')
+      .select('*')
+      .order('search_count', { ascending: false })
       .limit(limit);
 
     if (missingErr || !missingData || missingData.length === 0) {
-      // Retry by 'count'
       const { data: missingDataByCount, error: err2 } = await supabase
-        .from("missing_songs_log")
-        .select("*")
-        .order("count", { ascending: false })
+        .from('missing_songs_log')
+        .select('*')
+        .order('count', { ascending: false })
         .limit(limit);
 
       if (!err2 && missingDataByCount && missingDataByCount.length > 0) {
@@ -147,34 +137,44 @@ export async function getTopMissingSongs(
     }
 
     if (!missingErr && missingData && missingData.length > 0) {
-      return missingData.map((item: any) => ({
-        id: item.id || item.keyword || item.query,
-        query: item.keyword || item.query || "Lagu Tidak Dikenal",
-        count: Number(item.search_count || item.count || 1),
-        last_searched_at: item.last_searched_at || item.updated_at ||
-          item.created_at || new Date().toISOString(),
-      }));
+      return missingData.map((item: any) => {
+        const kw = item.keyword || item.query || 'Lagu Tidak Dikenal';
+        return {
+          id: item.id || kw,
+          keyword: kw,
+          query: kw,
+          search_count: Number(item.search_count || item.count || 1),
+          count: Number(item.search_count || item.count || 1),
+          last_searched_at: item.last_searched_at || item.updated_at || item.created_at || new Date().toISOString(),
+        };
+      });
     }
 
-    // 2. Fallback ke tabel 'search_logs'
+    // Fallback to search_logs
     const { data: searchData, error: searchErr } = await supabase
-      .from("search_logs")
-      .select("*")
-      .order("count", { ascending: false })
+      .from('search_logs')
+      .select('*')
+      .order('count', { ascending: false })
       .limit(limit);
 
     if (!searchErr && searchData && searchData.length > 0) {
-      return searchData.map((item: any) => ({
-        id: item.id || item.query,
-        query: item.query || "Lagu Tidak Dikenal",
-        count: Number(item.count || 1),
-        last_searched_at: item.last_searched_at || item.updated_at ||
-          item.created_at || new Date().toISOString(),
-      }));
+      return searchData.map((item: any) => {
+        const kw = item.query || 'Lagu Tidak Dikenal';
+        return {
+          id: item.id || kw,
+          keyword: kw,
+          query: kw,
+          search_count: Number(item.count || 1),
+          count: Number(item.count || 1),
+          last_searched_at: item.last_searched_at || item.updated_at || item.created_at || new Date().toISOString(),
+        };
+      });
     }
   } catch (err) {
-    console.error("[GET TOP MISSING SONGS ERROR]:", err);
+    console.error('[GET MISSING SONGS LOG ERROR]:', err);
   }
 
   return [];
 }
+
+export const getTopMissingSongs = getMissingSongsLog;
