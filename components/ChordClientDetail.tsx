@@ -34,15 +34,20 @@ import {
   transposeChordLine,
 } from "@/lib/transposer";
 import {
-  addSongToSetlist,
   checkIsFavorite,
-  createSetlist,
-  getUserSetlists,
+  checkIsSongLiked,
   getUserSongNote,
-  incrementSongViews,
   saveUserSongNote,
   toggleSongFavorite,
+} from "@/lib/userPreferences";
+import {
+  addSongToSetlist,
+  createSetlist,
+  getUserSetlists,
+  incrementSongViews,
 } from "@/lib/supabase";
+import { useAuth } from "@/lib/authContext";
+import AuthModal from "@/components/AuthModal";
 import { getVideoTutorials, VideoTutorial } from "@/lib/adminCurated";
 import FretboardModal from "@/components/FretboardModal";
 import FloatingYouTubePlayer from "@/components/FloatingYouTubePlayer";
@@ -66,6 +71,8 @@ type ChordData = {
 };
 
 export default function ChordClientDetail({ data }: { data: ChordData }) {
+  const { user } = useAuth();
+
   const [transpose, setTranspose] = useState(0);
   const [capoFret, setCapoFret] = useState(0);
   const [fontSize, setFontSize] = useState(16);
@@ -79,6 +86,10 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
   const [showShortcutsGuide, setShowShortcutsGuide] = useState(false);
   const [showMetronome, setShowMetronome] = useState(false);
   const [showCorrectionModal, setShowCorrectionModal] = useState(false);
+
+  // Auth Modal state
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalReason, setAuthModalReason] = useState("");
 
   // Floating YouTube Player State
   const [showYouTubePlayer, setShowYouTubePlayer] = useState(false);
@@ -104,15 +115,15 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
   const scrollAccumulatorRef = useRef(0);
   const scrollRef = useRef<number | null>(null);
 
-  const userId = "guest"; // Default user context
+  const activeUserId = user?.id || "guest";
   const cleanVideoId = extractYouTubeId(data?.youtube_video_id);
 
   // Check Favorite Status, Personal Note & Video Tutorials on Load & Save to Offline Cache + Increment View Count
   useEffect(() => {
     if (data?.id) {
       incrementSongViews(data.id);
-      checkIsFavorite(userId, data.id).then((fav) => setIsFavorite(fav));
-      getUserSongNote(userId, data.id).then((note) => setUserNote(note));
+      checkIsSongLiked(data.id, activeUserId).then((fav) => setIsFavorite(fav));
+      getUserSongNote(data.id, activeUserId).then((note) => setUserNote(note));
       getVideoTutorials(data.id).then((tuts) => setVideoTutorials(tuts));
 
       // Automate offline caching
@@ -126,12 +137,12 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
         cover_url: data.cover_url,
       });
     }
-  }, [data]);
+  }, [data, activeUserId]);
 
   // Load Setlists when Setlist Modal opens
   const handleOpenSetlistModal = async () => {
     setShowSetlistModal(true);
-    const setlists = await getUserSetlists(userId);
+    const setlists = await getUserSetlists(activeUserId);
     setUserSetlists(setlists);
   };
 
@@ -146,34 +157,52 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
     if (!newSetlistName.trim() || !data?.id) return;
 
     setIsCreatingSetlist(true);
-    const created = await createSetlist(userId, newSetlistName);
+    const created = await createSetlist(activeUserId, newSetlistName);
     setIsCreatingSetlist(false);
 
     if (created) {
       await addSongToSetlist(created.id, data.id);
       setAddedSetlistIds((prev) => [...prev, created.id]);
       setNewSetlistName("");
-      const updated = await getUserSetlists(userId);
+      const updated = await getUserSetlists(activeUserId);
       setUserSetlists(updated);
     }
   };
 
-  // Toggle Favorite Action
+  // Toggle Favorite Action (Real-time DB Sync or Auth Prompt)
   const handleToggleFavorite = async () => {
     if (!data?.id) return;
-    const newFav = !isFavorite;
-    setIsFavorite(newFav); // Optimistic UI
-    await toggleSongFavorite(userId, data.id);
+
+    if (!user) {
+      setAuthModalReason(
+        "Silakan masuk atau daftar akun terlebih dahulu untuk menyukai lagu ini.",
+      );
+      setIsAuthModalOpen(true);
+      return;
+    }
+
+    const newFavStatus = await toggleSongFavorite(data.id, user.id);
+    setIsFavorite(newFavStatus);
   };
 
-  // Save Note Action
+  // Save Note Action (Real-time DB Sync or Auth Prompt)
   const handleSaveNote = async () => {
     if (!data?.id) return;
+
+    if (!user) {
+      setAuthModalReason("Silakan login untuk menyimpan catatan pribadi.");
+      setIsAuthModalOpen(true);
+      return;
+    }
+
     setIsSavingNote(true);
-    await saveUserSongNote(userId, data.id, userNote);
+    const success = await saveUserSongNote(data.id, userNote, user.id);
     setIsSavingNote(false);
-    setNoteSaveSuccess(true);
-    setTimeout(() => setNoteSaveSuccess(false), 2500);
+
+    if (success) {
+      setNoteSaveSuccess(true);
+      setTimeout(() => setNoteSaveSuccess(false), 3000);
+    }
   };
 
   const applyStrummingPreset = (pattern: string) => {
@@ -372,11 +401,11 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
               >
                 <Heart
                   className={`w-5 h-5 transition-transform ${
-                    isFavorite ? "fill-current text-rose-500 scale-110" : ""
+                    isFavorite ? "fill-rose-500 text-rose-500 scale-110" : ""
                   }`}
                 />
                 <span className="hidden sm:inline text-xs font-bold">
-                  {isFavorite ? "Favorit" : "Sukai"}
+                  {isFavorite ? "Disukai" : "Sukai"}
                 </span>
               </button>
             </div>
@@ -484,8 +513,9 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
 
             <div className="flex items-center gap-2">
               {noteSaveSuccess && (
-                <span className="text-xs text-emerald-400 font-bold flex items-center gap-1 animate-fade-in">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Tersimpan!
+                <span className="text-xs text-emerald-400 font-extrabold flex items-center gap-1 animate-fade-in bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1 rounded-lg shadow-[0_0_12px_rgba(16,185,129,0.3)]">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />{" "}
+                  Catatan berhasil disimpan!
                 </span>
               )}
               <button
@@ -521,6 +551,12 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
               className="px-2.5 py-1 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-[11px] text-slate-300 font-mono hover:text-primary transition-colors cursor-pointer"
             >
               D-U-D-U (Cepat)
+            </button>
+            <button
+              onClick={() => applyStrummingPreset("D - U - U")}
+              className="px-2.5 py-1 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-[11px] text-slate-300 font-mono hover:text-primary transition-colors cursor-pointer"
+            >
+              D-U-U (3/4 Waltz)
             </button>
           </div>
 
@@ -1061,6 +1097,13 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
           </div>
         </div>
       )}
+
+      {/* AUTH MODAL */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        initialMode="signin"
+      />
     </div>
   );
 }
