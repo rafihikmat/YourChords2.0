@@ -125,19 +125,23 @@ export default function Navbar() {
             {/* Auth State Handling */}
             {user
               ? (
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2 px-2.5 py-1 bg-white/5 border border-white/10 rounded-lg">
-                    <div className="w-5 h-5 bg-primary/20 text-primary rounded-full flex items-center justify-center font-bold text-[10px]">
+                <div className="flex items-center gap-2">
+                  <Link
+                    href="/dashboard"
+                    className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 border border-primary/30 rounded-lg text-xs font-semibold text-slate-100 hover:text-white transition-all shadow-[0_0_12px_rgba(168,85,247,0.2)] group"
+                    title="Buka Dashboard Saya"
+                  >
+                    <div className="w-5 h-5 bg-primary/30 text-primary-light rounded-full flex items-center justify-center font-bold text-[10px] group-hover:scale-110 transition-transform">
                       {profile?.full_name
                         ? profile.full_name[0].toUpperCase()
                         : user.email?.[0].toUpperCase() || (
                           <UserIcon className="w-3 h-3" />
                         )}
                     </div>
-                    <span className="text-xs font-semibold text-slate-200 max-w-[100px] truncate">
-                      {profile?.full_name || user.email?.split("@")[0]}
+                    <span className="max-w-[110px] truncate">
+                      Dashboard Saya
                     </span>
-                  </div>
+                  </Link>
 
                   <button
                     onClick={handleSignOut}
@@ -213,6 +217,18 @@ export default function Navbar() {
               >
                 Beranda
               </Link>
+
+              {user && (
+                <Link
+                  href="/dashboard"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="px-3 py-2 text-sm font-bold text-primary bg-primary/10 border border-primary/30 rounded-lg hover:bg-primary/20 transition-colors flex items-center gap-2"
+                >
+                  <UserIcon className="w-4 h-4 text-primary" />
+                  Dashboard Saya
+                </Link>
+              )}
+
               <button
                 onClick={(e) => {
                   setMobileMenuOpen(false);

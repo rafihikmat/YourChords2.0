@@ -17,6 +17,8 @@ export interface Song {
   spotify_track_id?: string | null;
   youtube_video_id?: string | null;
   difficulty?: string | null;
+  key_chord?: string | null;
+  key?: string | null;
 }
 
 export type ChordEntry = Song;
@@ -26,7 +28,7 @@ export interface Profile {
   id: string;
   full_name: string | null;
   avatar_url: string | null;
-  role: 'user' | 'admin' | 'super_admin';
+  role: "user" | "admin" | "super_admin";
 }
 
 /** Setlist / Songbook interface */
@@ -39,5 +41,3 @@ export interface Setlist {
   song_ids: string[];
   songs?: Song[];
 }
-
-
