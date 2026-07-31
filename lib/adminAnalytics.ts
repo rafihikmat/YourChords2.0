@@ -15,11 +15,11 @@ export interface MissingSongItem {
 }
 
 /**
- * Mengambil ringkasan data statistik platform dari Supabase:
- * 1. Total Lagu di database ('songs' atau 'chords')
- * 2. Total Pageviews kumulatif
- * 3. Total Kata Kunci Pencarian Kosong ('missing_songs_log' atau 'search_logs')
- * 4. Total Pengguna Terdaftar ('profiles')
+ * PURE REAL-TIME STATS ENGINE:
+ * 1. TOTAL KOLEKSI LAGU (Count exact from 'songs')
+ * 2. TOTAL VIEW LAGU (Agregasi view_count seluruh lagu)
+ * 3. PERMINTAAN LAGU KOSONG (Count exact from 'missing_songs_log')
+ * 4. PENGGUNA TERDAFTAR (Count exact from 'profiles')
  */
 export async function getAdminOverviewStats(): Promise<AdminOverviewStats> {
   let totalSongs = 0;
@@ -28,60 +28,69 @@ export async function getAdminOverviewStats(): Promise<AdminOverviewStats> {
   let totalUsers = 0;
 
   try {
-    // 1. Total Lagu & Total Views
-    const { data: songsData, count: songsCount, error: songsErr } =
-      await supabase
-        .from("songs")
-        .select("view_count", { count: "exact" });
+    // 1. TOTAL KOLEKSI LAGU
+    const { count: songsCount, error: songsCountErr } = await supabase
+      .from("songs")
+      .select("*", { count: "exact", head: true });
 
-    if (!songsErr && songsData) {
-      totalSongs = songsCount ?? songsData.length;
-      totalViews = songsData.reduce(
+    if (!songsCountErr && songsCount !== null) {
+      totalSongs = songsCount;
+    } else {
+      // Fallback ke tabel 'chords'
+      const { count: chordsCount } = await supabase
+        .from("chords")
+        .select("*", { count: "exact", head: true });
+      if (chordsCount !== null) totalSongs = chordsCount;
+    }
+
+    // 2. TOTAL VIEW LAGU (Akumulasi Pembaca Chord)
+    const { data: songsViewsData } = await supabase
+      .from("songs")
+      .select("view_count");
+
+    if (songsViewsData && songsViewsData.length > 0) {
+      totalViews = songsViewsData.reduce(
         (acc, curr) => acc + (Number(curr.view_count) || 0),
         0,
       );
     } else {
-      // Fallback ke tabel 'chords'
-      const { data: chordsData, count: chordsCount } = await supabase
+      const { data: chordsViewsData } = await supabase
         .from("chords")
-        .select("views", { count: "exact" });
-
-      if (chordsData) {
-        totalSongs = chordsCount ?? chordsData.length;
-        totalViews = chordsData.reduce(
+        .select("views");
+      if (chordsViewsData && chordsViewsData.length > 0) {
+        totalViews = chordsViewsData.reduce(
           (acc, curr) => acc + (Number(curr.views) || 0),
           0,
         );
       }
     }
 
-    // 2. Permintaan Lagu Kosong (Missing Songs) - Jumlah akumulasi dari missing_songs_log
-    const { data: missingData, count: missingRowsCount, error: missingErr } =
-      await supabase
-        .from("missing_songs_log")
-        .select("search_count, count", { count: "exact" });
+    // 3. PERMINTAAN LAGU KOSONG (Missing Search Requests)
+    const { count: missingCount, error: missingErr } = await supabase
+      .from("missing_songs_log")
+      .select("*", { count: "exact", head: true });
 
-    if (!missingErr && missingData && missingData.length > 0) {
-      totalMissingRequests = missingData.reduce(
-        (acc, curr) => acc + (Number(curr.search_count || curr.count) || 1),
-        0,
-      );
-    } else if (!missingErr && missingRowsCount !== null) {
-      totalMissingRequests = missingRowsCount;
+    if (!missingErr && missingCount !== null) {
+      totalMissingRequests = missingCount;
     } else {
-      const { data: searchLogsData } = await supabase
-        .from("search_logs")
-        .select("count");
+      const { data: missingSumData } = await supabase
+        .from("missing_songs_log")
+        .select("search_count, count");
 
-      if (searchLogsData && searchLogsData.length > 0) {
-        totalMissingRequests = searchLogsData.reduce(
-          (acc, curr) => acc + (Number(curr.count) || 1),
+      if (missingSumData && missingSumData.length > 0) {
+        totalMissingRequests = missingSumData.reduce(
+          (acc, curr) => acc + (Number(curr.search_count || curr.count) || 1),
           0,
         );
+      } else {
+        const { count: searchCount } = await supabase
+          .from("search_logs")
+          .select("*", { count: "exact", head: true });
+        if (searchCount !== null) totalMissingRequests = searchCount;
       }
     }
 
-    // 3. Total Pengguna Terdaftar
+    // 4. PENGGUNA TERDAFTAR (Registered Members)
     const { count: usersCount, error: usersErr } = await supabase
       .from("profiles")
       .select("*", { count: "exact", head: true });

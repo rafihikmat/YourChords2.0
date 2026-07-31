@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
+  Clock,
   Edit3,
   ExternalLink,
   Eye,
@@ -41,6 +42,7 @@ export default function AdminDashboardPage() {
   });
   const [missingSongs, setMissingSongs] = useState<MissingSongItem[]>([]);
   const [loadingAnalytics, setLoadingAnalytics] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<string>("");
 
   // Scraper prefill URL state
   const [scraperUrl, setScraperUrl] = useState("");
@@ -53,7 +55,7 @@ export default function AdminDashboardPage() {
   const [fetchingChords, setFetchingChords] = useState(true);
   const [songFilter, setSongFilter] = useState("");
 
-  // Fetch Analytics & Overview Stats
+  // Fetch Analytics & Overview Stats Real-time
   const loadAnalytics = useCallback(async () => {
     setLoadingAnalytics(true);
     try {
@@ -63,6 +65,13 @@ export default function AdminDashboardPage() {
       ]);
       setStats(overviewData);
       setMissingSongs(missingData);
+      setLastUpdated(
+        new Date().toLocaleTimeString("id-ID", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        }),
+      );
     } catch (err) {
       console.error("[LOAD ANALYTICS ERROR]:", err);
     } finally {
@@ -113,13 +122,11 @@ export default function AdminDashboardPage() {
 
   // Quick Action: Scrape Missing Song
   const handleQuickScrapeMissing = (query: string) => {
-    // Generate Chordtela Search URL
     const searchUrl = `https://www.chordtela.com/search?q=${
       encodeURIComponent(query)
     }`;
     setScraperUrl(searchUrl);
 
-    // Scroll to Scraper Section
     const element = document.getElementById("scraper-section");
     if (element) {
       element.scrollIntoView({ behavior: "smooth" });
@@ -137,7 +144,10 @@ export default function AdminDashboardPage() {
     await supabase.from("chords").delete().eq("id", id);
 
     setChords((prev) => prev.filter((c) => c.id !== id));
-    setMessage({ text: `"${title}" berhasil dihapus.`, type: "success" });
+    setMessage({
+      text: `"${title}" berhasil dihapus dari database.`,
+      type: "success",
+    });
     loadAnalytics();
     router.refresh();
   };
@@ -156,7 +166,7 @@ export default function AdminDashboardPage() {
       {/* HEADER SECTION: GREETING & STATUS */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface/70 p-6 md:p-8 rounded-2xl border border-white/10 backdrop-blur-xl shadow-2xl">
         <div>
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-3 mb-2">
             <span className="flex h-2.5 w-2.5 relative">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75">
               </span>
@@ -164,8 +174,14 @@ export default function AdminDashboardPage() {
               </span>
             </span>
             <span className="text-xs font-mono font-bold text-emerald-400 tracking-wider uppercase">
-              Sistem Live & Operational
+              Sistem Live & Real-Time Operational
             </span>
+            {lastUpdated && (
+              <span className="text-[10px] font-mono text-slate-400 flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded border border-white/10">
+                <Clock className="w-3 h-3 text-slate-400" />
+                Diperbarui: {lastUpdated}
+              </span>
+            )}
           </div>
 
           <h1 className="text-2xl md:text-4xl font-black text-white tracking-tight flex items-center gap-3">
@@ -173,7 +189,8 @@ export default function AdminDashboardPage() {
             <span className="text-primary neon-text">{adminName}</span>
           </h1>
           <p className="text-slate-400 text-xs md:text-sm mt-1">
-            Pusat Komando & Smart Analytics Platform YourChords Cyber-Zen
+            Pusat Komando & Dynamic Analytics Engine Platform YourChords
+            Cyber-Zen
           </p>
         </div>
 
@@ -288,10 +305,10 @@ export default function AdminDashboardPage() {
       {/* SECTION 3: MODERASI RATING & KESULITAN KOMUNITAS PANEL */}
       <RatingsModerationPanel onRatingsReset={loadAnalytics} />
 
-      {/* SECTION 4: MODERASI PERBAIKAN CHORD & LIKIR (USULAN KOMUNITAS) */}
+      {/* SECTION 4: MODERASI PERBAIKAN CHORD & LIRIK (USULAN KOMUNITAS) */}
       <CorrectionsPanel onApproved={loadChords} />
 
-      {/* SECTION 4: ADVANCED BATCH & MASS SCRAPER COMPONENT */}
+      {/* SECTION 5: ADVANCED BATCH & MASS SCRAPER COMPONENT */}
       <div id="scraper-section" className="flex flex-col gap-6">
         {/* Feedback Message */}
         {message && (
@@ -348,13 +365,13 @@ export default function AdminDashboardPage() {
           <div className="overflow-x-auto">
             {fetchingChords
               ? (
-                <div className="p-12 text-center text-slate-500 animate-pulse text-xs">
-                  Memuat data dari database...
+                <div className="p-12 text-center text-slate-500 animate-pulse text-xs font-mono">
+                  Memuat data lagu dari database...
                 </div>
               )
               : filteredChords.length === 0
               ? (
-                <div className="p-12 text-center text-slate-500 text-xs">
+                <div className="p-12 text-center text-slate-500 text-xs font-mono">
                   Tidak ada data lagu yang cocok.
                 </div>
               )
