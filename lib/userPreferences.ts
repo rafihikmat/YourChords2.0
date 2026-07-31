@@ -76,12 +76,8 @@ export async function getUserSongNote(
     arg2?: string,
 ): Promise<string> {
     const { songId, userId } = parseUserAndSongIds(arg1, arg2);
-    if (!songId) return "";
-
-    const fallback = getLocalNote(songId);
-
-    if (!userId || userId === "guest" || userId === "demo-user") {
-        return fallback;
+    if (!songId || !userId || userId === "guest" || userId === "demo-user") {
+        return "";
     }
 
     try {
@@ -98,10 +94,10 @@ export async function getUserSongNote(
             if (content) return content;
         }
 
-        return fallback;
+        return "";
     } catch (err) {
         console.warn("[GET USER SONG NOTE ERROR]:", err);
-        return fallback;
+        return "";
     }
 }
 
@@ -129,12 +125,8 @@ export async function saveUserSongNote(
         notesContent = arg3;
     }
 
-    if (!songId) return false;
-
-    setLocalNote(songId, notesContent);
-
-    if (!userId || userId === "guest" || userId === "demo-user") {
-        return true;
+    if (!songId || !userId || userId === "guest" || userId === "demo-user") {
+        return false;
     }
 
     try {
@@ -189,7 +181,7 @@ export async function saveUserSongNote(
         return true;
     } catch (err) {
         console.error("[SAVE USER SONG NOTE ERROR]:", err);
-        return true;
+        return false;
     }
 }
 

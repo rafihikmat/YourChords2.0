@@ -18,10 +18,11 @@ interface AuthModalProps {
     isOpen: boolean;
     onClose: () => void;
     initialMode?: "signin" | "signup";
+    reason?: string;
 }
 
 export default function AuthModal(
-    { isOpen, onClose, initialMode = "signin" }: AuthModalProps,
+    { isOpen, onClose, initialMode = "signin", reason }: AuthModalProps,
 ) {
     const [mode, setMode] = useState<"signin" | "signup">(initialMode);
     const [email, setEmail] = useState("");
@@ -181,6 +182,14 @@ export default function AuthModal(
                             : "Buat akun baru untuk bergabung dengan komunitas pemain gitar"}
                     </p>
                 </div>
+
+                {/* Reason Banner */}
+                {reason && (
+                    <div className="mb-5 p-3 rounded-xl bg-primary/15 border border-primary/40 text-primary-light text-xs text-center font-bold flex items-center justify-center gap-2 relative z-10 shadow-[0_0_15px_rgba(168,85,247,0.2)]">
+                        <span className="text-sm">🔒</span>
+                        <span>{reason}</span>
+                    </div>
+                )}
 
                 {/* Tab Switcher */}
                 <div className="flex bg-black/60 p-1 rounded-xl border border-white/10 mb-6 relative z-10">

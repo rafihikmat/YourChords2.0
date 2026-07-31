@@ -123,7 +123,11 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
     if (data?.id) {
       incrementSongViews(data.id);
       checkIsSongLiked(data.id, activeUserId).then((fav) => setIsFavorite(fav));
-      getUserSongNote(data.id, activeUserId).then((note) => setUserNote(note));
+      if (user?.id) {
+        getUserSongNote(data.id, user.id).then((note) => setUserNote(note));
+      } else {
+        setUserNote("");
+      }
       getVideoTutorials(data.id).then((tuts) => setVideoTutorials(tuts));
 
       // Automate offline caching
@@ -137,7 +141,7 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
         cover_url: data.cover_url,
       });
     }
-  }, [data, activeUserId]);
+  }, [data, activeUserId, user?.id]);
 
   // Load Setlists when Setlist Modal opens (Auth guarded)
   const handleOpenSetlistModal = async () => {
@@ -203,13 +207,23 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
     setIsFavorite(newFavStatus);
   };
 
+  // Trigger Auth Modal with custom motivation message
+  const triggerAuthGuard = (
+    reasonMessage =
+      "Login untuk menyimpan catatan & pola genjrengan pribadi Anda.",
+  ) => {
+    setAuthModalReason(reasonMessage);
+    setIsAuthModalOpen(true);
+  };
+
   // Save Note Action (Real-time DB Sync or Auth Prompt)
   const handleSaveNote = async () => {
     if (!data?.id) return;
 
     if (!user) {
-      setAuthModalReason("Silakan login untuk menyimpan catatan pribadi.");
-      setIsAuthModalOpen(true);
+      triggerAuthGuard(
+        "Login untuk menyimpan catatan & pola genjrengan pribadi Anda.",
+      );
       return;
     }
 
@@ -224,6 +238,12 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
   };
 
   const applyStrummingPreset = (pattern: string) => {
+    if (!user) {
+      triggerAuthGuard(
+        "Login untuk menyimpan catatan & pola genjrengan pribadi Anda.",
+      );
+      return;
+    }
     setUserNote((prev) => {
       if (!prev.trim()) return `Strumming: ${pattern}`;
       return `${prev.trim()}\nStrumming: ${pattern}`;
@@ -532,7 +552,41 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
 
       {/* PERSONAL NOTES & STRUMMING PATTERN ENGINE */}
       <div className="no-print personal-notes-container w-full max-w-4xl mx-auto px-4 md:px-0 mb-6">
-        <div className="bg-surface/70 border border-white/10 rounded-2xl p-5 backdrop-blur-md shadow-lg">
+        <div className="relative bg-surface/70 border border-white/10 rounded-2xl p-5 backdrop-blur-md shadow-lg overflow-hidden">
+          {/* ANONYMOUS / GUEST OVERLAY BANNER */}
+          {!user && (
+            <div
+              onClick={() =>
+                triggerAuthGuard(
+                  "Login untuk menyimpan catatan & pola genjrengan pribadi Anda.",
+                )}
+              className="absolute inset-0 z-20 bg-slate-950/80 backdrop-blur-[3px] border border-primary/30 rounded-2xl p-5 flex flex-col items-center justify-center text-center cursor-pointer group transition-all hover:bg-slate-950/90"
+            >
+              <div className="flex items-center gap-2 text-primary font-bold text-xs md:text-sm mb-1.5 group-hover:scale-105 transition-transform">
+                <span className="text-base">🔒</span>
+                <span>Fitur Terbatas</span>
+              </div>
+              <p className="text-xs text-slate-300 max-w-md px-4 leading-relaxed font-medium">
+                Silakan{" "}
+                <span className="text-primary font-bold underline">
+                  Sign In
+                </span>{" "}
+                atau{" "}
+                <span className="text-primary font-bold underline">
+                  Daftar akun gratis
+                </span>{" "}
+                untuk menulis & menyimpan Catatan Pribadi serta Pola Genjrengan
+                khusus lagu ini.
+              </p>
+              <button
+                type="button"
+                className="mt-3 px-4 py-1.5 bg-primary/20 hover:bg-primary text-primary hover:text-white border border-primary/40 rounded-xl text-xs font-bold transition-all shadow-[0_0_15px_rgba(168,85,247,0.3)] cursor-pointer"
+              >
+                Sign In / Daftar Sekarang
+              </button>
+            </div>
+          )}
+
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
             <div className="flex items-center gap-2">
               <FileText className="w-4 h-4 text-primary" />
@@ -545,7 +599,7 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
               {noteSaveSuccess && (
                 <span className="text-xs text-emerald-400 font-extrabold flex items-center gap-1 animate-fade-in bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1 rounded-lg shadow-[0_0_12px_rgba(16,185,129,0.3)]">
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />{" "}
-                  Catatan berhasil disimpan!
+                  ✨ Catatan pribadi berhasil disimpan!
                 </span>
               )}
               <button
@@ -593,9 +647,19 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
           <textarea
             rows={2}
             value={userNote}
-            onChange={(e) => setUserNote(e.target.value)}
-            placeholder="Tulis pola genjrengan (misal: D-D-U-U-D-U), tempo BPM, atau pengingat nada di sini..."
-            className="w-full bg-black/60 border border-white/10 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-primary resize-y font-sans"
+            readOnly={!user}
+            onClick={() =>
+              !user &&
+              triggerAuthGuard(
+                "Login untuk menyimpan catatan & pola genjrengan pribadi Anda.",
+              )}
+            onChange={(e) => user && setUserNote(e.target.value)}
+            placeholder={user
+              ? "Tulis pola genjrengan (misal: D-D-U-U-D-U), tempo BPM, atau pengingat nada di sini..."
+              : "Silakan Sign In untuk menulis catatan..."}
+            className={`w-full bg-black/60 border border-white/10 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-primary resize-y font-sans ${
+              !user ? "cursor-not-allowed opacity-60" : ""
+            }`}
           />
         </div>
       </div>
@@ -1143,6 +1207,7 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         initialMode="signin"
+        reason={authModalReason}
       />
     </div>
   );
