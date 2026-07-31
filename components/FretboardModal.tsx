@@ -1,21 +1,42 @@
 "use client";
 
-import React, { useState } from "react";
-import { X, Volume2, Sparkles, Music, Info } from "lucide-react";
-import { getChordPosition, ChordPosition } from "@/lib/chordDb";
+import React, { useEffect, useState } from "react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Info,
+  Sparkles,
+  Volume2,
+  X,
+} from "lucide-react";
+import { ChordPosition, getChordPositions } from "@/lib/chordDb";
 
 interface FretboardModalProps {
   chordName: string | null;
   onClose: () => void;
 }
 
-export default function FretboardModal({ chordName, onClose }: FretboardModalProps) {
+export default function FretboardModal(
+  { chordName, onClose }: FretboardModalProps,
+) {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  // Reset index when chordName changes
+  useEffect(() => {
+    setCurrentIndex(0);
+  }, [chordName]);
 
   if (!chordName) return null;
 
-  const position: ChordPosition = getChordPosition(chordName);
-  const stringNames = ['E6', 'A5', 'D4', 'G3', 'B2', 'E1']; // String 6 (Low E) to String 1 (High E)
+  const positions: ChordPosition[] = getChordPositions(chordName);
+  const position: ChordPosition = positions[currentIndex] || positions[0] || {
+    frets: [-1, 3, 2, 0, 1, 0],
+    fingers: [0, 3, 2, 0, 1, 0],
+    baseFret: 1,
+  };
+
+  const stringNames = ["E6", "A5", "D4", "G3", "B2", "E1"]; // String 6 (Low E) to String 1 (High E)
 
   const numStrings = 6;
   const numFrets = 4;
@@ -25,15 +46,18 @@ export default function FretboardModal({ chordName, onClose }: FretboardModalPro
   const fretGap = 42;
 
   // Check if chord is a Slash chord
-  const isSlashChord = chordName.includes('/');
-  const [mainChordRoot, bassNote] = isSlashChord ? chordName.split('/').map(s => s.trim()) : [chordName, ''];
+  const isSlashChord = chordName.includes("/");
+  const [mainChordRoot, bassNote] = isSlashChord
+    ? chordName.split("/").map((s) => s.trim())
+    : [chordName, ""];
 
   // Audio synthesize chord sound (Web Audio API)
   const handlePlayChord = () => {
-    if (typeof window === 'undefined' || !window.AudioContext) return;
+    if (typeof window === "undefined" || !window.AudioContext) return;
     try {
       setIsPlaying(true);
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      const AudioCtx = window.AudioContext ||
+        (window as any).webkitAudioContext;
       const ctx = new AudioCtx();
 
       // Base string frequencies (E2, A2, D3, G3, B3, E4)
@@ -45,14 +69,20 @@ export default function FretboardModal({ chordName, onClose }: FretboardModalPro
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
 
-          osc.type = 'triangle';
+          osc.type = "triangle";
           osc.frequency.setValueAtTime(freq, ctx.currentTime);
 
           // Arpeggiate slightly for natural guitar strumming feel
           const strumDelay = i * 0.04;
           gain.gain.setValueAtTime(0, ctx.currentTime + strumDelay);
-          gain.gain.linearRampToValueAtTime(0.25, ctx.currentTime + strumDelay + 0.02);
-          gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + strumDelay + 1.2);
+          gain.gain.linearRampToValueAtTime(
+            0.25,
+            ctx.currentTime + strumDelay + 0.02,
+          );
+          gain.gain.exponentialRampToValueAtTime(
+            0.0001,
+            ctx.currentTime + strumDelay + 1.2,
+          );
 
           osc.connect(gain);
           gain.connect(ctx.destination);
@@ -64,17 +94,17 @@ export default function FretboardModal({ chordName, onClose }: FretboardModalPro
 
       setTimeout(() => setIsPlaying(false), 1400);
     } catch (e) {
-      console.warn('[AUDIO SYNTH ERROR]:', e);
+      console.warn("[AUDIO SYNTH ERROR]:", e);
       setIsPlaying(false);
     }
   };
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
       onClick={onClose}
     >
-      <div 
+      <div
         className="relative w-full max-w-sm bg-slate-950 border border-primary/30 rounded-3xl p-6 shadow-[0_0_50px_rgba(168,85,247,0.35)] text-white"
         onClick={(e) => e.stopPropagation()}
       >
@@ -91,12 +121,12 @@ export default function FretboardModal({ chordName, onClose }: FretboardModalPro
         </button>
 
         {/* Title & Badge */}
-        <div className="text-center mb-3">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary/10 border border-primary/30 rounded-full text-[10px] font-bold text-primary tracking-widest uppercase mb-1.5">
+        <div className="text-center mb-2">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary/10 border border-primary/30 rounded-full text-[10px] font-bold text-primary tracking-widest uppercase mb-1">
             <Sparkles className="w-3 h-3 text-amber-400" />
             <span>Chord Fretboard</span>
           </div>
-          
+
           <h2 className="text-3xl font-black text-white tracking-tight flex items-center justify-center gap-2 font-mono">
             {chordName}
           </h2>
@@ -119,9 +149,13 @@ export default function FretboardModal({ chordName, onClose }: FretboardModalPro
         </div>
 
         {/* SVG Fretboard Container */}
-        <div className="flex flex-col items-center my-3 bg-black/60 p-4 rounded-2xl border border-white/10 relative shadow-inner">
-          <svg width="230" height="260" viewBox="0 0 230 260" className="select-none">
-            
+        <div className="flex flex-col items-center my-2 bg-black/60 p-4 rounded-2xl border border-white/10 relative shadow-inner">
+          <svg
+            width="230"
+            height="260"
+            viewBox="0 0 230 260"
+            className="select-none"
+          >
             {/* Base fret label if > 1 */}
             {position.baseFret > 1 && (
               <text
@@ -237,13 +271,14 @@ export default function FretboardModal({ chordName, onClose }: FretboardModalPro
 
             {/* Finger Dots & Numbers */}
             {position.frets.map((fret, i) => {
-              if (typeof fret === 'number' && fret > 0) {
+              if (typeof fret === "number" && fret > 0) {
                 const fretIndex = fret - position.baseFret + 1;
                 if (fretIndex >= 1 && fretIndex <= numFrets) {
                   const x = startX + i * stringGap;
                   const y = startY + (fretIndex - 0.5) * fretGap;
                   const fingerVal = position.fingers[i];
-                  const hasFinger = typeof fingerVal === 'number' && fingerVal > 0;
+                  const hasFinger = typeof fingerVal === "number" &&
+                    fingerVal > 0;
 
                   return (
                     <g key={`dot-${i}`}>
@@ -294,6 +329,34 @@ export default function FretboardModal({ chordName, onClose }: FretboardModalPro
           </svg>
         </div>
 
+        {/* VARIATION NAVIGATION CONTROL */}
+        <div className="flex items-center justify-between w-full max-w-[230px] mx-auto my-2 px-3 py-1.5 bg-black/80 border border-white/10 rounded-xl">
+          <button
+            onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
+            disabled={currentIndex === 0}
+            className="p-1 text-slate-300 hover:text-white disabled:opacity-30 disabled:hover:text-slate-300 transition-all cursor-pointer disabled:cursor-not-allowed"
+            title="Variasi Kunci Sebelumnya"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+
+          <span className="text-xs font-mono font-bold text-primary tracking-wide">
+            {currentIndex + 1} of {positions.length}
+          </span>
+
+          <button
+            onClick={() =>
+              setCurrentIndex((prev) =>
+                Math.min(positions.length - 1, prev + 1)
+              )}
+            disabled={currentIndex === positions.length - 1}
+            className="p-1 text-slate-300 hover:text-white disabled:opacity-30 disabled:hover:text-slate-300 transition-all cursor-pointer disabled:cursor-not-allowed"
+            title="Variasi Kunci Berikutnya"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+
         {/* Bottom Bar Controls: Audio Strum + Finger Guide Info */}
         <div className="flex items-center justify-between text-xs border-t border-white/10 pt-3 mt-2">
           <button
@@ -302,11 +365,15 @@ export default function FretboardModal({ chordName, onClose }: FretboardModalPro
             className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/20 hover:bg-primary/30 text-primary border border-primary/40 rounded-xl font-bold transition-all cursor-pointer disabled:opacity-50"
             title="Dengarkan Suara Strumming Chord"
           >
-            <Volume2 className={`w-4 h-4 ${isPlaying ? 'animate-bounce text-amber-400' : ''}`} />
-            <span>{isPlaying ? 'Memutar...' : 'Strum Sound'}</span>
+            <Volume2
+              className={`w-4 h-4 ${
+                isPlaying ? "animate-bounce text-amber-400" : ""
+              }`}
+            />
+            <span>{isPlaying ? "Memutar..." : "Strum Sound"}</span>
           </button>
 
-          <button 
+          <button
             onClick={onClose}
             className="px-4 py-1.5 bg-white/10 text-white font-bold rounded-xl hover:bg-white/20 border border-white/10 transition-all cursor-pointer"
           >
@@ -316,9 +383,11 @@ export default function FretboardModal({ chordName, onClose }: FretboardModalPro
 
         <div className="mt-2 text-[10px] text-slate-400 text-center flex items-center justify-center gap-1">
           <Info className="w-3 h-3 text-slate-500" />
-          <span>Angka dalam lingkaran = Jari (1: Telunjuk, 2: Tengah, 3: Manis, 4: Kelingking)</span>
+          <span>
+            Angka dalam lingkaran = Jari (1: Telunjuk, 2: Tengah, 3: Manis, 4:
+            Kelingking)
+          </span>
         </div>
-
       </div>
     </div>
   );
