@@ -1,150 +1,215 @@
-# YourChords 2.0 🎸
+# YourChords 2.0 — Cyber-Zen Guitar Chord & Song Lyrics Platform 🎸
 
 <div align="center">
 
-![Next.js](https://img.shields.io/badge/Next.js_16-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)
-![React](https://img.shields.io/badge/React_19-61DAFB?style=for-the-badge&logo=react&logoColor=black)
+![Next.js](https://img.shields.io/badge/Next.js_14-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS_v4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
 ![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-purple?style=for-the-badge)
+![Web Audio API](https://img.shields.io/badge/Web_Audio_API-FF6F00?style=for-the-badge&logo=web-assembly&logoColor=white)
+![PWA Ready](https://img.shields.io/badge/PWA-Ready-5A0FC8?style=for-the-badge&logo=pwa&logoColor=white)
 
 <p align="center">
-  <b>A Modern, Cinematic Guitar Chord & Lyrics Platform built with Next.js 16 & Supabase.</b>
+  <b>Platform Chord & Lirik Lagu Modern dengan Hybrid Chord Engine, Real-time Analytics, dan Komunitas Interaktif.</b>
 </p>
 
 </div>
 
 ---
 
-## 🌌 Overview & Visual Aesthetic
+## 🌌 Ringkasan Proyek (Overview)
 
-**YourChords 2.0** is redesigned from the ground up with an **IDLIX-Inspired
-"Neon Purple x Deep Black"** aesthetic. Designed for guitarists, musicians, and
-chord seekers, it merges streaming-platform style visual ergonomics with
-lightning-fast chord transposing and auto-scrolling tools.
-
-- **Primary Background:** Deep Pitch Black (`#000000`)
-- **Accent Color:** Neon Electric Violet (`#A855F7` / `#8B5CF6`)
-- **Surfaces:** Glassmorphism backdrop filters with high contrast typography and
-  glowing border highlights
-- **Card Proportions:** Cinematic 3:4 album cover cards with instant play hover
-  overlays
-- **Hero Banner:** Massive rotating featured song carousel with real-time view
-  counts
+**YourChords 2.0** adalah platform chord gitar dan lirik lagu generasi terbaru
+dengan tema visual **Cyber-Zen / Deep Space Dark**. Dirancang khusus untuk
+musisi, gitaris pemula hingga profesional, platform ini menggabungkan kecepatan
+pencarian sub-0.2s, transposer nada otomatis, simulator fretboard interaktif
+berbasis Web Audio API, serta sistem manajemen konten berbasis komando admin dan
+kontribusi komunitas.
 
 ---
 
-## ⚡ Key Features
+## ⚡ Fitur Utama (Key Features Showcase)
 
-- ⚡ **Sub-0.2s Fast Database Fetch:** High-performance SSR and client caching
-  querying Supabase PostgreSQL using pure UUIDs for instantaneous song loading.
-- 🥷 **Admin Control Center (`/admin`):** Exclusive command center for
-  administrators to scrape Chordtela URLs using Cheerio, auto-populate
-  chords/lyrics to Supabase, and manage database records.
-- 🎸 **Interactive Chord Tools:**
-  - **Dynamic Transposer:** Instant transposition of key signatures (-12 to +12
-    semitones) using intelligent regex parsing.
-  - **Auto-Scroll Teleprompter:** Variable speed smooth auto-scrolling
-    (`requestAnimationFrame`) for hands-free playing.
-  - **Custom Typography Control:** On-the-fly chord text resizing for optimal
-    readability across any screen size.
-- 🔍 **Smart Database Search:** Real-time search query matching titles and
-  artists directly against Supabase `songs` records.
-- 🌍 **Dynamic SEO Metadata:** Automated OpenGraph social preview tags and
-  dynamic dynamic title/description generation via Next.js `generateMetadata`.
-- 🛡️ **System Guard & Fallback:** Built-in fallback dataset
-  (`lib/fallbackData.ts`) ensuring zero blank screens or total app downtime if
-  Supabase connectivity fluctuates.
+### 🎸 1. Hybrid Chord Position Engine
+
+- **Dual-Layer Architecture:** Menggabungkan _Static Master Lookup Table_ untuk
+  chord umum dan _Algorithmic Music Theory Generator_ untuk chord kompleks
+  (Movable Barre, CAGED shapes, Extended 9th/11th/13th, Altered Dominants
+  7#9/7b9, Half-Diminished m7b5, Diminished, & Augmented).
+- **Interactive Multi-Variation Fretboard Modal:** Menampilkan diagram SVG
+  fretboard interaktif lengkap dengan navigasi variasi posisi `< 1 of N >`,
+  penanda nomor jari (1: Telunjuk, 2: Tengah, 3: Manis, 4: Kelingking), garis
+  barre, serta indikator senar open (O) / muted (X).
+- **Slash Chord Engine:** Dukungan penuh untuk pemrosesan chord bass khusus
+  (seperti `C/E`, `G/B`, `D/F#`).
+
+### 🎵 2. Interactive Song & Chord Sheet
+
+- **Real-Time Transposer:** Pengubah nada dasar (-12 hingga +12 semitones)
+  secara instan menggunakan ekspresi reguler (regex) tingkat tinggi tanpa
+  mengubah struktur baris lirik.
+- **Smart Capo Shift Indicator:** Menampilkan rekomendasi posisi Capo saat
+  transposisi diterapkan.
+- **Pemula / Simplifier Toggle (1-Click Chord Simplification):** Menyederhanakan
+  chord kompleks (seperti `Fmaj7#11` → `F`, `Cadd9` → `C`, `Bm7b5` → `Bm`) dalam
+  satu klik untuk kenyamanan pemain pemula.
+- **Auto-Scroll Teleprompter:** Fitur gulir layar otomatis bebas genggaman
+  (_hands-free_) dengan kontrol kecepatan responsif berbasis
+  `requestAnimationFrame`.
+- **Web Audio Strumming Synthesizer:** Memutar sampel audio strumming nada chord
+  secara langsung menggunakan osilator segitiga Web Audio API dan simulasi
+  arpeggio alami.
+- **Custom Notes & Strumming Pattern:** Menampilkan catatan instruksi permainan
+  (seperti pola genjrengan `D-DU-UB-DU` atau tempo BPM).
+
+### 👥 3. Community & Crowdsourcing Engine
+
+- **Real-time Star Rating:** Pengguna dapat memberikan penilaian bintang (1 - 5
+  bintang) yang terhitung otomatis secara agregat.
+- **Voting Level Kesulitan Komunitas:** Pemilihan dan akumulasi tingkat
+  kesulitan lagu (Pemula, Menengah, Mahir).
+- **Usulan Perbaikan Lirik & Chord (Correction Proposals):** Form pengiriman
+  perbaikan dari komunitas yang langsung masuk ke panel moderasi admin.
+- **Board Permintaan Lagu (Missing Song Requests):** Pengguna dapat meminta lagu
+  yang belum tersedia di database.
+
+### 🔒 4. User Ecosystem & Restricted Setlist
+
+- **Sistem Favorit (Like / Disukai):** Simpan lagu favorit ke dalam akun
+  pengguna.
+- **Folder Setlist Pribadi:** Buat dan kelola koleksi daftar lagu (Setlist)
+  pribadi untuk latihan atau pertunjukan panggung.
+- **Auth Guard Security:** Dilengkapi proteksi autentikasi email & kata sandi
+  via Supabase Auth dengan UI Cyber-Zen.
+
+### 🎛️ 5. Pusat Komando Admin (Admin Command Center `/admin`)
+
+- **Real-Time Analytics Dashboard:** Memantau metrik agregat penting seperti
+  Total Lagu, Total Views, Permintaan Lagu Tertunda, dan Pengguna Terdaftar.
+- **Multi-Source Scraper & Importer:**
+  - Single URL Scraper (Support Scraping Lirik/Chord otomatis).
+  - Batch Importer & Manual Paste Importer.
+  - Extractor Otomatis: Ekstraksi otomatis 11-karakter ID YouTube, Cover Image
+    URL, dan Level Kesulitan.
+- **Missing Songs Board dengan 1-Click Scraper:** Eksekusi scraping langsung
+  dari daftar permintaan pengguna.
+- **Panel Moderasi:** Kelola perbaikan chord/lirik yang dikirim komunitas serta
+  reset statistik rating lagu.
+
+### 🖨️ 6. Strict Clean Print & Export PDF
+
+- Modus cetak bersih (Print / Export PDF A4) yang otomatis menyembunyikan
+  navbar, sidebar, tombol kontrol, dan elemen UI non-esensial, menghasilkan
+  dokumen chord & lirik berwarna hitam-putih yang rapi.
+
+### 📺 7. In-Page Video Tutorial Modal & Floating Player
+
+- Pemutar video YouTube terintegrasi di dalam halaman detail lagu untuk
+  mempermudah latihan tanpa perlu membuka tab baru.
 
 ---
 
-## 🛠️ Tech Stack
+## 🛠️ Tech Stack & Architecture
 
-| Category               | Technology                                                                                    |
-| :--------------------- | :-------------------------------------------------------------------------------------------- |
-| **Frontend Framework** | [Next.js 16 (App Router)](https://nextjs.org/) & [React 19](https://react.dev/)               |
-| **Language**           | [TypeScript](https://www.typescriptlang.org/)                                                 |
-| **Styling & Motion**   | [Tailwind CSS v4](https://tailwindcss.com/) & [Framer Motion](https://www.framer.com/motion/) |
-| **Database & Auth**    | [Supabase](https://supabase.com/) (PostgreSQL, Row-Level Security, Auth)                      |
-| **Web Scraper**        | [Cheerio](https://cheerio.js.org/)                                                            |
-| **Icons**              | [Lucide React](https://lucide.dev/)                                                           |
+| Komponen               | Teknologi                                                                       |
+| :--------------------- | :------------------------------------------------------------------------------ |
+| **Frontend Framework** | [Next.js 14 (App Router)](https://nextjs.org/) & [React 18](https://react.dev/) |
+| **Language**           | [TypeScript](https://www.typescriptlang.org/)                                   |
+| **Styling & Motion**   | [Tailwind CSS](https://tailwindcss.com/) & [Lucide Icons](https://lucide.dev/)  |
+| **Backend & Database** | [Supabase](https://supabase.com/) (PostgreSQL, Row-Level Security, Auth, RPC)   |
+| **Audio & Graphics**   | Web Audio API Synthesizer & Dynamic SVG Fretboard Renderer                      |
+| **Web Scraper**        | [Cheerio](https://cheerio.js.org/)                                              |
 
 ---
 
-## 📂 Project Architecture
+## 🔑 Environment Variables (.env.local)
 
+Buat file `.env.local` di direktori utama proyek dan masukkan variabel berikut:
+
+```env
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=https://your-supabase-project-id.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
 ```
-yourchords/
-├── app/
-│   ├── admin/             # Admin Control Center (Scraper & DB Management)
-│   ├── api/
-│   │   └── scrape/        # API Route for Cheerio Cheerio Web Scraping
-│   ├── auth/              # Authentication routes (SignIn & SignUp)
-│   ├── chord/[id]/        # Dynamic Chord Detail View with Transposer
-│   ├── search/            # Search Results Page
-│   ├── globals.css        # Global Tailwind Styles & Neon Utilities
-│   ├── layout.tsx         # Root Layout with Glassmorphism Navbar
-│   └── page.tsx           # Home Page (Hero Carousel & Horizontal Rows)
-├── components/
-│   ├── ChordClientDetail.tsx # Interactive Chord Player, Transposer & Auto-Scroll
-│   ├── HomeClientComponents.tsx# Hero Carousel & Animated Section Wrappers
-│   ├── Navbar.tsx         # Glassmorphism Top Navigation Bar
-│   └── SongCard.tsx       # 3:4 Aspect Ratio Cinematic Album Card
-├── lib/
-│   ├── fallbackData.ts    # System Guard Fallback Dataset
-│   ├── supabase.ts        # Supabase Client & Query Helpers
-│   ├── transposer.ts      # Regex-based Chord Transposition Logic
-│   └── types.ts           # Core TypeScript Interfaces
-└── README.md              # Documentation
-```
 
 ---
 
-## 🚀 Getting Started & Local Installation
+## 🚀 Panduan Instalasi & Jalankan Lokal (Getting Started)
 
-### Prerequisites
+### Prasyarat
 
-- **Node.js**: `v18.x` or higher
-- **npm** or **yarn** or **pnpm**
-- **Supabase Account**: A Supabase project with a `songs` table
+- **Node.js**: `v18.x` atau versi lebih baru
+- **npm** / **pnpm** / **yarn**
 
-### Step-by-Step Setup
+### Langkah-Langkah Instalasi:
 
-1. **Clone the Repository:**
+1. **Clone Repositori:**
    ```bash
    git clone https://github.com/your-username/yourchords-2.0.git
    cd yourchords-2.0
    ```
 
-2. **Install Dependencies:**
+2. **Install Dependensi:**
    ```bash
    npm install
    ```
 
-3. **Configure Environment Variables:** Create a `.env.local` file in the root
-   directory and add your Supabase credentials:
+3. **Konfigurasi Environment Variables:** Salin `.env.example` atau buat
+   `.env.local` lalu atur kredensial Supabase Anda.
 
-   ```env
-   NEXT_PUBLIC_SUPABASE_URL=https://your-supabase-project-id.supabase.co
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
-   ```
-
-4. **Run the Development Server:**
+4. **Jalankan Mode Pengembang (Development):**
    ```bash
    npm run dev
    ```
+   Buka [http://localhost:3000](http://localhost:3000) pada peramban Anda.
 
-5. **Open Application:** Navigate to
-   [http://localhost:3000](http://localhost:3000) in your browser.
+5. **Build Proyek untuk Produksi:**
+   ```bash
+   npm run build
+   npm run start
+   ```
 
 ---
 
-## 📜 Database Schema Reference
+## 📂 Struktur Direktori Proyek (Project Architecture)
 
-The primary table in Supabase is `songs`:
+```
+yourchords/
+├── app/
+│   ├── admin/                 # Pusat Komando Admin (Analytics, Scraper, Board)
+│   ├── api/
+│   │   ├── admin/             # API Routes Admin (Scraper, Moderasi, Analytics)
+│   │   └── user/              # API Routes User (Favorit, Setlist, Rating, Correction)
+│   ├── auth/                  # Halaman Autentikasi (Sign In & Sign Up)
+│   ├── chord/[id]/            # Halaman Detail Lagu & Player Interactive
+│   ├── setlists/              # Halaman Manajemen Setlist Pribadi
+│   ├── search/                # Halaman Pencarian Lagu
+│   ├── globals.css            # Stylesheet Global & Tailwind Configuration
+│   ├── layout.tsx             # Root Layout dengan Navbar Glassmorphism
+│   └── page.tsx               # Halaman Utama (Hero Banner, Grid Catalog, Trending)
+├── components/
+│   ├── FretboardModal.tsx     # Diagram Fretboard SVG & Multi-Position Engine
+│   ├── ChordClientDetail.tsx # Sheet Transposer, Auto-Scroll, & Web Audio Synth
+│   ├── Navbar.tsx             # Navigation Header dengan Auth Status & Search
+│   ├── SongCard.tsx           # Album Cover Card Cyber-Zen
+│   └── VideoModal.tsx         # In-Page Floating YouTube Tutorial Player
+├── lib/
+│   ├── chordDb.ts             # Hybrid Chord Database & Algorithmic Music Engine
+│   ├── transposer.ts          # Transposer & Regex Chord Processor
+│   ├── supabase.ts            # Supabase Client Instance
+│   └── types.ts               # Core TypeScript Type Interfaces
+└── README.md                  # Dokumentasi Resmi Proyek
+```
+
+---
+
+## 📜 Skema Basis Data (Database Schema)
+
+Database PostgreSQL di Supabase menggunakan skema terstruktur berikut:
 
 ```sql
+-- Tabel Utama Lagu
 CREATE TABLE songs (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   title TEXT NOT NULL,
@@ -153,18 +218,71 @@ CREATE TABLE songs (
   source_url TEXT UNIQUE,
   cover_url TEXT,
   view_count INT DEFAULT 0,
+  difficulty TEXT DEFAULT 'Pemula',
+  youtube_id TEXT,
+  key_signature TEXT DEFAULT 'C',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Tabel Profil Pengguna
+CREATE TABLE profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email TEXT,
+  full_name TEXT,
+  avatar_url TEXT,
+  role TEXT DEFAULT 'user',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Tabel Rating Lagu
+CREATE TABLE song_ratings (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  song_id UUID REFERENCES songs(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  rating INT CHECK (rating >= 1 AND rating <= 5),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(song_id, user_id)
+);
+
+-- Tabel Favorit Lagu
+CREATE TABLE song_favorites (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  song_id UUID REFERENCES songs(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(song_id, user_id)
+);
+
+-- Tabel Permintaan Lagu
+CREATE TABLE missing_song_requests (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  title TEXT NOT NULL,
+  artist TEXT NOT NULL,
+  requested_by UUID REFERENCES auth.users(id),
+  status TEXT DEFAULT 'pending',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Tabel Usulan Perbaikan
+CREATE TABLE song_corrections (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  song_id UUID REFERENCES songs(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id),
+  proposed_chords TEXT NOT NULL,
+  note TEXT,
+  status TEXT DEFAULT 'pending',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 ```
 
 ---
 
-## 📄 License
+## 📄 Lisensi
 
-Distributed under the **MIT License**. See `LICENSE` for more information.
+Proyek ini dilindungi di bawah **MIT License**.
 
 ---
 
 <div align="center">
-  <sub>Crafted with ❤️ for guitarists and music lovers. Powered by <b>YourChords 2.0</b>.</sub>
+  <sub>Dikembangkan dengan ❤️ untuk seluruh musisi dan pecinta musik. Ditenagai oleh <b>YourChords 2.0 (Cyber-Zen Music Platform)</b>.</sub>
 </div>
