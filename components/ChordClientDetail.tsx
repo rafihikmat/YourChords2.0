@@ -44,8 +44,8 @@ import {
   addSongToSetlist,
   createSetlist,
   getUserSetlists,
-  incrementSongViews,
-} from "@/lib/supabase";
+} from "@/lib/setlists";
+import { incrementSongViews } from "@/lib/supabase";
 import { useAuth } from "@/lib/authContext";
 import AuthModal from "@/components/AuthModal";
 import { getVideoTutorials, VideoTutorial } from "@/lib/adminCurated";
@@ -139,10 +139,17 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
     }
   }, [data, activeUserId]);
 
-  // Load Setlists when Setlist Modal opens
+  // Load Setlists when Setlist Modal opens (Auth guarded)
   const handleOpenSetlistModal = async () => {
+    if (!user) {
+      setAuthModalReason(
+        "Silakan Sign In atau Sign Up terlebih dahulu untuk membuat dan mengelola Setlist pribadi Anda.",
+      );
+      setIsAuthModalOpen(true);
+      return;
+    }
     setShowSetlistModal(true);
-    const setlists = await getUserSetlists(activeUserId);
+    const setlists = await getUserSetlists(user.id);
     setUserSetlists(setlists);
   };
 

@@ -95,12 +95,19 @@ export default function Navbar() {
 
           {/* Navigation & Auth Buttons - Desktop */}
           <div className="hidden md:flex items-center gap-3">
-            <Link
-              href="/setlists"
-              className="px-3 py-1.5 text-xs font-semibold text-slate-300 hover:text-primary transition-colors flex items-center gap-1.5"
+            <button
+              onClick={(e) => {
+                if (!user) {
+                  e.preventDefault();
+                  openAuthModal("signin");
+                } else {
+                  router.push("/setlists");
+                }
+              }}
+              className="px-3 py-1.5 text-xs font-semibold text-slate-300 hover:text-primary transition-colors flex items-center gap-1.5 cursor-pointer"
             >
               📚 Setlist
-            </Link>
+            </button>
 
             {/* Menu Admin HANYA muncul jika isAdmin = true */}
             {isAdmin && (
@@ -206,13 +213,20 @@ export default function Navbar() {
               >
                 Beranda
               </Link>
-              <Link
-                href="/setlists"
-                onClick={() => setMobileMenuOpen(false)}
-                className="px-3 py-2 text-sm font-medium text-slate-200 hover:text-primary transition-colors flex items-center gap-2"
+              <button
+                onClick={(e) => {
+                  setMobileMenuOpen(false);
+                  if (!user) {
+                    e.preventDefault();
+                    openAuthModal("signin");
+                  } else {
+                    router.push("/setlists");
+                  }
+                }}
+                className="px-3 py-2 text-sm font-medium text-slate-200 hover:text-primary transition-colors flex items-center gap-2 w-full text-left cursor-pointer"
               >
                 📚 Setlist & Songbook
-              </Link>
+              </button>
               <Link
                 href="/search"
                 onClick={() => setMobileMenuOpen(false)}
