@@ -24,6 +24,7 @@ import {
 } from "@/lib/adminAnalytics";
 import BatchScraper from "@/components/BatchScraper";
 import MissingSongsPanel from "@/components/MissingSongsPanel";
+import RatingsModerationPanel from "@/components/RatingsModerationPanel";
 import Link from "next/link";
 
 export default function AdminDashboardPage() {
@@ -283,7 +284,10 @@ export default function AdminDashboardPage() {
         onRefresh={loadAnalytics}
       />
 
-      {/* SECTION 3: ADVANCED BATCH & MASS SCRAPER COMPONENT */}
+      {/* SECTION 3: MODERASI RATING & KESULITAN KOMUNITAS PANEL */}
+      <RatingsModerationPanel onRatingsReset={loadAnalytics} />
+
+      {/* SECTION 4: ADVANCED BATCH & MASS SCRAPER COMPONENT */}
       <div id="scraper-section" className="flex flex-col gap-6">
         {/* Feedback Message */}
         {message && (
