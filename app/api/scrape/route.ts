@@ -1,17 +1,26 @@
-import { NextResponse } from 'next/server';
-import * as cheerio from 'cheerio';
-import { supabase } from '@/lib/supabase';
-import { verifyAdminAccess } from '@/lib/authAdmin';
+import { NextResponse } from "next/server";
+import * as cheerio from "cheerio";
+import { supabase } from "@/lib/supabase";
+import { verifyAdminAccess } from "@/lib/authAdmin";
+import { extractYouTubeId } from "@/lib/youtube";
 
-export async function GET(request: Request) {
+async function handleScrapeRequest(
+  request: Request,
+  targetUrl: string | null,
+  difficulty?: string | null,
+  youtube_video_id?: string | null,
+  cover_url?: string | null,
+) {
   // 1. VERIFIKASI KEAMANAN HAK AKSES ADMIN
-  const authHeader = request.headers.get('authorization');
-  let token = authHeader?.replace('Bearer ', '');
+  const authHeader = request.headers.get("authorization");
+  let token = authHeader?.replace("Bearer ", "");
 
   if (!token) {
-    const cookieHeader = request.headers.get('cookie');
+    const cookieHeader = request.headers.get("cookie");
     if (cookieHeader) {
-      const match = cookieHeader.match(/(?:sb-access-token|supabase-auth-token|auth-token)=([^;]+)/);
+      const match = cookieHeader.match(
+        /(?:sb-access-token|supabase-auth-token|auth-token)=([^;]+)/,
+      );
       if (match) {
         try {
           const parsed = JSON.parse(decodeURIComponent(match[1]));
@@ -28,27 +37,31 @@ export async function GET(request: Request) {
   if (!access.isAdmin) {
     return NextResponse.json(
       { success: false, error: "Akses ditolak. Membutuhkan hak akses admin." },
-      { status: 403 }
+      { status: 403 },
     );
   }
-
-  // 2. PARSE PARAMETER URL
-  const { searchParams } = new URL(request.url);
-  const targetUrl = searchParams.get('url');
 
   // Validasi Ketersediaan URL
-  if (!targetUrl) {
+  if (!targetUrl || !targetUrl.trim()) {
     return NextResponse.json(
-      { success: false, error: 'URL parameter tidak ditemukan. Harap masukkan URL.' }, 
-      { status: 400 }
+      {
+        success: false,
+        error: "URL parameter tidak ditemukan. Harap masukkan URL.",
+      },
+      { status: 400 },
     );
   }
 
+  const cleanTargetUrl = targetUrl.trim();
+
   // Validasi Domain
-  if (!targetUrl.toLowerCase().includes('chordtela.com')) {
+  if (!cleanTargetUrl.toLowerCase().includes("chordtela.com")) {
     return NextResponse.json(
-      { success: false, error: 'Hanya URL dari domain chordtela.com yang didukung saat ini.' }, 
-      { status: 400 }
+      {
+        success: false,
+        error: "Hanya URL dari domain chordtela.com yang didukung saat ini.",
+      },
+      { status: 400 },
     );
   }
 
@@ -58,13 +71,15 @@ export async function GET(request: Request) {
       // TIER 1: Googlebot Crawler Bypass
       try {
         const res = await fetch(url, {
-          method: 'GET',
+          method: "GET",
           headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
+            "User-Agent":
+              "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+            "Accept":
+              "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
           },
-          cache: 'no-store',
+          cache: "no-store",
         });
 
         if (res.ok) {
@@ -73,18 +88,24 @@ export async function GET(request: Request) {
             return html;
           }
         } else {
-          console.warn(`[SCRAPER TIER 1 WARN]: Googlebot direct fetch failed HTTP ${res.status}. Trying Tier 2 (CodeTabs)...`);
+          console.warn(
+            `[SCRAPER TIER 1 WARN]: Googlebot direct fetch failed HTTP ${res.status}. Trying Tier 2 (CodeTabs)...`,
+          );
         }
       } catch (err: any) {
-        console.warn(`[SCRAPER TIER 1 ERROR]: Googlebot fetch error: ${err?.message}. Trying Tier 2 (CodeTabs)...`);
+        console.warn(
+          `[SCRAPER TIER 1 ERROR]: Googlebot fetch error: ${err?.message}. Trying Tier 2 (CodeTabs)...`,
+        );
       }
 
       // TIER 2: CodeTabs Proxy
       try {
-        const codeTabsUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`;
+        const codeTabsUrl = `https://api.codetabs.com/v1/proxy?quest=${
+          encodeURIComponent(url)
+        }`;
         const res = await fetch(codeTabsUrl, {
-          method: 'GET',
-          cache: 'no-store',
+          method: "GET",
+          cache: "no-store",
         });
 
         if (res.ok) {
@@ -93,18 +114,24 @@ export async function GET(request: Request) {
             return html;
           }
         } else {
-          console.warn(`[SCRAPER TIER 2 WARN]: CodeTabs failed HTTP ${res.status}. Trying Tier 3 (AllOrigins JSON)...`);
+          console.warn(
+            `[SCRAPER TIER 2 WARN]: CodeTabs failed HTTP ${res.status}. Trying Tier 3 (AllOrigins JSON)...`,
+          );
         }
       } catch (err: any) {
-        console.warn(`[SCRAPER TIER 2 ERROR]: CodeTabs error: ${err?.message}. Trying Tier 3 (AllOrigins JSON)...`);
+        console.warn(
+          `[SCRAPER TIER 2 ERROR]: CodeTabs error: ${err?.message}. Trying Tier 3 (AllOrigins JSON)...`,
+        );
       }
 
       // TIER 3: AllOrigins JSON Proxy
       try {
-        const allOriginsUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+        const allOriginsUrl = `https://api.allorigins.win/get?url=${
+          encodeURIComponent(url)
+        }`;
         const res = await fetch(allOriginsUrl, {
-          method: 'GET',
-          cache: 'no-store',
+          method: "GET",
+          cache: "no-store",
         });
 
         if (res.ok) {
@@ -113,22 +140,28 @@ export async function GET(request: Request) {
             return json.contents;
           }
         } else {
-          console.warn(`[SCRAPER TIER 3 WARN]: AllOrigins failed HTTP ${res.status}. Trying Tier 4 (Bingbot)...`);
+          console.warn(
+            `[SCRAPER TIER 3 WARN]: AllOrigins failed HTTP ${res.status}. Trying Tier 4 (Bingbot)...`,
+          );
         }
       } catch (err: any) {
-        console.warn(`[SCRAPER TIER 3 ERROR]: AllOrigins error: ${err?.message}. Trying Tier 4 (Bingbot)...`);
+        console.warn(
+          `[SCRAPER TIER 3 ERROR]: AllOrigins error: ${err?.message}. Trying Tier 4 (Bingbot)...`,
+        );
       }
 
       // TIER 4: Bingbot Fallback
       try {
         const res = await fetch(url, {
-          method: 'GET',
+          method: "GET",
           headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
+            "User-Agent":
+              "Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)",
+            "Accept":
+              "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
           },
-          cache: 'no-store',
+          cache: "no-store",
         });
 
         if (res.ok) {
@@ -140,94 +173,172 @@ export async function GET(request: Request) {
         throw new Error(`Bingbot HTTP ${res.status}`);
       } catch (err: any) {
         console.error(`[SCRAPER TIER 4 ERROR]: Bingbot error: ${err?.message}`);
-        throw new Error(`Gagal menyedot halaman dari URL target via Googlebot/Bingbot maupun Proxy CodeTabs/AllOrigins (${err?.message || '403 Forbidden'}).`);
+        throw new Error(
+          `Gagal menyedot halaman dari URL target via Googlebot/Bingbot maupun Proxy CodeTabs/AllOrigins (${
+            err?.message || "403 Forbidden"
+          }).`,
+        );
       }
     };
 
-    const html = await fetchHtmlContent(targetUrl);
-    
+    const html = await fetchHtmlContent(cleanTargetUrl);
+
     // Parsing dokumen HTML menggunakan Cheerio
     const $ = cheerio.load(html);
 
     // Ambil Judul Halaman dari tag h1.entry-title
-    const pageTitleRaw = $('h1.entry-title').text() || $('title').text() || "Tanpa Judul";
-    
+    const pageTitleRaw = $("h1.entry-title").text() || $("title").text() ||
+      "Tanpa Judul";
+
     // Data Sanitization: Memisahkan Artis dan Judul Lagu (Asumsi Format Chordtela: "Artis - Judul")
     let artist = "Unknown Artist";
     let title = pageTitleRaw.trim();
-    
-    if (pageTitleRaw.includes(' - ')) {
-      const parts = pageTitleRaw.split('-');
+
+    if (pageTitleRaw.includes(" - ")) {
+      const parts = pageTitleRaw.split("-");
       artist = parts[0].trim();
-      title = parts.slice(1).join('-').replace(/\s*Chords?\b/i, '').trim();
+      title = parts.slice(1).join("-").replace(/\s*Chords?\b/i, "").trim();
     }
 
-    artist = artist.replace(/Chord Kunci Gitar\s*/i, '').replace(/^Chord\s+/i, '').trim();
-    title = title.replace(/Chord Kunci Gitar\s*/i, '').replace(/\s*-\s*Chordtela.*/i, '').replace(/\s*Chordtela\.com.*/i, '').trim();
+    artist = artist.replace(/Chord Kunci Gitar\s*/i, "").replace(
+      /^Chord\s+/i,
+      "",
+    ).trim();
+    title = title.replace(/Chord Kunci Gitar\s*/i, "").replace(
+      /\s*-\s*Chordtela.*/i,
+      "",
+    ).replace(/\s*Chordtela\.com.*/i, "").trim();
 
     // Ekstraksi Chord dari bagian <pre> atau div.entry-content
-    let rawChord = $('pre').first().text();
-    if (!rawChord || rawChord.trim() === '') {
-      rawChord = $('div.entry-content pre').text() || $('div.entry-content').text();
+    let rawChord = $("pre").first().text();
+    if (!rawChord || rawChord.trim() === "") {
+      rawChord = $("div.entry-content pre").text() ||
+        $("div.entry-content").text();
     }
 
-    if (!rawChord || rawChord.trim() === '') {
+    if (!rawChord || rawChord.trim() === "") {
       return NextResponse.json(
-        { success: false, error: 'Tidak dapat menemukan konten chord (tag <pre> kosong) pada halaman target.' }, 
-        { status: 404 }
+        {
+          success: false,
+          error:
+            "Tidak dapat menemukan konten chord (tag <pre> kosong) pada halaman target.",
+        },
+        { status: 404 },
       );
     }
 
     const cleanedChord = rawChord
-      .replace(/Autoscroll\s*Stop\s*Start/gi, '')
-      .replace(/Transpose\s*:\s*\[.*?\]/gi, '')
+      .replace(/Autoscroll\s*Stop\s*Start/gi, "")
+      .replace(/Transpose\s*:\s*\[.*?\]/gi, "")
       .trim();
 
     const finalTitle = title || "Tanpa Judul";
     const finalArtist = artist || "Unknown Artist";
     const finalChord = cleanedChord;
-    const finalCover = "https://images.unsplash.com/photo-1511192336575-5a79af67a629?q=80&w=600&h=600&auto=format&fit=crop";
+    const finalDifficulty = (difficulty && difficulty.trim())
+      ? difficulty.trim()
+      : "Mudah";
+    const cleanYtId = extractYouTubeId(youtube_video_id) || null;
+    const cleanCoverUrl = (cover_url && cover_url.trim())
+      ? cover_url.trim()
+      : null;
+    const fallbackCover =
+      "https://images.unsplash.com/photo-1511192336575-5a79af67a629?q=80&w=600&h=600&auto=format&fit=crop";
 
-    // 1. Check if song already exists in 'songs' or 'chords'
+    // Handling album / cover_url di tabel 'albums' jika ada cover_url
+    let albumId: string | null = null;
+    if (cleanCoverUrl) {
+      try {
+        const { data: newAlbum } = await supabase
+          .from("albums")
+          .insert({
+            title: finalTitle,
+            artist: finalArtist,
+            cover_url: cleanCoverUrl,
+          })
+          .select("id")
+          .maybeSingle();
+
+        if (newAlbum?.id) {
+          albumId = newAlbum.id;
+        }
+      } catch (err) {
+        console.warn("[ALBUM INSERT WARN]:", err);
+      }
+    }
+
+    // 1. Check if song already exists in 'songs'
     const { data: existingSong } = await supabase
-      .from('songs')
-      .select('id')
-      .eq('title', finalTitle)
-      .eq('artist', finalArtist)
+      .from("songs")
+      .select("id, album_id")
+      .eq("title", finalTitle)
+      .eq("artist", finalArtist)
       .maybeSingle();
 
     if (existingSong?.id) {
+      const updateBody: Record<string, any> = {
+        title: finalTitle,
+        artist: finalArtist,
+        chords: finalChord,
+        difficulty: finalDifficulty,
+        youtube_video_id: cleanYtId,
+        source_url: cleanTargetUrl,
+      };
+
+      if (albumId) {
+        updateBody.album_id = albumId;
+      } else if (cleanCoverUrl && existingSong.album_id) {
+        await supabase
+          .from("albums")
+          .update({
+            cover_url: cleanCoverUrl,
+            title: finalTitle,
+            artist: finalArtist,
+          })
+          .eq("id", existingSong.album_id);
+      }
+
       await supabase
-        .from('songs')
-        .update({
-          title: finalTitle,
-          artist: finalArtist,
-          chords: finalChord,
-        })
-        .eq('id', existingSong.id);
+        .from("songs")
+        .update(updateBody)
+        .eq("id", existingSong.id);
     } else {
-      // Insert new row to 'songs' (using valid columns only)
+      // Insert new row to 'songs'
+      const insertBody: Record<string, any> = {
+        title: finalTitle,
+        artist: finalArtist,
+        chords: finalChord,
+        difficulty: finalDifficulty,
+        youtube_video_id: cleanYtId,
+        source_url: cleanTargetUrl,
+        view_count: 0,
+      };
+
+      if (albumId) {
+        insertBody.album_id = albumId;
+      }
+
       const { error: songsError } = await supabase
-        .from('songs')
-        .insert({
-          title: finalTitle,
-          artist: finalArtist,
-          chords: finalChord,
-          view_count: 0
-        });
+        .from("songs")
+        .insert(insertBody);
 
       if (songsError) {
-        console.warn('[SUPABASE SONGS INSERT WARN/FALLBACK]:', songsError.message);
+        console.warn(
+          "[SUPABASE SONGS INSERT WARN/FALLBACK]:",
+          songsError.message,
+        );
         // Fallback to 'chords' table if 'songs' schema varies
         await supabase
-          .from('chords')
+          .from("chords")
           .insert({
             title: finalTitle,
             artist: finalArtist,
             content: finalChord,
-            source_url: targetUrl,
-            cover_url: finalCover,
-            views: 0
+            source_url: cleanTargetUrl,
+            cover_url: cleanCoverUrl || fallbackCover,
+            difficulty: finalDifficulty,
+            youtube_video_id: cleanYtId,
+            views: 0,
           });
       }
     }
@@ -238,17 +349,58 @@ export async function GET(request: Request) {
       title: finalTitle,
       artist: finalArtist,
       chord: finalChord,
-      original_url: targetUrl
+      difficulty: finalDifficulty,
+      youtube_video_id: cleanYtId,
+      cover_url: cleanCoverUrl || fallbackCover,
+      original_url: cleanTargetUrl,
     });
-
   } catch (error: any) {
-    console.error('[API SCRAPER ERROR]:', error?.message || error);
+    console.error("[API SCRAPER ERROR]:", error?.message || error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error?.message || 'Sistem gagal mengambil halaman. Pastikan koneksi internet stabil atau URL target dapat diakses.' 
-      }, 
-      { status: 500 }
+      {
+        success: false,
+        error: error?.message ||
+          "Sistem gagal mengambil halaman. Pastikan koneksi internet stabil atau URL target dapat diakses.",
+      },
+      { status: 500 },
     );
   }
+}
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const targetUrl = searchParams.get("url");
+  const difficulty = searchParams.get("difficulty");
+  const youtube_video_id = searchParams.get("youtube_video_id");
+  const cover_url = searchParams.get("cover_url");
+
+  return handleScrapeRequest(
+    request,
+    targetUrl,
+    difficulty,
+    youtube_video_id,
+    cover_url,
+  );
+}
+
+export async function POST(request: Request) {
+  let body: any = {};
+  try {
+    body = await request.json();
+  } catch {
+    body = {};
+  }
+
+  const targetUrl = body.url;
+  const difficulty = body.difficulty;
+  const youtube_video_id = body.youtube_video_id;
+  const cover_url = body.cover_url;
+
+  return handleScrapeRequest(
+    request,
+    targetUrl,
+    difficulty,
+    youtube_video_id,
+    cover_url,
+  );
 }

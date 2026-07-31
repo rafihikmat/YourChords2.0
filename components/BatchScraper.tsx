@@ -1,15 +1,30 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { 
-  Link2, Disc3, Save, CheckCircle2, AlertTriangle, XCircle, 
-  RotateCcw, Wand2, Layers, FileText, Sparkles, RefreshCw, Play, Edit3, ClipboardList
+import React, { useEffect, useState } from "react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ClipboardList,
+  Disc3,
+  FileText,
+  Gauge,
+  Image as ImageIcon,
+  Layers,
+  Link2,
+  Play,
+  RefreshCw,
+  RotateCcw,
+  Save,
+  Sparkles,
+  XCircle,
+  Youtube,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { extractYouTubeId } from "@/lib/youtube";
 
 export interface ScrapeResultItem {
   url: string;
-  status: 'success' | 'duplicate' | 'error' | 'processing' | 'pending';
+  status: "success" | "duplicate" | "error" | "processing" | "pending";
   title?: string;
   artist?: string;
   errorMsg?: string;
@@ -20,19 +35,36 @@ interface BatchScraperProps {
   onComplete?: () => void;
 }
 
-export default function BatchScraper({ initialUrl = "", onComplete }: BatchScraperProps) {
+const DIFFICULTY_OPTIONS = [
+  { value: "Sangat Mudah", label: "Sangat Mudah" },
+  { value: "Mudah", label: "Mudah" },
+  { value: "Sedang", label: "Sedang" },
+  { value: "Sulit", label: "Sulit" },
+];
+
+export default function BatchScraper(
+  { initialUrl = "", onComplete }: BatchScraperProps,
+) {
   // Mode: 'single' | 'batch' | 'manual'
-  const [mode, setMode] = useState<'single' | 'batch' | 'manual'>('single');
+  const [mode, setMode] = useState<"single" | "batch" | "manual">("single");
 
-  // Input states
+  // Single Scrape Input states
   const [singleUrl, setSingleUrl] = useState(initialUrl);
-  const [batchText, setBatchText] = useState("");
+  const [singleDifficulty, setSingleDifficulty] = useState("Mudah");
+  const [singleYoutubeUrl, setSingleYoutubeUrl] = useState("");
+  const [singleCoverUrl, setSingleCoverUrl] = useState("");
 
-  // Manual import states
+  // Batch Scrape Input states
+  const [batchText, setBatchText] = useState("");
+  const [batchDifficulty, setBatchDifficulty] = useState("Mudah");
+
+  // Manual Import states
   const [manualTitle, setManualTitle] = useState("");
   const [manualArtist, setManualArtist] = useState("");
+  const [manualDifficulty, setManualDifficulty] = useState("Mudah");
+  const [manualYoutubeUrl, setManualYoutubeUrl] = useState("");
+  const [manualCoverUrl, setManualCoverUrl] = useState("");
   const [manualChords, setManualChords] = useState("");
-  const [manualDifficulty, setManualDifficulty] = useState("Pemula");
 
   // Process states
   const [loading, setLoading] = useState(false);
@@ -43,9 +75,24 @@ export default function BatchScraper({ initialUrl = "", onComplete }: BatchScrap
   useEffect(() => {
     if (initialUrl) {
       setSingleUrl(initialUrl);
-      setMode('single');
+      setMode("single");
     }
   }, [initialUrl]);
+
+  // Helper to get auth header for API requests
+  const getAuthHeaders = async () => {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+    } catch {}
+    return headers;
+  };
 
   // Single URL Scrape
   const handleSingleScrape = async (e: React.FormEvent) => {
@@ -56,29 +103,46 @@ export default function BatchScraper({ initialUrl = "", onComplete }: BatchScrap
     setLoading(true);
     setProgress(30);
     setStatusMessage("Menghubungi server Chordtela...");
-    setLogResults([{ url: urlToScrape, status: 'processing' }]);
+    setLogResults([{ url: urlToScrape, status: "processing" }]);
 
     try {
-      const res = await fetch(`/api/scrape?url=${encodeURIComponent(urlToScrape)}`);
+      const headers = await getAuthHeaders();
+      const cleanYtId = extractYouTubeId(singleYoutubeUrl);
+
+      const res = await fetch("/api/scrape", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          url: urlToScrape,
+          difficulty: singleDifficulty,
+          youtube_video_id: cleanYtId,
+          cover_url: singleCoverUrl.trim(),
+        }),
+      });
+
       const data = await res.json();
 
       setProgress(100);
       if (res.ok && data.success) {
         setLogResults([{
           url: urlToScrape,
-          status: 'success',
+          status: "success",
           title: data.title,
-          artist: data.artist
+          artist: data.artist,
         }]);
         setStatusMessage(`Berhasil: "${data.title}" oleh ${data.artist}`);
         setSingleUrl("");
+        setSingleYoutubeUrl("");
+        setSingleCoverUrl("");
+        setSingleDifficulty("Mudah");
         if (onComplete) onComplete();
       } else {
-        const isDup = data.error?.toLowerCase().includes('sudah ada') || data.error?.toLowerCase().includes('duplicate');
+        const isDup = data.error?.toLowerCase().includes("sudah ada") ||
+          data.error?.toLowerCase().includes("duplicate");
         setLogResults([{
           url: urlToScrape,
-          status: isDup ? 'duplicate' : 'error',
-          errorMsg: data.error || "Gagal melakukan scraping."
+          status: isDup ? "duplicate" : "error",
+          errorMsg: data.error || "Gagal melakukan scraping.",
         }]);
         setStatusMessage(data.error || "Gagal melakukan scraping.");
       }
@@ -86,8 +150,8 @@ export default function BatchScraper({ initialUrl = "", onComplete }: BatchScrap
       setProgress(100);
       setLogResults([{
         url: urlToScrape,
-        status: 'error',
-        errorMsg: err?.message || "Terjadi kesalahan koneksi."
+        status: "error",
+        errorMsg: err?.message || "Terjadi kesalahan koneksi.",
       }]);
       setStatusMessage("Terjadi kesalahan sistem.");
     } finally {
@@ -100,36 +164,45 @@ export default function BatchScraper({ initialUrl = "", onComplete }: BatchScrap
     e.preventDefault();
     // Split input lines into array of valid URLs
     const rawUrls = batchText
-      .split('\n')
-      .map(line => line.trim())
-      .filter(line => line.length > 0 && line.startsWith('http'));
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0 && line.startsWith("http"));
 
     if (rawUrls.length === 0) {
-      alert("Harap masukkan minimal 1 URL Chordtela yang valid (satu URL per baris).");
+      alert(
+        "Harap masukkan minimal 1 URL Chordtela yang valid (satu URL per baris).",
+      );
       return;
     }
 
     setLoading(true);
     setProgress(10);
-    setStatusMessage(`Memulai proses scraping massal untuk ${rawUrls.length} URL...`);
-    
+    setStatusMessage(
+      `Memulai proses scraping massal untuk ${rawUrls.length} URL...`,
+    );
+
     // Initial Pending States
-    const initialLogs: ScrapeResultItem[] = rawUrls.map(url => ({
+    const initialLogs: ScrapeResultItem[] = rawUrls.map((url) => ({
       url,
-      status: 'pending'
+      status: "pending",
     }));
     setLogResults(initialLogs);
 
     try {
       // Simulate step progress while calling endpoint
       const progressTimer = setInterval(() => {
-        setProgress(prev => (prev < 90 ? prev + 10 : prev));
+        setProgress((prev) => (prev < 90 ? prev + 10 : prev));
       }, 500);
 
-      const res = await fetch('/api/scrape/batch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ urls: rawUrls }),
+      const headers = await getAuthHeaders();
+
+      const res = await fetch("/api/scrape/batch", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          urls: rawUrls,
+          difficulty: batchDifficulty,
+        }),
       });
 
       clearInterval(progressTimer);
@@ -139,7 +212,9 @@ export default function BatchScraper({ initialUrl = "", onComplete }: BatchScrap
 
       if (res.ok && data.success) {
         setLogResults(data.results || []);
-        setStatusMessage(`Selesai! ${data.successCount} sukses, ${data.duplicateCount} duplikat, ${data.errorCount} gagal.`);
+        setStatusMessage(
+          `Selesai! ${data.successCount} sukses, ${data.duplicateCount} duplikat, ${data.errorCount} gagal.`,
+        );
         setBatchText("");
         if (onComplete) onComplete();
       } else {
@@ -147,7 +222,9 @@ export default function BatchScraper({ initialUrl = "", onComplete }: BatchScrap
       }
     } catch (err: any) {
       setProgress(100);
-      setStatusMessage(err?.message || "Terjadi kesalahan saat batch scraping.");
+      setStatusMessage(
+        err?.message || "Terjadi kesalahan saat batch scraping.",
+      );
     } finally {
       setLoading(false);
     }
@@ -156,33 +233,65 @@ export default function BatchScraper({ initialUrl = "", onComplete }: BatchScrap
   // Retry Single Failed Link
   const handleRetryItem = async (targetUrl: string, index: number) => {
     // Update state to processing
-    setLogResults(prev => prev.map((item, i) => i === index ? { ...item, status: 'processing' } : item));
+    setLogResults((prev) =>
+      prev.map((item, i) =>
+        i === index ? { ...item, status: "processing" } : item
+      )
+    );
 
     try {
-      const res = await fetch(`/api/scrape?url=${encodeURIComponent(targetUrl)}`);
+      const headers = await getAuthHeaders();
+      const res = await fetch("/api/scrape", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          url: targetUrl,
+          difficulty: singleDifficulty,
+          youtube_video_id: extractYouTubeId(singleYoutubeUrl),
+          cover_url: singleCoverUrl.trim(),
+        }),
+      });
       const data = await res.json();
 
       if (res.ok && data.success) {
-        setLogResults(prev => prev.map((item, i) => i === index ? {
-          url: targetUrl,
-          status: 'success',
-          title: data.title,
-          artist: data.artist
-        } : item));
+        setLogResults((prev) =>
+          prev.map((item, i) =>
+            i === index
+              ? {
+                url: targetUrl,
+                status: "success",
+                title: data.title,
+                artist: data.artist,
+              }
+              : item
+          )
+        );
         if (onComplete) onComplete();
       } else {
-        setLogResults(prev => prev.map((item, i) => i === index ? {
-          url: targetUrl,
-          status: 'error',
-          errorMsg: data.error || 'Gagal lagi saat mencoba ulang.'
-        } : item));
+        setLogResults((prev) =>
+          prev.map((item, i) =>
+            i === index
+              ? {
+                url: targetUrl,
+                status: "error",
+                errorMsg: data.error || "Gagal lagi saat mencoba ulang.",
+              }
+              : item
+          )
+        );
       }
     } catch (err: any) {
-      setLogResults(prev => prev.map((item, i) => i === index ? {
-        url: targetUrl,
-        status: 'error',
-        errorMsg: err?.message || 'Error koneksi saat mencoba ulang.'
-      } : item));
+      setLogResults((prev) =>
+        prev.map((item, i) =>
+          i === index
+            ? {
+              url: targetUrl,
+              status: "error",
+              errorMsg: err?.message || "Error koneksi saat mencoba ulang.",
+            }
+            : item
+        )
+      );
     }
   };
 
@@ -202,44 +311,84 @@ export default function BatchScraper({ initialUrl = "", onComplete }: BatchScrap
       const cleanTitle = manualTitle.trim();
       const cleanArtist = manualArtist.trim();
       const cleanChords = manualChords.trim();
+      const cleanCoverUrl = manualCoverUrl.trim();
+      const cleanYtId = extractYouTubeId(manualYoutubeUrl) || null;
+      const fallbackCover =
+        "https://images.unsplash.com/photo-1511192336575-5a79af67a629?q=80&w=600&h=600&auto=format&fit=crop";
+
+      let albumId: string | null = null;
+      if (cleanCoverUrl) {
+        try {
+          const { data: newAlbum } = await supabase
+            .from("albums")
+            .insert({
+              title: cleanTitle,
+              artist: cleanArtist,
+              cover_url: cleanCoverUrl,
+            })
+            .select("id")
+            .maybeSingle();
+
+          if (newAlbum?.id) {
+            albumId = newAlbum.id;
+          }
+        } catch (err) {
+          console.warn("[MANUAL ALBUM INSERT WARN]:", err);
+        }
+      }
+
+      const songPayload: Record<string, any> = {
+        title: cleanTitle,
+        artist: cleanArtist,
+        chords: cleanChords,
+        difficulty: manualDifficulty,
+        youtube_video_id: cleanYtId,
+        view_count: 0,
+      };
+
+      if (albumId) {
+        songPayload.album_id = albumId;
+      }
 
       const { data: newSong, error: songsError } = await supabase
-        .from('songs')
-        .insert({
-          title: cleanTitle,
-          artist: cleanArtist,
-          chords: cleanChords,
-          difficulty: manualDifficulty,
-          view_count: 0
-        })
-        .select('id')
+        .from("songs")
+        .insert(songPayload)
+        .select("id")
         .maybeSingle();
 
       if (songsError) {
-        console.warn('[MANUAL IMPORT FALLBACK TO CHORDS]:', songsError.message);
+        console.warn("[MANUAL IMPORT FALLBACK TO CHORDS]:", songsError.message);
         await supabase
-          .from('chords')
+          .from("chords")
           .insert({
             title: cleanTitle,
             artist: cleanArtist,
             content: cleanChords,
-            views: 0
+            difficulty: manualDifficulty,
+            youtube_video_id: cleanYtId,
+            cover_url: cleanCoverUrl || fallbackCover,
+            views: 0,
           });
       }
 
       setProgress(100);
-      setStatusMessage(`Berhasil menyimpan: "${cleanTitle}" oleh ${cleanArtist}`);
-      
-      setLogResults(prev => [{
+      setStatusMessage(
+        `Berhasil menyimpan: "${cleanTitle}" oleh ${cleanArtist}`,
+      );
+
+      setLogResults((prev) => [{
         url: "Manual Import / Paste",
-        status: 'success',
+        status: "success",
         title: cleanTitle,
-        artist: cleanArtist
+        artist: cleanArtist,
       }, ...prev]);
 
       setManualTitle("");
       setManualArtist("");
       setManualChords("");
+      setManualYoutubeUrl("");
+      setManualCoverUrl("");
+      setManualDifficulty("Mudah");
 
       if (onComplete) onComplete();
     } catch (err: any) {
@@ -252,7 +401,6 @@ export default function BatchScraper({ initialUrl = "", onComplete }: BatchScrap
 
   return (
     <div className="flex flex-col gap-6 bg-surface/80 p-6 md:p-8 rounded-2xl border border-white/10 backdrop-blur-xl shadow-2xl relative overflow-hidden">
-      
       {/* HEADER & MODE SWITCHER */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-5">
         <div className="flex items-center gap-3">
@@ -267,7 +415,8 @@ export default function BatchScraper({ initialUrl = "", onComplete }: BatchScrap
               </span>
             </h2>
             <p className="text-xs text-slate-400">
-              Sedot chord & lirik dari URL Chordtela atau Import Manual via Paste Text
+              Sedot chord & lirik dari URL Chordtela atau Import Manual via
+              Paste Text
             </p>
           </div>
         </div>
@@ -276,9 +425,9 @@ export default function BatchScraper({ initialUrl = "", onComplete }: BatchScrap
         <div className="flex items-center bg-black/60 border border-white/10 p-1 rounded-xl self-start sm:self-auto flex-wrap gap-1">
           <button
             type="button"
-            onClick={() => setMode('single')}
+            onClick={() => setMode("single")}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              mode === 'single'
+              mode === "single"
                 ? "bg-primary text-white shadow-[0_0_10px_rgba(168,85,247,0.4)]"
                 : "text-slate-400 hover:text-white"
             }`}
@@ -288,9 +437,9 @@ export default function BatchScraper({ initialUrl = "", onComplete }: BatchScrap
           </button>
           <button
             type="button"
-            onClick={() => setMode('batch')}
+            onClick={() => setMode("batch")}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              mode === 'batch'
+              mode === "batch"
                 ? "bg-primary text-white shadow-[0_0_10px_rgba(168,85,247,0.4)]"
                 : "text-slate-400 hover:text-white"
             }`}
@@ -300,9 +449,9 @@ export default function BatchScraper({ initialUrl = "", onComplete }: BatchScrap
           </button>
           <button
             type="button"
-            onClick={() => setMode('manual')}
+            onClick={() => setMode("manual")}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              mode === 'manual'
+              mode === "manual"
                 ? "bg-primary text-white shadow-[0_0_10px_rgba(168,85,247,0.4)]"
                 : "text-slate-400 hover:text-white"
             }`}
@@ -314,79 +463,179 @@ export default function BatchScraper({ initialUrl = "", onComplete }: BatchScrap
       </div>
 
       {/* MODE 1: SINGLE SCRAPER FORM */}
-      {mode === 'single' && (
+      {mode === "single" && (
         <form onSubmit={handleSingleScrape} className="flex flex-col gap-4">
-          <div className="relative group">
-            <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none">
-              <Link2 className="h-4 w-4 text-slate-500 group-focus-within:text-primary transition-colors" />
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-bold text-slate-300">
+              URL Target Scraper <span className="text-red-400">*</span>
+            </label>
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none">
+                <Link2 className="h-4 w-4 text-slate-500 group-focus-within:text-primary transition-colors" />
+              </div>
+              <input
+                type="url"
+                value={singleUrl}
+                onChange={(e) =>
+                  setSingleUrl(e.target.value)}
+                placeholder="https://www.chordtela.com/2021/05/chord-lagu... atau https://www.chordtela.com/search?q=..."
+                className="w-full bg-black/80 border border-white/10 rounded-xl py-3.5 pl-11 pr-4 text-white placeholder-slate-600 focus:outline-none focus:border-primary/60 focus:shadow-[0_0_15px_rgba(168,85,247,0.25)] transition-all font-mono text-xs md:text-sm"
+                required
+                pattern="https?://.*chordtela\.com/.*"
+                title="Harus berupa link dari chordtela.com"
+              />
             </div>
-            <input
-              type="url"
-              value={singleUrl}
-              onChange={(e) => setSingleUrl(e.target.value)}
-              placeholder="https://www.chordtela.com/2021/05/chord-lagu... atau https://www.chordtela.com/search?q=..."
-              className="w-full bg-black/80 border border-white/10 rounded-xl py-3.5 pl-11 pr-4 text-white placeholder-slate-600 focus:outline-none focus:border-primary/60 focus:shadow-[0_0_15px_rgba(168,85,247,0.25)] transition-all font-mono text-xs md:text-sm"
-              required
-              pattern="https?://.*chordtela\.com/.*"
-              title="Harus berupa link dari chordtela.com"
-            />
           </div>
 
-          <button 
+          {/* GRID INPUT OPSIONAL (2 KOLOM) */}
+          <div className="p-4 bg-black/40 border border-white/10 rounded-xl flex flex-col gap-3">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>
+                Data Opsional Tambahan (Langsung Tersimpan Sekali Klik)
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Dropdown Level Kesulitan */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                  <Gauge className="w-3.5 h-3.5 text-primary" /> Level Kesulitan
+                </label>
+                <select
+                  value={singleDifficulty}
+                  onChange={(e) => setSingleDifficulty(e.target.value)}
+                  className="bg-black/80 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-primary/60 text-xs font-mono"
+                >
+                  {DIFFICULTY_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* YouTube Video URL / ID */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                  <Youtube className="w-3.5 h-3.5 text-red-500" />{" "}
+                  YouTube Video URL / ID
+                </label>
+                <input
+                  type="text"
+                  value={singleYoutubeUrl}
+                  onChange={(e) => setSingleYoutubeUrl(e.target.value)}
+                  placeholder="https://youtube.com/watch?v=... atau ID (Contoh: dQw4w9WgXcQ)"
+                  className="bg-black/80 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-primary/60 text-xs font-mono"
+                />
+              </div>
+
+              {/* Cover Image URL */}
+              <div className="flex flex-col gap-1.5 md:col-span-2">
+                <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                  <ImageIcon className="w-3.5 h-3.5 text-blue-400" />{" "}
+                  Cover Image URL
+                </label>
+                <input
+                  type="url"
+                  value={singleCoverUrl}
+                  onChange={(e) => setSingleCoverUrl(e.target.value)}
+                  placeholder="https://images.unsplash.com/... (URL gambar sampul album)"
+                  className="bg-black/80 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-primary/60 text-xs font-mono"
+                />
+              </div>
+            </div>
+          </div>
+
+          <button
             type="submit"
             disabled={loading}
             className="flex items-center justify-center gap-2 bg-primary text-white font-bold py-3.5 rounded-xl hover:bg-primary-light hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all disabled:opacity-40 disabled:cursor-not-allowed text-xs md:text-sm cursor-pointer"
           >
-            {loading ? (
-              <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-            ) : (
-              <><Save className="w-4 h-4" /> Sedot & Simpan Ke Database</>
-            )}
+            {loading
+              ? (
+                <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+              )
+              : (
+                <>
+                  <Save className="w-4 h-4" /> Sedot & Simpan Ke Database
+                </>
+              )}
           </button>
         </form>
       )}
 
       {/* MODE 2: MASS / BATCH SCRAPER FORM */}
-      {mode === 'batch' && (
+      {mode === "batch" && (
         <form onSubmit={handleBatchScrape} className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                <Gauge className="w-3.5 h-3.5 text-primary" />{" "}
+                Default Level Kesulitan Untuk Batch Ini
+              </label>
+              <select
+                value={batchDifficulty}
+                onChange={(e) =>
+                  setBatchDifficulty(e.target.value)}
+                className="bg-black/80 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-primary/60 text-xs font-mono"
+              >
+                {DIFFICULTY_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-end justify-end">
+              <span className="text-[11px] text-slate-400 font-mono bg-white/5 px-3 py-2 rounded-xl border border-white/10">
+                {batchText.split("\n").filter((l) =>
+                  l.trim()
+                ).length} URL terdeteksi
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
             <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-primary" />
               <span>Masukkan Banyak Link Chordtela (1 Link per Baris):</span>
             </label>
-            <span className="text-[10px] text-slate-500 font-mono">
-              {batchText.split('\n').filter(l => l.trim()).length} URL terdeteksi
-            </span>
+            <textarea
+              value={batchText}
+              onChange={(e) => setBatchText(e.target.value)}
+              rows={6}
+              placeholder={`https://www.chordtela.com/2021/05/chord-lagu-1.html\nhttps://www.chordtela.com/2022/08/chord-lagu-2.html\nhttps://www.chordtela.com/2023/01/chord-lagu-3.html`}
+              className="w-full bg-black/80 border border-white/10 rounded-xl p-4 text-white placeholder-slate-600 focus:outline-none focus:border-primary/60 focus:shadow-[0_0_15px_rgba(168,85,247,0.25)] transition-all font-mono text-xs leading-relaxed"
+              required
+            />
           </div>
 
-          <textarea
-            value={batchText}
-            onChange={(e) => setBatchText(e.target.value)}
-            rows={6}
-            placeholder={`https://www.chordtela.com/2021/05/chord-lagu-1.html\nhttps://www.chordtela.com/2022/08/chord-lagu-2.html\nhttps://www.chordtela.com/2023/01/chord-lagu-3.html`}
-            className="w-full bg-black/80 border border-white/10 rounded-xl p-4 text-white placeholder-slate-600 focus:outline-none focus:border-primary/60 focus:shadow-[0_0_15px_rgba(168,85,247,0.25)] transition-all font-mono text-xs leading-relaxed"
-            required
-          />
-
-          <button 
+          <button
             type="submit"
             disabled={loading}
             className="flex items-center justify-center gap-2 bg-primary text-white font-bold py-3.5 rounded-xl hover:bg-primary-light hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all disabled:opacity-40 disabled:cursor-not-allowed text-xs md:text-sm cursor-pointer"
           >
-            {loading ? (
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                <span>Memproses Batch Scrape...</span>
-              </div>
-            ) : (
-              <><Play className="w-4 h-4 fill-current" /> Jalankan Mass Batch Scraper</>
-            )}
+            {loading
+              ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                  <span>Memproses Batch Scrape...</span>
+                </div>
+              )
+              : (
+                <>
+                  <Play className="w-4 h-4 fill-current" />{" "}
+                  Jalankan Mass Batch Scraper
+                </>
+              )}
           </button>
         </form>
       )}
 
       {/* MODE 3: PASTE LIRIK / MANUAL IMPORT FORM */}
-      {mode === 'manual' && (
+      {mode === "manual" && (
         <form onSubmit={handleManualImport} className="flex flex-col gap-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
@@ -396,7 +645,8 @@ export default function BatchScraper({ initialUrl = "", onComplete }: BatchScrap
               <input
                 type="text"
                 value={manualTitle}
-                onChange={(e) => setManualTitle(e.target.value)}
+                onChange={(e) =>
+                  setManualTitle(e.target.value)}
                 placeholder="Contoh: Kangen"
                 className="bg-black/80 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-primary/60 text-xs font-mono"
                 required
@@ -410,7 +660,8 @@ export default function BatchScraper({ initialUrl = "", onComplete }: BatchScrap
               <input
                 type="text"
                 value={manualArtist}
-                onChange={(e) => setManualArtist(e.target.value)}
+                onChange={(e) =>
+                  setManualArtist(e.target.value)}
                 placeholder="Contoh: Dewa 19"
                 className="bg-black/80 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-primary/60 text-xs font-mono"
                 required
@@ -418,26 +669,61 @@ export default function BatchScraper({ initialUrl = "", onComplete }: BatchScrap
             </div>
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-slate-300">
-              Tingkat Kesulitan Chord
-            </label>
-            <select
-              value={manualDifficulty}
-              onChange={(e) => setManualDifficulty(e.target.value)}
-              className="bg-black/80 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-primary/60 text-xs font-mono"
-            >
-              <option value="Pemula">Pemula</option>
-              <option value="Menengah">Menengah</option>
-              <option value="Mahir">Mahir</option>
-            </select>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                <Gauge className="w-3.5 h-3.5 text-primary" /> Level Kesulitan
+              </label>
+              <select
+                value={manualDifficulty}
+                onChange={(e) => setManualDifficulty(e.target.value)}
+                className="bg-black/80 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-primary/60 text-xs font-mono"
+              >
+                {DIFFICULTY_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                <Youtube className="w-3.5 h-3.5 text-red-500" />{" "}
+                YouTube Video URL / ID
+              </label>
+              <input
+                type="text"
+                value={manualYoutubeUrl}
+                onChange={(e) => setManualYoutubeUrl(e.target.value)}
+                placeholder="Contoh: dQw4w9WgXcQ"
+                className="bg-black/80 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-primary/60 text-xs font-mono"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                <ImageIcon className="w-3.5 h-3.5 text-blue-400" />{" "}
+                Cover Image URL
+              </label>
+              <input
+                type="url"
+                value={manualCoverUrl}
+                onChange={(e) => setManualCoverUrl(e.target.value)}
+                placeholder="https://..."
+                className="bg-black/80 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-primary/60 text-xs font-mono"
+              />
+            </div>
           </div>
 
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
                 <ClipboardList className="w-3.5 h-3.5 text-primary" />
-                <span>Paste Lirik & Chord Di Sini <span className="text-red-400">*</span>:</span>
+                <span>
+                  Paste Lirik & Chord Di Sini{" "}
+                  <span className="text-red-400">*</span>:
+                </span>
               </label>
               <span className="text-[10px] text-slate-500 font-mono">
                 Tempelkan teks lirik dan chord langsung dari browser
@@ -447,25 +733,29 @@ export default function BatchScraper({ initialUrl = "", onComplete }: BatchScrap
               value={manualChords}
               onChange={(e) => setManualChords(e.target.value)}
               rows={8}
-              placeholder={`Intro : C  G  Am  F\n\nC         G\nKutuliskan kenangan tentang\nAm        F\nCaraku menemukan dirimu...\n\nChorus :\nC          G          Am\nBila rasaku ini rasamu...`}
+              placeholder={`[Intro]\nC  G  Am  F\n\n[Verse 1]\nC         G\nKutuliskan kenangan tentang\nAm        F\nCaraku menemukan dirimu...\n\n[Chorus]\nC          G          Am\nBila rasaku ini rasamu...`}
               className="w-full bg-black/80 border border-white/10 rounded-xl p-4 text-white placeholder-slate-600 focus:outline-none focus:border-primary/60 focus:shadow-[0_0_15px_rgba(168,85,247,0.25)] transition-all font-mono text-xs leading-relaxed whitespace-pre"
               required
             />
           </div>
 
-          <button 
+          <button
             type="submit"
             disabled={loading}
             className="flex items-center justify-center gap-2 bg-primary text-white font-bold py-3.5 rounded-xl hover:bg-primary-light hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all disabled:opacity-40 disabled:cursor-not-allowed text-xs md:text-sm cursor-pointer"
           >
-            {loading ? (
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                <span>Menyimpan Lagu...</span>
-              </div>
-            ) : (
-              <><Save className="w-4 h-4" /> Simpan Lagu Ke Database</>
-            )}
+            {loading
+              ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                  <span>Menyimpan Lagu...</span>
+                </div>
+              )
+              : (
+                <>
+                  <Save className="w-4 h-4" /> Simpan Lagu Ke Database
+                </>
+              )}
           </button>
         </form>
       )}
@@ -475,13 +765,17 @@ export default function BatchScraper({ initialUrl = "", onComplete }: BatchScrap
         <div className="flex flex-col gap-2 bg-black/50 p-4 rounded-xl border border-white/10">
           <div className="flex items-center justify-between text-xs font-mono font-bold">
             <span className="text-slate-300 flex items-center gap-2">
-              <RefreshCw className={`w-3.5 h-3.5 text-primary ${loading ? "animate-spin" : ""}`} />
+              <RefreshCw
+                className={`w-3.5 h-3.5 text-primary ${
+                  loading ? "animate-spin" : ""
+                }`}
+              />
               {statusMessage || "Memproses data..."}
             </span>
             <span className="text-primary">{progress}%</span>
           </div>
           <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
-            <div 
+            <div
               className="bg-gradient-to-r from-primary to-violet-500 h-full transition-all duration-300 shadow-[0_0_10px_rgba(168,85,247,0.8)]"
               style={{ width: `${progress}%` }}
             />
@@ -512,55 +806,68 @@ export default function BatchScraper({ initialUrl = "", onComplete }: BatchScrap
               <tbody className="divide-y divide-white/10 font-mono">
                 {logResults.map((item, idx) => (
                   <tr key={idx} className="hover:bg-white/[0.02]">
-                    <td className="px-4 py-3 max-w-[200px] sm:max-w-[300px] truncate text-slate-400 text-[11px]" title={item.url}>
+                    <td
+                      className="px-4 py-3 max-w-[200px] sm:max-w-[300px] truncate text-slate-400 text-[11px]"
+                      title={item.url}
+                    >
                       {item.url}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      {item.status === 'processing' && (
+                      {item.status === "processing" && (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30 animate-pulse">
-                          <RefreshCw className="w-3 h-3 animate-spin" /> Prosess...
+                          <RefreshCw className="w-3 h-3 animate-spin" />{" "}
+                          Proses...
                         </span>
                       )}
-                      {item.status === 'pending' && (
+                      {item.status === "pending" && (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-500/20 text-slate-400 border border-slate-500/30">
                           Pending
                         </span>
                       )}
-                      {item.status === 'success' && (
+                      {item.status === "success" && (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                           <CheckCircle2 className="w-3 h-3" /> Sukses
                         </span>
                       )}
-                      {item.status === 'duplicate' && (
+                      {item.status === "duplicate" && (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
                           <AlertTriangle className="w-3 h-3" /> Duplikat
                         </span>
                       )}
-                      {item.status === 'error' && (
+                      {item.status === "error" && (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500/20 text-red-400 border border-red-500/30">
                           <XCircle className="w-3 h-3" /> Gagal
                         </span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-[11px]">
-                      {item.title ? (
-                        <span className="text-white font-bold">{item.title} <span className="text-slate-400 font-normal">— {item.artist}</span></span>
-                      ) : (
-                        <span className="text-slate-500 italic">{item.errorMsg || "-"}</span>
-                      )}
+                      {item.title
+                        ? (
+                          <span className="text-white font-bold">
+                            {item.title}{" "}
+                            <span className="text-slate-400 font-normal">
+                              — {item.artist}
+                            </span>
+                          </span>
+                        )
+                        : (
+                          <span className="text-slate-500 italic">
+                            {item.errorMsg || "-"}
+                          </span>
+                        )}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      {item.status === 'error' ? (
-                        <button
-                          type="button"
-                          onClick={() => handleRetryItem(item.url, idx)}
-                          className="px-2.5 py-1 bg-red-500/20 hover:bg-red-500 text-red-300 hover:text-white border border-red-500/40 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 mx-auto cursor-pointer"
-                        >
-                          <RotateCcw className="w-3 h-3" /> Retry
-                        </button>
-                      ) : (
-                        <span className="text-slate-600 text-[10px]">—</span>
-                      )}
+                      {item.status === "error"
+                        ? (
+                          <button
+                            type="button"
+                            onClick={() => handleRetryItem(item.url, idx)}
+                            className="px-2.5 py-1 bg-red-500/20 hover:bg-red-500 text-red-300 hover:text-white border border-red-500/40 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 mx-auto cursor-pointer"
+                          >
+                            <RotateCcw className="w-3 h-3" /> Retry
+                          </button>
+                        )
+                        : <span className="text-slate-600 text-[10px]">—</span>}
                     </td>
                   </tr>
                 ))}
@@ -569,7 +876,6 @@ export default function BatchScraper({ initialUrl = "", onComplete }: BatchScrap
           </div>
         </div>
       )}
-
     </div>
   );
 }
