@@ -1,10 +1,14 @@
 import React from 'react';
 import Link from 'next/link';
 import { verifyAdminAccess } from '@/lib/authAdmin';
-import { ShieldAlert, Disc3, Home, Sparkles, LayoutDashboard, Users } from 'lucide-react';
+import { ShieldAlert, Disc3, Home, Sparkles, LayoutDashboard, Users, ArrowRight } from 'lucide-react';
 import AdminSignOutButton from '@/components/AdminSignOutButton';
+import AdminGuardRedirect from '@/components/AdminGuardRedirect';
+
+export const dynamic = 'force-dynamic';
 
 export default async function AdminLayout({
+
   children,
 }: {
   children: React.ReactNode;
@@ -12,10 +16,11 @@ export default async function AdminLayout({
   // Pengecekan ganda di tingkat Server Component menggunakan verifyAdminAccess()
   const access = await verifyAdminAccess();
 
-  // Jika bukan admin / super_admin -> Tampilkan UI "Akses Ditolak (403 Unauthorized)" bergaya IDLIX
+  // Jika bukan admin / super_admin (termasuk role === 'user') -> Tampilkan "Akses Ditolak: Halaman ini khusus untuk Admin." & Redirect ke /dashboard
   if (!access.isAdmin) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center text-white relative overflow-hidden">
+        <AdminGuardRedirect />
         {/* Glowing Ambient Background */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-red-600/10 blur-[120px] rounded-full pointer-events-none" />
 
@@ -24,24 +29,37 @@ export default async function AdminLayout({
             <ShieldAlert className="w-8 h-8" />
           </div>
 
-          <h1 className="text-3xl font-black text-white tracking-tight mb-2">
-            403 - Akses Ditolak
+          <h1 className="text-2xl font-black text-white tracking-tight mb-2">
+            Akses Ditolak: Halaman ini khusus untuk Admin.
           </h1>
-          <p className="text-slate-400 text-sm mb-6 leading-relaxed">
-            Maaf, Anda tidak memiliki hak akses Admin atau Super Admin untuk memasuki Pusat Komando ini.
+
+          <p className="text-slate-300 text-xs mb-6 leading-relaxed">
+            Maaf, akun Anda tidak memiliki hak akses Admin atau Super Admin. Anda sedang dialihkan ke Dashboard Member...
           </p>
 
-          <Link
-            href="/"
-            className="w-full py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl text-sm transition-all shadow-[0_0_20px_rgba(239,68,68,0.5)] flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <Home className="w-4 h-4" />
-            Kembali ke Beranda
-          </Link>
+          <div className="flex flex-col gap-2.5 w-full">
+            <Link
+              href="/dashboard"
+              className="w-full py-3 bg-primary hover:bg-primary-light text-white font-bold rounded-xl text-xs transition-all shadow-[0_0_20px_rgba(168,85,247,0.5)] flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <LayoutDashboard className="w-4 h-4" />
+              <span>Ke Dashboard Member</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+
+            <Link
+              href="/"
+              className="w-full py-2.5 bg-white/5 hover:bg-white/10 text-slate-300 font-semibold rounded-xl text-xs transition-all flex items-center justify-center gap-2 border border-white/10"
+            >
+              <Home className="w-4 h-4" />
+              <span>Kembali ke Beranda</span>
+            </Link>
+          </div>
         </div>
       </div>
     );
   }
+
 
   // Jika terverifikasi sebagai admin / super_admin
   const roleBadge = access.isSuperAdmin ? 'SUPER_ADMIN' : 'ADMIN';
