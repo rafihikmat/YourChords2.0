@@ -1,13 +1,15 @@
 import React from "react";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import { AuthProvider } from "@/lib/authContext";
 import OfflineGuard from "@/components/OfflineGuard";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 
 export const metadata = {
   title: "YourChords 2.0 - Platform Chord & Lirik Gitar Cyber-Zen",
-  description: "Platform Chord & Lirik Gitar AI-Powered Terdepan dengan Fitur Transpose, Auto-Scroll, dan Scraper Chordtela.",
+  description:
+    "Platform Chord & Lirik Gitar AI-Powered Terdepan dengan Fitur Transpose, Auto-Scroll, dan Scraper Chordtela.",
   manifest: "/manifest.json",
   themeColor: "#8b5cf6",
   appleWebApp: {
@@ -40,12 +42,8 @@ export default function RootLayout({
           {/* PWA Installation Floating Banner */}
           <PWAInstallPrompt />
 
-          {/* Footer */}
-          <footer className="border-t border-white/5 bg-surface/50 backdrop-blur-md">
-            <div className="max-w-[1400px] mx-auto px-6 py-10 text-center text-sm text-slate-500">
-              <p>&copy; {new Date().getFullYear()} YourChords. All rights reserved.</p>
-            </div>
-          </footer>
+          {/* Cyber-Zen Footer Component */}
+          <Footer />
         </AuthProvider>
       </body>
     </html>
