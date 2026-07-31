@@ -91,7 +91,92 @@ export async function getUserDashboardStats(userId: string): Promise<UserDashboa
  * Fetch favorite songs for current user
  */
 export async function getUserFavoriteSongs(userId: string): Promise<Song[]> {
-  return getUserFavorites(userId);
+  if (!userId || userId === 'guest' || userId === 'demo-user') {
+    return [];
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('song_favorites')
+      .select(`
+        created_at,
+        song_id,
+        songs:song_id (
+          id,
+          title,
+          artist,
+          difficulty,
+          view_count,
+          key_chord,
+          content,
+          youtube_video_id,
+          albums:album_id (cover_url)
+        )
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (!error && data && data.length > 0) {
+      const favSongs: Song[] = [];
+      data.forEach((item: any) => {
+        const rawSong = item.songs;
+        if (rawSong) {
+          const albumCover = rawSong.albums?.cover_url || rawSong.cover_url || '';
+          favSongs.push(
+            normalizeSong({
+              ...rawSong,
+              cover_url: albumCover,
+            })
+          );
+        }
+      });
+      if (favSongs.length > 0) return favSongs;
+    }
+
+    // Fallback if song_favorites returned nothing, check user_favorites
+    const { data: altData } = await supabase
+      .from('user_favorites')
+      .select(`
+        created_at,
+        song_id,
+        songs:song_id (
+          id,
+          title,
+          artist,
+          difficulty,
+          view_count,
+          key_chord,
+          content,
+          youtube_video_id,
+          albums:album_id (cover_url)
+        )
+      `)
+      .eq('user_id', userId);
+
+    if (altData && altData.length > 0) {
+      const favSongs: Song[] = [];
+      altData.forEach((item: any) => {
+        const rawSong = item.songs;
+        if (rawSong) {
+          const albumCover = rawSong.albums?.cover_url || rawSong.cover_url || '';
+          favSongs.push(
+            normalizeSong({
+              ...rawSong,
+              cover_url: albumCover,
+            })
+          );
+        }
+      });
+      if (favSongs.length > 0) return favSongs;
+    }
+
+    // Fallback: fetch using getUserFavorites(userId) from lib/setlists
+    const legacyFavs = await getUserFavorites(userId);
+    return legacyFavs;
+  } catch (err) {
+    console.error('[GET USER FAVORITE SONGS ERROR]:', err);
+    return [];
+  }
 }
 
 /**
