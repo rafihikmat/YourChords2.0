@@ -1,16 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import {
-  AlertCircle,
-  CheckCircle2,
-  Edit3,
-  FileText,
-  Lock,
-  MessageSquare,
-  Send,
-  X,
-} from "lucide-react";
+import { X, Edit3, Send, AlertCircle, CheckCircle2, FileText, MessageSquare, Lock } from "lucide-react";
 import { useAuth } from "@/lib/authContext";
 import AuthModal from "@/components/AuthModal";
 import { submitSongCorrection } from "@/lib/corrections";
@@ -34,9 +25,7 @@ export default function ChordCorrectionModal({
 }: ChordCorrectionModalProps) {
   const { user } = useAuth();
 
-  const [proposedContent, setProposedContent] = useState<string>(
-    currentContent,
-  );
+  const [proposedContent, setProposedContent] = useState<string>(currentContent);
   const [reason, setReason] = useState<string>("");
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -54,19 +43,18 @@ export default function ChordCorrectionModal({
 
     // Guard: Require user authentication
     if (!user) {
+      setError("Silakan Sign In / Login terlebih dahulu untuk mengirim usulan perbaikan.");
       setShowAuthModal(true);
+      return;
+    }
+
+    if (!reason.trim()) {
+      setError("Harap berikan alasan perbaikan (contoh: Kunci Refrain salah, typo pada bait 2).");
       return;
     }
 
     if (!proposedContent.trim()) {
       setError("Isi chord dan lirik usulan tidak boleh kosong.");
-      return;
-    }
-
-    if (!reason.trim()) {
-      setError(
-        "Harap berikan alasan perbaikan (contoh: Kunci Refrain salah, typo pada bait 2).",
-      );
       return;
     }
 
@@ -76,22 +64,23 @@ export default function ChordCorrectionModal({
       const res = await submitSongCorrection({
         songId,
         userId: user.id,
-        reason,
-        proposedContent,
+        reason: reason.trim(),
+        proposedContent: proposedContent.trim(),
         originalContent: currentContent,
       });
 
       if (!res.success) {
-        setError(res.message);
+        setError(res.error || res.message || "Gagal menyimpan usulan perbaikan ke database.");
       } else {
-        setSuccessMsg(res.message);
+        setSuccessMsg(res.message || "✨ Usulan perbaikan berhasil dikirim ke Admin!");
+        setReason("");
         setTimeout(() => {
           setSuccessMsg(null);
           onClose();
-        }, 2000);
+        }, 1800);
       }
     } catch (err: any) {
-      setError(err?.message || "Gagal mengirim usulan perbaikan.");
+      setError(err?.message || "Terjadi kesalahan sistem saat mengirim usulan.");
     } finally {
       setSubmitting(false);
     }
@@ -101,6 +90,7 @@ export default function ChordCorrectionModal({
     <>
       <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in no-print">
         <div className="bg-slate-950 border border-white/10 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl relative overflow-hidden">
+          
           {/* MODAL HEADER */}
           <div className="flex items-center justify-between p-5 border-b border-white/10 bg-surface/50">
             <div className="flex items-center gap-2.5">
@@ -112,10 +102,7 @@ export default function ChordCorrectionModal({
                   Saran Perbaikan Chord & Lirik
                 </h3>
                 <p className="text-xs text-slate-400">
-                  Lagu:{" "}
-                  <span className="text-white font-bold">{songTitle}</span> —
-                  {" "}
-                  {songArtist}
+                  Lagu: <span className="text-white font-bold">{songTitle}</span> — {songArtist}
                 </p>
               </div>
             </div>
@@ -129,10 +116,7 @@ export default function ChordCorrectionModal({
           </div>
 
           {/* MODAL BODY */}
-          <form
-            onSubmit={handleSubmit}
-            className="p-5 md:p-6 flex flex-col gap-4 overflow-y-auto flex-1"
-          >
+          <form onSubmit={handleSubmit} className="p-5 md:p-6 flex flex-col gap-4 overflow-y-auto flex-1">
             {/* SUCCESS BANNER TOAST */}
             {successMsg && (
               <div className="p-4 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center gap-3 animate-fade-in shadow-[0_0_20px_rgba(16,185,129,0.3)]">
@@ -154,10 +138,7 @@ export default function ChordCorrectionModal({
               <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-medium flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <Lock className="w-4 h-4 text-amber-400 flex-shrink-0" />
-                  <span>
-                    Anda harus Sign In terlebih dahulu untuk dapat mengirim
-                    usulan perbaikan.
-                  </span>
+                  <span>Anda harus Sign In terlebih dahulu untuk dapat mengirim usulan perbaikan.</span>
                 </div>
                 <button
                   type="button"
@@ -173,10 +154,7 @@ export default function ChordCorrectionModal({
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
                 <MessageSquare className="w-3.5 h-3.5 text-primary" />
-                <span>
-                  Alasan / Deskripsi Perbaikan{" "}
-                  <span className="text-red-400">*</span>
-                </span>
+                <span>Alasan / Deskripsi Perbaikan <span className="text-red-400">*</span></span>
               </label>
               <input
                 type="text"
@@ -195,9 +173,7 @@ export default function ChordCorrectionModal({
                   <FileText className="w-3.5 h-3.5 text-primary" />
                   <span>Edit Lirik & Chord Usulan Baru:</span>
                 </label>
-                <span className="text-[10px] text-slate-500 font-mono">
-                  Monospace editor
-                </span>
+                <span className="text-[10px] text-slate-500 font-mono">Monospace editor</span>
               </div>
 
               <textarea
@@ -224,7 +200,9 @@ export default function ChordCorrectionModal({
                 disabled={submitting || !!successMsg}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white hover:bg-primary-light font-bold text-xs shadow-[0_0_15px_rgba(168,85,247,0.4)] transition-all disabled:opacity-40 cursor-pointer"
               >
-                {submitting ? <span>Mengirim...</span> : (
+                {submitting ? (
+                  <span>Mengirim...</span>
+                ) : (
                   <>
                     <Send className="w-4 h-4" />
                     <span>Kirim Usulan</span>
@@ -233,6 +211,7 @@ export default function ChordCorrectionModal({
               </button>
             </div>
           </form>
+
         </div>
       </div>
 
