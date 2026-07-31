@@ -8,15 +8,16 @@ import {
   getUserDashboardStats, 
   getUserFavoriteSongs, 
   getUserNotesList, 
+  getUserSetlistsWithItems,
   updateUserProfileName, 
   UserDashboardStats, 
-  UserSongNoteItem 
+  UserSongNoteItem,
+  UserSetlistWithItems
 } from "@/lib/userDashboard";
 import { 
-  getUserSetlists, 
-  createSetlist, 
+  createUserSetlist, 
   removeSongFromSetlist, 
-  deleteSetlist 
+  deleteUserSetlist 
 } from "@/lib/setlists";
 import { toggleSongFavorite } from "@/lib/userPreferences";
 import { fetchSongById } from "@/lib/supabase";
@@ -80,7 +81,7 @@ function DashboardContent() {
   // Dashboard Data State
   const [stats, setStats] = useState<UserDashboardStats>({ favoritesCount: 0, setlistsCount: 0, notesCount: 0 });
   const [favoriteSongs, setFavoriteSongs] = useState<Song[]>([]);
-  const [setlists, setSetlists] = useState<Setlist[]>([]);
+  const [setlists, setSetlists] = useState<UserSetlistWithItems[]>([]);
   const [notesList, setNotesList] = useState<UserSongNoteItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -115,7 +116,7 @@ function DashboardContent() {
       const [statsData, favsData, setlistsData, notesData] = await Promise.all([
         getUserDashboardStats(user.id),
         getUserFavoriteSongs(user.id),
-        getUserSetlists(user.id),
+        getUserSetlistsWithItems(user.id),
         getUserNotesList(user.id),
       ]);
 
@@ -124,13 +125,24 @@ function DashboardContent() {
       setSetlists(setlistsData);
       setNotesList(notesData);
 
-      // Pre-fetch details for songs inside setlists
-      const allSongIds = Array.from(new Set(setlistsData.flatMap(s => s.song_ids)));
+      // Pre-fetch details map from returned setlists
       const detailsMap: Record<string, Song> = {};
+      setlistsData.forEach((s) => {
+        s.songs.forEach((song) => {
+          if (song?.id) {
+            detailsMap[song.id] = song;
+          }
+        });
+      });
 
-      if (allSongIds.length > 0) {
+      // Also check missing song_ids
+      const missingSongIds = Array.from(new Set(setlistsData.flatMap((s) => s.song_ids))).filter(
+        (id) => !detailsMap[id]
+      );
+
+      if (missingSongIds.length > 0) {
         await Promise.all(
-          allSongIds.map(async (id) => {
+          missingSongIds.map(async (id) => {
             const song = await fetchSongById(id);
             if (song) {
               detailsMap[id] = song;
@@ -172,7 +184,7 @@ function DashboardContent() {
     if (!newSetlistName.trim() || !user) return;
 
     setIsCreatingSetlist(true);
-    const created = await createSetlist(user.id, newSetlistName, newSetlistDesc);
+    const created = await createUserSetlist(user.id, newSetlistName, newSetlistDesc);
     setIsCreatingSetlist(false);
 
     if (created) {
@@ -194,7 +206,7 @@ function DashboardContent() {
   const handleDeleteSetlist = async (setlistId: string) => {
     if (!user) return;
     if (confirm("Apakah Anda yakin ingin menghapus folder setlist ini?")) {
-      await deleteSetlist(setlistId, user.id);
+      await deleteUserSetlist(setlistId, user.id);
       loadDashboardData();
     }
   };
