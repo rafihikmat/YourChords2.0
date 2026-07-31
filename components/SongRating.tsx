@@ -1,14 +1,10 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
-import { Award, BarChart2, CheckCircle2, LogIn, Star } from "lucide-react";
-import {
-  DifficultyVoteData,
-  getDifficultyVotes,
-  getSongRating,
-  SongRatingData,
-  submitDifficultyVote,
-  submitSongRating,
+import React, { useState, useEffect, useCallback } from "react";
+import { Star, BarChart2, CheckCircle2, Award, LogIn } from "lucide-react";
+import { 
+  getSongRating, submitSongRating, getDifficultyVotes, submitDifficultyVote, voteSongDifficulty,
+  SongRatingData, DifficultyVoteData 
 } from "@/lib/ratings";
 import { useAuth } from "@/lib/authContext";
 import AuthModal from "@/components/AuthModal";
@@ -22,27 +18,18 @@ interface SongRatingProps {
 export default function SongRating({ songId }: SongRatingProps) {
   const { user } = useAuth();
 
-  const [ratingData, setRatingData] = useState<SongRatingData>({
-    averageRating: 0,
-    totalRatings: 0,
-  });
+  const [ratingData, setRatingData] = useState<SongRatingData>({ averageRating: 0, totalRatings: 0 });
   const [difficultyData, setDifficultyData] = useState<DifficultyVoteData>({
-    votes: { "Sangat Mudah": 0, "Mudah": 0, "Sedang": 0, "Sulit": 0 },
+    votes: { 'Sangat Mudah': 0, 'Mudah': 0, 'Sedang': 0, 'Sulit': 0 },
     totalVotes: 0,
-    percentages: { "Sangat Mudah": 0, "Mudah": 0, "Sedang": 0, "Sulit": 0 },
+    percentages: { 'Sangat Mudah': 0, 'Mudah': 0, 'Sedang': 0, 'Sulit': 0 },
   });
 
   const [hoverRating, setHoverRating] = useState<number | null>(null);
-  const [selectedRating, setSelectedRating] = useState<number | undefined>(
-    undefined,
-  );
-  const [selectedDifficulty, setSelectedDifficulty] = useState<
-    string | undefined
-  >(undefined);
+  const [selectedRating, setSelectedRating] = useState<number | undefined>(undefined);
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string | undefined>(undefined);
   const [ratingSubmitted, setRatingSubmitted] = useState<boolean>(false);
-  const [difficultySubmitted, setDifficultySubmitted] = useState<boolean>(
-    false,
-  );
+  const [difficultySubmitted, setDifficultySubmitted] = useState<boolean>(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [authModalReason, setAuthModalReason] = useState<string>("");
 
@@ -73,9 +60,7 @@ export default function SongRating({ songId }: SongRatingProps) {
   // Handle Star Rating Click
   const handleRate = async (star: number) => {
     if (!user) {
-      setAuthModalReason(
-        "Silakan masuk atau daftar akun terlebih dahulu untuk memberikan rating bintang.",
-      );
+      setAuthModalReason("Silakan masuk atau daftar akun terlebih dahulu untuk memberikan rating bintang.");
       setIsAuthModalOpen(true);
       return;
     }
@@ -93,20 +78,21 @@ export default function SongRating({ songId }: SongRatingProps) {
   // Handle Difficulty Vote Click
   const handleDifficultyVote = async (level: string) => {
     if (!user) {
-      setAuthModalReason(
-        "Silakan masuk atau daftar akun terlebih dahulu untuk memberikan suara tingkat kesulitan.",
-      );
+      setAuthModalReason("Silakan login untuk memberikan voting kesulitan lagu.");
       setIsAuthModalOpen(true);
       return;
     }
 
+    // Optimistic UI update
     setSelectedDifficulty(level);
     setDifficultySubmitted(true);
-    const success = await submitDifficultyVote(songId, level, user.id);
 
-    if (success) {
+    try {
+      await voteSongDifficulty(songId, user.id, level);
       await loadStats();
       setTimeout(() => setDifficultySubmitted(false), 3500);
+    } catch (err: any) {
+      console.error("[DIFFICULTY VOTE ERROR]:", err);
     }
   };
 
@@ -119,6 +105,7 @@ export default function SongRating({ songId }: SongRatingProps) {
 
   return (
     <div className="bg-surface/80 border border-white/10 rounded-2xl p-5 md:p-6 backdrop-blur-xl shadow-2xl flex flex-col gap-6 text-white no-print">
+      
       {/* SECTION 1: STAR RATING & REVIEWS */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-5 border-b border-white/10">
         <div>
@@ -148,8 +135,8 @@ export default function SongRating({ songId }: SongRatingProps) {
           {/* INTERACTIVE STARS */}
           <div className="flex items-center gap-1">
             {[1, 2, 3, 4, 5].map((star) => {
-              const activeStar = hoverRating !== null
-                ? star <= hoverRating
+              const activeStar = hoverRating !== null 
+                ? star <= hoverRating 
                 : star <= Math.round(ratingData.averageRating);
               const isUserChoice = selectedRating === star;
 
@@ -168,11 +155,7 @@ export default function SongRating({ songId }: SongRatingProps) {
                       activeStar
                         ? "fill-amber-400 text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]"
                         : "text-slate-600 fill-slate-800"
-                    } ${
-                      isUserChoice
-                        ? "scale-110 ring-2 ring-amber-400/50 rounded-full"
-                        : ""
-                    }`}
+                    } ${isUserChoice ? "scale-110 ring-2 ring-amber-400/50 rounded-full" : ""}`}
                   />
                 </button>
               );
@@ -229,9 +212,7 @@ export default function SongRating({ songId }: SongRatingProps) {
                 }`}
               >
                 <span>{level.label}</span>
-                {isSelected && (
-                  <CheckCircle2 className="w-3.5 h-3.5 text-white" />
-                )}
+                {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
               </button>
             );
           })}
@@ -240,24 +221,15 @@ export default function SongRating({ songId }: SongRatingProps) {
         {/* PERCENTAGE PROGRESS BARS */}
         <div className="flex flex-col gap-2.5 mt-1 bg-black/40 p-4 rounded-xl border border-white/10">
           {difficultyLevels.map((level) => {
-            const pct =
-              difficultyData
-                .percentages[
-                  level.label as keyof typeof difficultyData.percentages
-                ] || 0;
-            const count =
-              difficultyData
-                .votes[level.label as keyof typeof difficultyData.votes] || 0;
+            const pct = difficultyData.percentages[level.label as keyof typeof difficultyData.percentages] || 0;
+            const count = difficultyData.votes[level.label as keyof typeof difficultyData.votes] || 0;
 
             return (
               <div key={level.label} className="flex flex-col gap-1">
                 <div className="flex items-center justify-between text-[11px] font-mono">
-                  <span className="text-slate-300 font-bold">
-                    {level.label}
-                  </span>
+                  <span className="text-slate-300 font-bold">{level.label}</span>
                   <span className="text-slate-400">
-                    {pct}%{" "}
-                    <span className="text-slate-500">({count} suara)</span>
+                    {pct}% <span className="text-slate-500">({count} suara)</span>
                   </span>
                 </div>
                 <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden p-0.5 border border-white/5">
@@ -275,9 +247,7 @@ export default function SongRating({ songId }: SongRatingProps) {
       {difficultySubmitted && (
         <div className="flex items-center gap-2 text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-3.5 py-2 rounded-xl animate-fade-in">
           <CheckCircle2 className="w-4 h-4" />
-          <span>
-            Suara tingkat kesulitan Anda berhasil disimpan ke database!
-          </span>
+          <span>Pilihan kesulitan Anda telah dicatat!</span>
         </div>
       )}
 
@@ -286,7 +256,9 @@ export default function SongRating({ songId }: SongRatingProps) {
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         initialMode="signin"
+        reason={authModalReason}
       />
+
     </div>
   );
 }
