@@ -153,6 +153,17 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
     setUserSetlists(setlists);
   };
 
+  const handleOpenCorrectionModal = () => {
+    if (!user) {
+      setAuthModalReason(
+        "Silakan Sign In atau Sign Up terlebih dahulu untuk mengirim saran perbaikan chord & lirik.",
+      );
+      setIsAuthModalOpen(true);
+      return;
+    }
+    setShowCorrectionModal(true);
+  };
+
   const handleAddSongToSetlist = async (setlistId: string) => {
     if (!data?.id) return;
     await addSongToSetlist(setlistId, data.id);
@@ -413,6 +424,18 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
                 />
                 <span className="hidden sm:inline text-xs font-bold">
                   {isFavorite ? "Disukai" : "Sukai"}
+                </span>
+              </button>
+
+              {/* CORRECTION BUTTON */}
+              <button
+                onClick={handleOpenCorrectionModal}
+                className="p-3 rounded-xl border border-white/10 bg-white/5 text-slate-300 hover:text-white hover:bg-white/10 hover:border-primary/40 transition-all duration-300 flex items-center gap-2 cursor-pointer"
+                title="Saran Perbaikan Chord & Lirik"
+              >
+                <Edit3 className="w-5 h-5 text-primary" />
+                <span className="hidden sm:inline text-xs font-bold">
+                  Perbaiki
                 </span>
               </button>
             </div>
@@ -1104,6 +1127,16 @@ export default function ChordClientDetail({ data }: { data: ChordData }) {
           </div>
         </div>
       )}
+
+      {/* CHORD CORRECTION MODAL */}
+      <ChordCorrectionModal
+        isOpen={showCorrectionModal}
+        onClose={() => setShowCorrectionModal(false)}
+        songId={data.id}
+        songTitle={data.title}
+        songArtist={data.artist}
+        currentContent={data.content}
+      />
 
       {/* AUTH MODAL */}
       <AuthModal

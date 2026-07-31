@@ -25,6 +25,7 @@ import {
 import BatchScraper from "@/components/BatchScraper";
 import MissingSongsPanel from "@/components/MissingSongsPanel";
 import RatingsModerationPanel from "@/components/RatingsModerationPanel";
+import CorrectionsPanel from "@/components/CorrectionsPanel";
 import Link from "next/link";
 
 export default function AdminDashboardPage() {
@@ -286,6 +287,9 @@ export default function AdminDashboardPage() {
 
       {/* SECTION 3: MODERASI RATING & KESULITAN KOMUNITAS PANEL */}
       <RatingsModerationPanel onRatingsReset={loadAnalytics} />
+
+      {/* SECTION 4: MODERASI PERBAIKAN CHORD & LIKIR (USULAN KOMUNITAS) */}
+      <CorrectionsPanel onApproved={loadChords} />
 
       {/* SECTION 4: ADVANCED BATCH & MASS SCRAPER COMPONENT */}
       <div id="scraper-section" className="flex flex-col gap-6">
