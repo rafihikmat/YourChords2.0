@@ -1,6 +1,7 @@
-import React from 'react';
-import { searchSongs, logMissingSearch } from '@/lib/supabase';
-import SongCard from '@/components/SongCard';
+import React from "react";
+import { logMissingSearch, searchSongs } from "@/lib/supabase";
+import SongCard from "@/components/SongCard";
+import SearchEmptyState from "@/components/SearchEmptyState";
 
 export default async function SearchPage(props: {
   searchParams: Promise<{ q?: string }> | { q?: string };
@@ -23,28 +24,29 @@ export default async function SearchPage(props: {
           Hasil Pencarian
         </h1>
         <p className="text-slate-400 text-sm">
-          {query ? (
-            <>Menampilkan hasil untuk: <span className="text-primary font-bold neon-text">&quot;{query}&quot;</span> — {results.length} ditemukan</>
-          ) : (
-            "Ketikkan judul lagu atau nama artis di kolom pencarian di atas."
-          )}
+          {query
+            ? (
+              <>
+                Menampilkan hasil untuk:{" "}
+                <span className="text-primary font-bold neon-text">
+                  &quot;{query}&quot;
+                </span>{" "}
+                — {results.length} ditemukan
+              </>
+            )
+            : (
+              "Ketikkan judul lagu atau nama artis di kolom pencarian di atas."
+            )}
         </p>
       </div>
 
-      {query && results.length === 0 ? (
-        <div className="text-center py-20 text-slate-400 border border-white/[0.08] rounded-xl bg-surface/50 backdrop-blur-md">
-          <p className="text-lg font-semibold text-white">Tidak ada chord yang cocok dengan pencarian ini.</p>
-          <p className="mt-3 text-sm max-w-md mx-auto text-slate-500">
-            Hubungi Admin agar lagu ini dapat ditambahkan ke dalam koleksi melalui halaman <a href="/admin" className="text-primary hover:underline font-bold">Pusat Komando Admin</a>.
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
-          {results.map((song) => (
-            <SongCard key={song.id} song={song} />
-          ))}
-        </div>
-      )}
+      {query && results.length === 0
+        ? <SearchEmptyState searchQuery={query} />
+        : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
+            {results.map((song) => <SongCard key={song.id} song={song} />)}
+          </div>
+        )}
     </div>
   );
 }
