@@ -109,22 +109,22 @@ export default function Footer() {
             <ul className="space-y-2 text-xs font-medium text-slate-400">
               <li>
                 <Link href="/artists" className="hover:text-primary transition-colors">
-                  Katalog Artis & Musisi
+                  Artis Populer
+                </Link>
+              </li>
+              <li>
+                <Link href="/dashboard" className="hover:text-primary transition-colors">
+                  Setlist Komunitas
+                </Link>
+              </li>
+              <li>
+                <Link href="/" className="hover:text-primary transition-colors">
+                  Lagu Baru Release
                 </Link>
               </li>
               <li>
                 <Link href="/chords" className="hover:text-primary transition-colors">
                   Kamus Chord Gitar
-                </Link>
-              </li>
-              <li>
-                <Link href="/setlists" className="hover:text-primary transition-colors">
-                  Setlist Komunitas
-                </Link>
-              </li>
-              <li>
-                <Link href="/search" className="hover:text-primary transition-colors">
-                  Pencarian Lagu
                 </Link>
               </li>
             </ul>
@@ -138,22 +138,22 @@ export default function Footer() {
             </h4>
             <ul className="space-y-2 text-xs font-medium text-slate-400">
               <li>
-                <Link href="/search" className="hover:text-violet-400 transition-colors">
+                <Link href="/features" className="hover:text-violet-400 transition-colors">
                   Interactive Fretboard
                 </Link>
               </li>
               <li>
-                <Link href="/search" className="hover:text-violet-400 transition-colors">
+                <Link href="/features" className="hover:text-violet-400 transition-colors">
                   Smart Transposer
                 </Link>
               </li>
               <li>
-                <Link href="/search" className="hover:text-violet-400 transition-colors">
+                <Link href="/features" className="hover:text-violet-400 transition-colors">
                   Pemula Simplifier
                 </Link>
               </li>
               <li>
-                <Link href="/search" className="hover:text-violet-400 transition-colors">
+                <Link href="/features" className="hover:text-violet-400 transition-colors">
                   Auto-Scroll Player
                 </Link>
               </li>
@@ -183,9 +183,9 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <a href="https://discord.com" target="_blank" rel="noopener noreferrer" className="hover:text-cyan-400 transition-colors">
+                <Link href="/dashboard" className="hover:text-cyan-400 transition-colors">
                   Komunitas Musisi
-                </a>
+                </Link>
               </li>
             </ul>
           </div>
@@ -198,19 +198,19 @@ export default function Footer() {
             </h4>
             <ul className="space-y-2 text-xs font-medium text-slate-400">
               <li>
-                <Link href="/" className="hover:text-emerald-400 transition-colors">
+                <Link href="/about" className="hover:text-emerald-400 transition-colors">
                   Tentang YourChords
                 </Link>
               </li>
               <li>
-                <a href="#privacy" onClick={(e) => { e.preventDefault(); alert("Kebijakan Privasi: Data Anda aman & terlindungi."); }} className="hover:text-emerald-400 transition-colors cursor-pointer">
+                <Link href="/privacy" className="hover:text-emerald-400 transition-colors">
                   Kebijakan Privasi
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#terms" onClick={(e) => { e.preventDefault(); alert("Syarat & Ketentuan: Penggunaan gratis untuk seluruh musisi."); }} className="hover:text-emerald-400 transition-colors cursor-pointer">
+                <Link href="/terms" className="hover:text-emerald-400 transition-colors">
                   Syarat & Ketentuan
-                </a>
+                </Link>
               </li>
               <li>
                 <Link href="/admin" className="hover:text-emerald-400 transition-colors font-bold text-slate-300 flex items-center gap-1">
