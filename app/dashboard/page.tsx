@@ -93,6 +93,8 @@ function DashboardContent() {
   const [newSetlistName, setNewSetlistName] = useState("");
   const [newSetlistDesc, setNewSetlistDesc] = useState("");
   const [isCreatingSetlist, setIsCreatingSetlist] = useState(false);
+  const [createSetlistError, setCreateSetlistError] = useState<string | null>(null);
+  const [createSetlistToast, setCreateSetlistToast] = useState<string | null>(null);
 
   // Settings State
   const [displayName, setDisplayName] = useState("");
@@ -181,17 +183,30 @@ function DashboardContent() {
   // Handle Create Setlist
   const handleCreateSetlistSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newSetlistName.trim() || !user) return;
+    if (!user) {
+      alert("Error: User tidak terautentikasi.");
+      return;
+    }
+    if (!newSetlistName.trim()) {
+      setCreateSetlistError("Nama setlist tidak boleh kosong.");
+      return;
+    }
 
     setIsCreatingSetlist(true);
-    const created = await createUserSetlist(user.id, newSetlistName, newSetlistDesc);
+    setCreateSetlistError(null);
+
+    const res = await createUserSetlist(user.id, newSetlistName, newSetlistDesc);
     setIsCreatingSetlist(false);
 
-    if (created) {
+    if (res.success) {
       setNewSetlistName("");
       setNewSetlistDesc("");
       setShowCreateModal(false);
+      setCreateSetlistToast("✨ Folder Setlist berhasil dibuat!");
+      setTimeout(() => setCreateSetlistToast(null), 4000);
       loadDashboardData();
+    } else {
+      setCreateSetlistError(res.error || "Gagal membuat setlist.");
     }
   };
 
@@ -233,6 +248,22 @@ function DashboardContent() {
 
       <main className="max-w-[1280px] mx-auto px-4 md:px-8 pt-24">
         
+        {/* CREATE SETLIST TOAST */}
+        {createSetlistToast && (
+          <div className="mb-6 p-4 rounded-2xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-xs md:text-sm font-bold flex items-center justify-between gap-3 shadow-[0_0_20px_rgba(16,185,129,0.3)] animate-fade-in">
+            <div className="flex items-center gap-2.5">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+              <span>{createSetlistToast}</span>
+            </div>
+            <button
+              onClick={() => setCreateSetlistToast(null)}
+              className="p-1 text-emerald-400 hover:text-white rounded-lg hover:bg-emerald-500/20 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         {/* UNAUTHORIZED BANNER */}
         {unauthorizedMsg && (
           <div className="mb-6 p-4 rounded-2xl bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs md:text-sm font-bold flex items-center justify-between gap-3 shadow-[0_0_20px_rgba(245,158,11,0.2)]">
@@ -887,6 +918,12 @@ function DashboardContent() {
               </div>
 
               <form onSubmit={handleCreateSetlistSubmit} className="space-y-4">
+                {createSetlistError && (
+                  <div className="p-3 rounded-xl bg-red-500/15 border border-red-500/40 text-red-400 text-xs font-bold flex items-center gap-2">
+                    <X className="w-4 h-4 text-red-400 flex-shrink-0" />
+                    <span>{createSetlistError}</span>
+                  </div>
+                )}
                 <div>
                   <label className="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">
                     Nama Setlist <span className="text-primary">*</span>

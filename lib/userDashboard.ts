@@ -180,16 +180,42 @@ export async function getUserFavoriteSongs(userId: string): Promise<Song[]> {
 }
 
 /**
+ * Upsert personal notes & strumming pattern for a song.
+ */
+export async function saveUserSongNote(userId: string, songId: string, notesContent: string) {
+  try {
+    if (!userId || !songId) throw new Error('User ID dan Song ID wajib diisi.');
+
+    const { data, error } = await supabase
+      .from('user_song_notes')
+      .upsert(
+        {
+          user_id: userId,
+          song_id: songId,
+          notes_content: notesContent.trim(),
+          updated_at: new Date().toISOString()
+        },
+        { onConflict: 'user_id, song_id' }
+      )
+      .select();
+
+    if (error) {
+      console.error('[SAVE NOTE ERROR]:', error);
+      throw new Error(error.message);
+    }
+
+    return { success: true, data };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Gagal menyimpan catatan.' };
+  }
+}
+
+/**
  * Fetch list of song notes created by current user
  */
-export async function getUserNotesList(userId: string): Promise<UserSongNoteItem[]> {
-  if (!userId || userId === 'guest' || userId === 'demo-user') {
-    return [];
-  }
-
+export async function getUserNotesList(userId: string) {
   try {
-    // Primary query with JOIN to songs & albums
-    const { data: joinedData, error: joinErr } = await supabase
+    const { data, error } = await supabase
       .from('user_song_notes')
       .select(`
         id,
@@ -207,85 +233,27 @@ export async function getUserNotesList(userId: string): Promise<UserSongNoteItem
       .eq('user_id', userId)
       .order('updated_at', { ascending: false });
 
-    if (!joinErr && joinedData && joinedData.length > 0) {
-      return joinedData.map((item: any) => {
-        const rawSong = item.songs;
-        let songObj: Song | null = null;
+    if (error || !data) return [];
 
-        if (rawSong) {
-          const albumCover = rawSong.albums?.cover_url || rawSong.cover_url || '';
-          songObj = normalizeSong({
-            ...rawSong,
-            cover_url: albumCover,
-          });
-        }
-
-        const content = item.notes_content || item.note || item.content || '';
-        return {
-          id: item.id,
-          song_id: item.song_id,
-          notes_content: content,
-          updated_at: item.updated_at || new Date().toISOString(),
-          song: songObj,
-        };
-      });
-    }
-
-    // Fallback if joined query returns empty or fails
-    const { data: notesData, error: notesErr } = await supabase
-      .from('user_song_notes')
-      .select('*')
-      .eq('user_id', userId)
-      .order('updated_at', { ascending: false });
-
-    if (notesErr || !notesData || notesData.length === 0) {
-      return [];
-    }
-
-    const songIds = Array.from(new Set(notesData.map((n: any) => n.song_id).filter(Boolean)));
-
-    let songsMap: Record<string, Song> = {};
-
-    if (songIds.length > 0) {
-      const { data: songsData } = await supabase
-        .from('songs')
-        .select('*, albums(cover_url)')
-        .in('id', songIds);
-
-      if (songsData) {
-        songsData.forEach((rawSong: any) => {
-          songsMap[rawSong.id] = normalizeSong(rawSong);
-        });
-      }
-
-      // Fallback to chords table for missing songs
-      const missingIds = songIds.filter(id => !songsMap[id]);
-      if (missingIds.length > 0) {
-        const { data: chordsData } = await supabase
-          .from('chords')
-          .select('*')
-          .in('id', missingIds);
-
-        if (chordsData) {
-          chordsData.forEach((rawSong: any) => {
-            songsMap[rawSong.id] = normalizeSong(rawSong);
-          });
-        }
-      }
-    }
-
-    return notesData.map((noteItem: any) => {
-      const content = noteItem.notes_content || noteItem.note || noteItem.content || '';
-      return {
-        id: noteItem.id,
-        song_id: noteItem.song_id,
-        notes_content: content,
-        updated_at: noteItem.updated_at || noteItem.created_at || new Date().toISOString(),
-        song: songsMap[noteItem.song_id] || null,
-      };
-    });
+    return data.map((item: any) => ({
+      id: item.id,
+      song_id: item.song_id,
+      notes_content: item.notes_content,
+      updated_at: item.updated_at,
+      title: item.songs?.title || 'Judul Lagu',
+      artist: item.songs?.artist || 'Artis',
+      difficulty: item.songs?.difficulty || 'sedang',
+      cover_url: item.songs?.albums?.cover_url || null,
+      song: item.songs ? {
+        id: item.songs.id,
+        title: item.songs.title,
+        artist: item.songs.artist,
+        difficulty: item.songs.difficulty,
+        cover_url: item.songs.albums?.cover_url || null
+      } : null
+    }));
   } catch (err) {
-    console.error('[GET USER NOTES LIST ERROR]:', err);
+    console.error('[GET USER NOTES ERROR]:', err);
     return [];
   }
 }

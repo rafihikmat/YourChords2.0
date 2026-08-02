@@ -60,77 +60,56 @@ export async function getUserSetlists(userId: string): Promise<Setlist[]> {
 
 /**
  * Create a new setlist folder for an authenticated user.
- * Strictly saved with .eq('user_id', userId)
+ * Strictly saved into user_setlists table with .eq('user_id', userId)
  */
+export async function createUserSetlist(userId: string, name: string, description?: string) {
+  try {
+    if (!userId) throw new Error('User ID wajib terverifikasi.');
+    if (!name.trim()) throw new Error('Nama setlist tidak boleh kosong.');
+
+    const { data, error } = await supabase
+      .from('user_setlists')
+      .insert([
+        {
+          user_id: userId,
+          name: name.trim(),
+          description: description?.trim() || null
+        }
+      ])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[CREATE SETLIST SUPABASE ERROR]:', error);
+      throw new Error(error.message || 'Gagal menyimpan setlist ke database.');
+    }
+
+    return { success: true, data };
+  } catch (err: any) {
+    console.error('[CREATE SETLIST CATCH]:', err.message || err);
+    return { success: false, error: err.message || 'Gagal membuat setlist.' };
+  }
+}
+
 export async function createSetlist(
   userId: string,
   name: string,
   description = ''
 ): Promise<Setlist | null> {
-  if (!userId || userId === 'guest' || userId === 'demo-user' || !name.trim()) {
-    return null;
+  const res = await createUserSetlist(userId, name, description);
+  if (res.success && res.data) {
+    return {
+      id: res.data.id,
+      user_id: res.data.user_id,
+      name: res.data.name,
+      description: res.data.description || '',
+      created_at: res.data.created_at,
+      song_ids: Array.isArray(res.data.song_ids) ? res.data.song_ids : [],
+    };
   }
-
-  const cleanName = name.trim();
-  const cleanDesc = description.trim();
-  const now = new Date().toISOString();
-
-  try {
-    // Try inserting into 'user_setlists' table first
-    const { data: userSetData, error: userSetErr } = await supabase
-      .from('user_setlists')
-      .insert({
-        user_id: userId,
-        name: cleanName,
-        description: cleanDesc,
-        song_ids: [],
-        created_at: now,
-      })
-      .select()
-      .maybeSingle();
-
-    if (!userSetErr && userSetData) {
-      return {
-        id: userSetData.id,
-        user_id: userSetData.user_id,
-        name: userSetData.name,
-        description: userSetData.description || '',
-        created_at: userSetData.created_at,
-        song_ids: Array.isArray(userSetData.song_ids) ? userSetData.song_ids : [],
-      };
-    }
-
-    // Try inserting into 'setlists' table
-    const { data, error } = await supabase
-      .from('setlists')
-      .insert({
-        user_id: userId,
-        name: cleanName,
-        description: cleanDesc,
-        song_ids: [],
-        created_at: now,
-      })
-      .select()
-      .maybeSingle();
-
-    if (!error && data) {
-      return {
-        id: data.id,
-        user_id: data.user_id,
-        name: data.name,
-        description: data.description || '',
-        created_at: data.created_at,
-        song_ids: Array.isArray(data.song_ids) ? data.song_ids : [],
-      };
-    }
-  } catch (err) {
-    console.error('[CREATE SETLIST ERROR]:', err);
-  }
-
   return null;
 }
 
-export const createUserSetlist = createSetlist;
 export const deleteUserSetlist = deleteSetlist;
 
 /**
