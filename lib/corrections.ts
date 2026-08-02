@@ -20,59 +20,42 @@ export interface SongCorrection {
  */
 export async function submitSongCorrection(payload: {
   songId: string;
-  userId: string | null;
+  userId: string;
   reason: string;
   proposedContent: string;
   originalContent?: string;
-}): Promise<{ success: boolean; data?: any; error?: string; message?: string }> {
+}) {
   try {
     if (!payload.songId || !payload.userId) {
       throw new Error('Song ID dan User ID wajib diisi.');
     }
-    if (!payload.reason || !payload.reason.trim() || !payload.proposedContent || !payload.proposedContent.trim()) {
+    if (!payload.reason.trim() || !payload.proposedContent.trim()) {
       throw new Error('Alasan dan usulan perbaikan tidak boleh kosong.');
-    }
-
-    const insertPayload: any = {
-      song_id: payload.songId,
-      user_id: payload.userId,
-      reason: payload.reason.trim(),
-      proposed_content: payload.proposedContent.trim(),
-      status: 'pending',
-    };
-
-    if (payload.originalContent) {
-      insertPayload.original_content = payload.originalContent;
     }
 
     const { data, error } = await supabase
       .from('song_corrections')
-      .insert([insertPayload])
+      .insert([
+        {
+          song_id: payload.songId,
+          user_id: payload.userId,
+          reason: payload.reason.trim(),
+          proposed_content: payload.proposedContent.trim(),
+          original_content: payload.originalContent?.trim() || null,
+          status: 'pending'
+        }
+      ])
       .select();
 
     if (error) {
-      console.error('[SUBMIT CORRECTION SUPABASE ERROR]:', {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code
-      });
+      console.error('[SUBMIT CORRECTION ERROR]:', error);
       throw new Error(error.message || 'Gagal menyimpan usulan perbaikan.');
     }
 
-    return {
-      success: true,
-      data,
-      message: '✨ Usulan perbaikan berhasil dikirim ke Admin!',
-    };
+    return { success: true, data };
   } catch (err: any) {
-    const errorMsg = typeof err === 'string' ? err : err?.message || 'Terjadi kesalahan sistem.';
-    console.error('[SUBMIT CORRECTION CATCH]:', errorMsg, err);
-    return {
-      success: false,
-      error: errorMsg,
-      message: errorMsg,
-    };
+    console.error('[SUBMIT CORRECTION CATCH]:', err.message || err);
+    return { success: false, error: err.message || 'Terjadi kesalahan sistem.' };
   }
 }
 

@@ -1,7 +1,6 @@
 import React from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import { Shield, Lock, Eye, Database, UserCheck, ArrowLeft } from "lucide-react";
 
 export const metadata = {
@@ -100,8 +99,6 @@ export default function PrivacyPage() {
           </section>
         </div>
       </main>
-
-      <Footer />
     </div>
   );
 }

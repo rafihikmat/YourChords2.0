@@ -1,244 +1,314 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import { 
-  AlertTriangle, Send, CheckCircle2, ArrowLeft, 
-  Music, Mail, FileText, Sparkles, HelpCircle 
+  HelpCircle, Search, Sliders, Layers, FolderHeart, 
+  UserCheck, Smartphone, ChevronDown, ChevronUp, Sparkles, 
+  MessageSquare, ArrowRight, CheckCircle2, Music2
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 
-export default function ReportTypoPage() {
-  const [songTitleArtist, setSongTitleArtist] = useState("");
-  const [issueType, setIssueType] = useState("Chord Salah");
-  const [details, setDetails] = useState("");
-  const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [successToast, setSuccessToast] = useState<string | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+interface FAQItem {
+  id: string;
+  category: string;
+  question: string;
+  answer: React.ReactNode;
+}
 
-  // Auto-fill user email if authenticated
-  useEffect(() => {
-    async function loadUser() {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user && user.email) {
-          setEmail(user.email);
-        }
-      } catch (err) {
-        // Silent catch if anonymous
-      }
-    }
-    loadUser();
+export default function HelpPage() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeCategory, setActiveCategory] = useState<string>("all");
+  const [expandedId, setExpandedId] = useState<string | null>("transposer-1");
 
-    // Auto fill query parameter if navigated from song page
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const songParam = params.get("song");
-      if (songParam) {
-        setSongTitleArtist(decodeURIComponent(songParam));
-      }
-    }
-  }, []);
-
-  const issueOptions = [
-    { value: "Chord Salah", label: "Chord Salah / Tidak Pas" },
-    { value: "Lirik Typo", label: "Lirik Typo / Salah Kata" },
-    { value: "Kunci Terlalu Sulit", label: "Kunci Terlalu Sulit (Butuh Versi Easy)" },
-    { value: "Video Tutorial Mati", label: "Video Tutorial / YouTube Mati" },
-    { value: "Lainnya", label: "Masalah Lainnya" },
+  const categories = [
+    { id: "all", label: "Semua Kategori", icon: HelpCircle },
+    { id: "transposer", label: "Transposer & Capo", icon: Sliders },
+    { id: "fretboard", label: "Variasi Chord", icon: Layers },
+    { id: "dashboard", label: "Dashboard & Setlist", icon: FolderHeart },
+    { id: "account", label: "Akun & Akses", icon: UserCheck },
+    { id: "pwa", label: "PWA & Offline Mode", icon: Smartphone },
   ];
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSuccessToast(null);
-    setErrorMsg(null);
+  const faqs: FAQItem[] = [
+    // Category 1: Transposer & Capo
+    {
+      id: "transposer-1",
+      category: "transposer",
+      question: "Bagaimana cara mengubah nada dasar (Transpose) lagu?",
+      answer: (
+        <div className="space-y-2 leading-relaxed">
+          <p>
+            Anda dapat menggunakan bilah kontrol <strong className="text-primary">Real-time Transposer</strong> yang terletak di bagian atas atau samping halaman lirik lagu.
+          </p>
+          <ul className="list-disc list-inside space-y-1 text-slate-300">
+            <li>Klik tombol <span className="text-white font-bold font-mono px-1.5 py-0.5 bg-white/10 rounded">+1</span> atau <span className="text-white font-bold font-mono px-1.5 py-0.5 bg-white/10 rounded">-1</span> untuk menaikkan/menurunkan nada dasar sebanyak setengah nada (semitone).</li>
+            <li>Gunakan fitur <strong className="text-emerald-400">Capo Shift</strong> untuk menyesuaikan penjarian gitar tanpa mengubah kunci asli vokal.</li>
+            <li>Tombol <strong className="text-amber-400">Reset</strong> akan mengembalikan chord ke kunci asli (Key of C / Original Key).</li>
+          </ul>
+        </div>
+      ),
+    },
+    {
+      id: "transposer-2",
+      category: "transposer",
+      question: "Apa bedanya Transpose biasa dengan Capo Shift?",
+      answer: (
+        <p className="leading-relaxed">
+          <strong className="text-white">Transpose biasa</strong> mengubah seluruh notasi chord secara aktual (misal C berubah menjadi D). Sedangkan <strong className="text-primary">Capo Shift</strong> memperhitungkan posisi penjepit Capo pada fret gitar tertentu, sehingga Anda bisa memainkan bentuk chord yang lebih simpel (seperti bentuk C/G) sementara suara instrumen terangkat sesuai tinggi nada yang diinginkan.
+        </p>
+      ),
+    },
 
-    if (!songTitleArtist.trim()) {
-      setErrorMsg("Harap isi Judul Lagu & Nama Artis.");
-      return;
-    }
+    // Category 2: Variasi Chord
+    {
+      id: "fretboard-1",
+      category: "fretboard",
+      question: "Bagaimana cara melihat bentuk diagram jari dan variasi chord (< 1 of N >)?",
+      answer: (
+        <div className="space-y-2 leading-relaxed">
+          <p>
+            Di halaman lagu, Anda dapat menautkan kursor atau mengetuk (<span className="text-primary font-bold">click / tap</span>) pada nama chord mana saja (seperti <span className="text-primary font-mono font-bold">C</span>, <span className="text-primary font-mono font-bold">Am7</span>, <span className="text-primary font-mono font-bold">F#m</span>) untuk membuka <strong className="text-white">Modal Fretboard 3D</strong>.
+          </p>
+          <ul className="list-disc list-inside space-y-1 text-slate-300">
+            <li>Modal akan menampilkan posisi senar, fret, dan penomoran jari (1=Telunjuk, 2=Tengah, 3=Manis, 4=Kelingking).</li>
+            <li>Gunakan tombol panah navigator <strong className="text-primary font-mono">&lt; 1 of N &gt;</strong> untuk berpindah antar variasi chord (misal variasi Open Position vs Barre Chord di fret tinggi).</li>
+          </ul>
+        </div>
+      ),
+    },
 
-    if (!details.trim()) {
-      setErrorMsg("Harap deskripsikan detail perbaikan yang diperlukan.");
-      return;
-    }
+    // Category 3: Dashboard & Setlist
+    {
+      id: "dashboard-1",
+      category: "dashboard",
+      question: "Bagaimana cara membuat folder Setlist dan menambahkan catatan pribadi?",
+      answer: (
+        <div className="space-y-2 leading-relaxed">
+          <p>
+            Sebagai member terdaftar, Anda dapat mengelompokkan lagu-lagu pertunjukan (gig/latihan) dalam folder Setlist kustom:
+          </p>
+          <ol className="list-decimal list-inside space-y-1 text-slate-300">
+            <li>Buka halaman lagu yang diinginkan, klik ikon <strong className="text-primary">"Tambah ke Setlist"</strong> atau <strong className="text-primary">"Simpan Favorit"</strong>.</li>
+            <li>Kunjungi <Link href="/dashboard" className="text-primary underline font-bold">Dashboard Saya</Link> untuk membuat nama folder Setlist baru (misal: "Setlist Manggung Kafe Sabtu").</li>
+            <li>Anda juga dapat menambahkan <strong className="text-amber-400">Catatan Pribadi (Personal Notes)</strong> pada setiap lagu untuk menyimpan petunjuk tempo, ritme strumming, atau capo.</li>
+          </ol>
+        </div>
+      ),
+    },
 
-    setLoading(true);
+    // Category 4: Akun & Akses
+    {
+      id: "account-1",
+      category: "account",
+      question: "Apa keuntungan menjadi Member Musisi terdaftar vs Pengunjung Anonim?",
+      answer: (
+        <div className="space-y-2 leading-relaxed">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-1">
+            <div className="p-3 bg-white/5 rounded-xl border border-white/10">
+              <span className="text-xs font-bold text-slate-400 block mb-1">Pengunjung Anonim</span>
+              <ul className="text-xs text-slate-400 space-y-1">
+                <li>• Akses pencarian lagu gratis</li>
+                <li>• Penggunaan Transposer & Fretboard</li>
+                <li>• Tanpa penyimpanan permanen</li>
+              </ul>
+            </div>
+            <div className="p-3 bg-primary/10 rounded-xl border border-primary/30">
+              <span className="text-xs font-bold text-primary block mb-1">Member Terdaftar (Gratis)</span>
+              <ul className="text-xs text-slate-200 space-y-1">
+                <li>✓ Simpan Lagu Favorit tak terbatas</li>
+                <li>✓ Buat folder Setlist pertunjukan</li>
+                <li>✓ Catatan pribadi & sinkronisasi multi-device</li>
+                <li>✓ Kirim Request Lagu & Laporan Typo</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      ),
+    },
 
-    try {
-      const res = await fetch("/api/report-typo", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          song_title_artist: songTitleArtist,
-          issue_type: issueType,
-          details: details,
-          email: email,
-        }),
-      });
+    // Category 5: PWA & Offline Mode
+    {
+      id: "pwa-1",
+      category: "pwa",
+      question: "Bagaimana cara menginstall aplikasi YourChords di HP/PC untuk latihan offline?",
+      answer: (
+        <div className="space-y-2 leading-relaxed">
+          <p>
+            YourChords dibangun dengan teknologi <strong className="text-primary">Progressive Web App (PWA)</strong> sehingga dapat diinstall langsung tanpa perlu mendownload dari PlayStore/AppStore:
+          </p>
+          <ul className="list-disc list-inside space-y-1 text-slate-300">
+            <li><strong className="text-white">Android (Chrome):</strong> Ketuk menu titik tiga di kanan atas browser → pilih <strong className="text-primary">"Tambahkan ke Layar Utama" / "Install App"</strong>.</li>
+            <li><strong className="text-white">iOS (Safari):</strong> Ketuk tombol Share (ikon panah ke atas) → pilih <strong className="text-primary">"Add to Home Screen"</strong>.</li>
+            <li><strong className="text-white">Desktop (Chrome/Edge):</strong> Klik ikon laptop/download di sebelah kanan address bar browser.</li>
+          </ul>
+        </div>
+      ),
+    },
+  ];
 
-      const json = await res.json();
+  const filteredFaqs = faqs.filter((faq) => {
+    const matchesCategory = activeCategory === "all" || faq.category === activeCategory;
+    const matchesQuery = 
+      searchQuery.trim() === "" ||
+      faq.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      faq.id.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesQuery;
+  });
 
-      if (json.success) {
-        setSuccessToast("Terimakasih! Laporan typo Anda telah diterima oleh Admin.");
-        setSongTitleArtist("");
-        setDetails("");
-      } else {
-        setErrorMsg(json.error || "Gagal mengirim laporan. Coba lagi nanti.");
-      }
-    } catch (err: any) {
-      setErrorMsg(err?.message || "Terjadi kesalahan koneksi saat mengirim laporan.");
-    } finally {
-      setLoading(false);
-    }
+  const toggleAccordion = (id: string) => {
+    setExpandedId(expandedId === id ? null : id);
   };
 
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col font-sans selection:bg-primary selection:text-white">
       <Navbar />
 
-      <main className="flex-1 pt-24 pb-16 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto w-full">
-        {/* HEADER */}
-        <div className="mb-8">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-white transition-colors mb-4 group"
-          >
-            <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
-            <span>Kembali ke Beranda</span>
-          </Link>
+      <main className="flex-1 pt-24 pb-16 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto w-full">
+        {/* HERO BANNER & SEARCH */}
+        <section className="relative rounded-3xl p-8 md:p-12 border border-primary/30 bg-surface/80 backdrop-blur-2xl overflow-hidden shadow-[0_0_50px_rgba(168,85,247,0.15)] mb-10 text-center">
+          <div className="absolute -top-24 -left-24 w-72 h-72 bg-primary/20 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-24 -right-24 w-72 h-72 bg-violet-600/20 rounded-full blur-3xl pointer-events-none" />
 
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
-              <AlertTriangle className="w-6 h-6" />
+          <div className="relative z-10 max-w-2xl mx-auto flex flex-col items-center">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary/10 border border-primary/30 text-primary-light text-xs font-mono font-bold mb-4 shadow-[0_0_15px_rgba(168,85,247,0.3)]">
+              <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+              <span>YOURCHORDS SUPPORT CENTER</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-              Laporkan Typo <span className="text-amber-400">Chord & Lirik</span>
+
+            <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-white mb-3">
+              Pusat Bantuan & <span className="text-primary neon-text">Panduan Musisi</span>
             </h1>
-          </div>
 
-          <p className="text-slate-400 text-xs sm:text-sm">
-            Bantu kami menjaga akurasi kunci gitar & lirik lagu di YourChords agar seluruh musisi dapat berlatih dengan nyaman.
-          </p>
-        </div>
+            <p className="text-slate-300 text-xs sm:text-sm leading-relaxed mb-6">
+              Temukan jawaban cepat seputar fitur transposer, variasi chord, pembuatan setlist, dan tips penggunaan YourChords.
+            </p>
 
-        {/* NEON SUCCESS TOAST BANNER */}
-        {successToast && (
-          <div className="mb-8 p-5 rounded-2xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-xs sm:text-sm font-bold flex items-center gap-3 shadow-[0_0_30px_rgba(16,185,129,0.25)] animate-fade-in">
-            <CheckCircle2 className="w-6 h-6 text-emerald-400 flex-shrink-0 animate-bounce" />
-            <div className="leading-relaxed flex-1">{successToast}</div>
-          </div>
-        )}
-
-        {/* ERROR MESSAGE BANNER */}
-        {errorMsg && (
-          <div className="mb-8 p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs font-bold flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
-            <span>{errorMsg}</span>
-          </div>
-        )}
-
-        {/* FORM CARD CYBER-ZEN */}
-        <div className="bg-surface/80 border border-white/10 rounded-3xl p-6 sm:p-8 backdrop-blur-2xl shadow-2xl relative overflow-hidden">
-          {/* Ambient Glow */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-
-          <form onSubmit={handleSubmit} className="flex flex-col gap-5 relative z-10">
-            {/* Field 1: Song Title & Artist */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold text-slate-300 flex items-center gap-2">
-                <Music className="w-4 h-4 text-primary" />
-                <span>Judul Lagu & Nama Artis <span className="text-red-400">*</span></span>
-              </label>
+            {/* SEARCH BAR */}
+            <div className="w-full relative group">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-primary transition-colors" />
               <input
                 type="text"
-                value={songTitleArtist}
-                onChange={(e) => setSongTitleArtist(e.target.value)}
-                placeholder="Contoh: Sheila On 7 - Dan"
-                className="w-full bg-black/80 border border-white/15 focus:border-amber-400/70 rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:shadow-[0_0_20px_rgba(245,158,11,0.2)] text-xs sm:text-sm font-sans transition-all"
-                required
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cari kata kunci bantuan (misal: Transpose, Capo, Setlist, PWA)..."
+                className="w-full bg-black/80 border border-white/15 focus:border-primary/70 rounded-2xl py-3.5 pl-11 pr-4 text-white placeholder-slate-500 text-xs sm:text-sm font-sans focus:outline-none focus:shadow-[0_0_25px_rgba(168,85,247,0.3)] transition-all"
               />
             </div>
+          </div>
+        </section>
 
-            {/* Field 2: Issue Type Dropdown */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold text-slate-300 flex items-center gap-2">
-                <FileText className="w-4 h-4 text-amber-400" />
-                <span>Jenis Kesalahan <span className="text-red-400">*</span></span>
-              </label>
-              <select
-                value={issueType}
-                onChange={(e) => setIssueType(e.target.value)}
-                className="w-full bg-black/80 border border-white/15 focus:border-amber-400/70 rounded-xl px-4 py-3 text-white focus:outline-none focus:shadow-[0_0_20px_rgba(245,158,11,0.2)] text-xs sm:text-sm font-sans cursor-pointer transition-all"
+        {/* CATEGORY BADGES */}
+        <section className="flex items-center gap-2 overflow-x-auto pb-4 mb-8 no-scrollbar">
+          {categories.map((cat) => {
+            const Icon = cat.icon;
+            const isActive = activeCategory === cat.id;
+            return (
+              <button
+                key={cat.id}
+                onClick={() => setActiveCategory(cat.id)}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                  isActive
+                    ? "bg-primary text-white shadow-[0_0_15px_rgba(168,85,247,0.4)] border border-primary-light"
+                    : "bg-surface/60 border border-white/10 text-slate-400 hover:text-white hover:border-white/20"
+                }`}
               >
-                {issueOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value} className="bg-slate-900 text-white">
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+                <Icon className="w-3.5 h-3.5" />
+                <span>{cat.label}</span>
+              </button>
+            );
+          })}
+        </section>
 
-            {/* Field 3: Issue Details */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold text-slate-300 flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-primary" />
-                <span>Detail Perbaikan <span className="text-red-400">*</span></span>
-              </label>
-              <textarea
-                value={details}
-                onChange={(e) => setDetails(e.target.value)}
-                rows={4}
-                placeholder="Jelaskan bagian mana yang salah (misal: 'Bait ke-2 chord harusnya Am, bukan A' atau 'BaitReff typo kata melangkah')..."
-                className="w-full bg-black/80 border border-white/15 focus:border-amber-400/70 rounded-xl p-4 text-white placeholder-slate-600 focus:outline-none focus:shadow-[0_0_20px_rgba(245,158,11,0.2)] text-xs sm:text-sm font-sans transition-all leading-relaxed"
-                required
-              />
+        {/* FAQ ACCORDION LIST */}
+        <section className="space-y-4 mb-12">
+          {filteredFaqs.length === 0 ? (
+            <div className="p-12 rounded-2xl bg-surface/50 border border-white/10 text-center text-slate-400">
+              <HelpCircle className="w-10 h-10 text-slate-600 mx-auto mb-3 animate-bounce" />
+              <p className="text-sm font-bold text-white mb-1">Pertanyaan tidak ditemukan</p>
+              <p className="text-xs">Coba gunakan kata kunci lain atau pilih kategori Semua.</p>
             </div>
+          ) : (
+            filteredFaqs.map((faq) => {
+              const isExpanded = expandedId === faq.id;
+              return (
+                <div
+                  key={faq.id}
+                  className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
+                    isExpanded
+                      ? "bg-surface/90 border-primary/40 shadow-[0_0_20px_rgba(168,85,247,0.15)]"
+                      : "bg-surface/50 border-white/10 hover:border-white/20"
+                  }`}
+                >
+                  <button
+                    onClick={() => toggleAccordion(faq.id)}
+                    className="w-full p-5 sm:p-6 text-left flex items-center justify-between gap-4 cursor-pointer select-none"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-lg ${isExpanded ? "bg-primary/20 text-primary" : "bg-white/5 text-slate-400"}`}>
+                        <HelpCircle className="w-4 h-4" />
+                      </div>
+                      <h3 className="text-sm sm:text-base font-bold text-white">
+                        {faq.question}
+                      </h3>
+                    </div>
+                    {isExpanded ? (
+                      <ChevronUp className="w-5 h-5 text-primary flex-shrink-0" />
+                    ) : (
+                      <ChevronDown className="w-5 h-5 text-slate-500 flex-shrink-0" />
+                    )}
+                  </button>
 
-            {/* Field 4: Reporter Email */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <Mail className="w-4 h-4 text-slate-400" />
-                  <span>Email Pelapor</span>
-                </span>
-                <span className="text-[10px] text-slate-500 font-mono">(Opsional - Untuk kabar perbaikan)</span>
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="emailAnda@example.com"
-                className="w-full bg-black/80 border border-white/15 focus:border-amber-400/70 rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:shadow-[0_0_20px_rgba(245,158,11,0.2)] text-xs sm:text-sm font-sans transition-all"
-              />
-            </div>
-
-            {/* SUBMIT BUTTON */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="mt-2 w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black py-3.5 px-6 rounded-xl shadow-[0_0_25px_rgba(245,158,11,0.3)] hover:shadow-[0_0_35px_rgba(245,158,11,0.5)] transition-all disabled:opacity-40 disabled:cursor-not-allowed text-xs sm:text-sm uppercase tracking-wider cursor-pointer"
-            >
-              {loading ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
-                  <span>Mengirim Laporan...</span>
+                  {isExpanded && (
+                    <div className="px-5 pb-6 sm:px-6 text-xs sm:text-sm text-slate-300 border-t border-white/10 pt-4 animate-fade-in">
+                      {faq.answer}
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <>
-                  <Send className="w-4 h-4" />
-                  <span>Kirim Laporan Perbaikan</span>
-                </>
-              )}
-            </button>
-          </form>
-        </div>
-      </main>
+              );
+            })
+          )}
+        </section>
 
-      <Footer />
+        {/* QUICK ACTION CARDS */}
+        <section className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <Link
+            href="/report-typo"
+            className="p-6 rounded-2xl bg-surface/60 border border-white/10 hover:border-amber-500/50 backdrop-blur-xl transition-all group flex items-start justify-between"
+          >
+            <div>
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center mb-3">
+                <MessageSquare className="w-5 h-5" />
+              </div>
+              <h4 className="font-bold text-white text-sm mb-1 group-hover:text-amber-400 transition-colors">
+                Temukan Typo Chord atau Lirik?
+              </h4>
+              <p className="text-xs text-slate-400">
+                Bantu tingkatkan akurasi lagu dengan melaporkan kesalahan penulisan chord.
+              </p>
+            </div>
+            <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-amber-400 group-hover:translate-x-1 transition-all flex-shrink-0 mt-1" />
+          </Link>
+
+          <Link
+            href="/request"
+            className="p-6 rounded-2xl bg-surface/60 border border-white/10 hover:border-primary/50 backdrop-blur-xl transition-all group flex items-start justify-between"
+          >
+            <div>
+              <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/30 text-primary flex items-center justify-center mb-3">
+                <Music2 className="w-5 h-5" />
+              </div>
+              <h4 className="font-bold text-white text-sm mb-1 group-hover:text-primary-light transition-colors">
+                Ingin Menambahkan Lagu Baru?
+              </h4>
+              <p className="text-xs text-slate-400">
+                Kirimkan request judul lagu & artis agar segera ditambahkan ke sistem.
+              </p>
+            </div>
+            <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-primary-light group-hover:translate-x-1 transition-all flex-shrink-0 mt-1" />
+          </Link>
+        </section>
+      </main>
     </div>
   );
 }

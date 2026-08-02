@@ -1,7 +1,6 @@
 import React from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import { FileText, UserCheck, AlertTriangle, Copyright, RefreshCw, ArrowLeft } from "lucide-react";
 
 export const metadata = {
@@ -100,8 +99,6 @@ export default function TermsPage() {
           </section>
         </div>
       </main>
-
-      <Footer />
     </div>
   );
 }

@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import { 
   Users, Search, Sparkles, Music, ArrowRight, ChevronRight, Filter 
 } from "lucide-react";
@@ -259,8 +258,6 @@ export default function ArtistsPage() {
           </div>
         )}
       </main>
-
-      <Footer />
     </div>
   );
 }

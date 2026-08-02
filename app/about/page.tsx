@@ -1,7 +1,6 @@
 import React from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import { 
   Sparkles, Music2, Cpu, Sliders, Layers, Users, 
   ArrowRight, ShieldCheck, Zap, Heart, Award
@@ -167,8 +166,6 @@ export default function AboutPage() {
           </div>
         </section>
       </main>
-
-      <Footer />
     </div>
   );
 }

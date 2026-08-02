@@ -3,7 +3,6 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import { 
   Sparkles, Sliders, Layers, Volume2, Smartphone, Play, 
   ArrowRight, ShieldCheck, Zap, Music, BookOpen, CheckCircle2,
@@ -210,8 +209,6 @@ export default function FeaturesPage() {
           </Link>
         </section>
       </main>
-
-      <Footer />
     </div>
   );
 }

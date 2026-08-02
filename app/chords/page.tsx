@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import { 
   Sparkles, Volume2, ChevronLeft, ChevronRight, Search, 
   Music, ArrowRight, Layers, Sliders, Info, BookOpen
@@ -543,8 +542,6 @@ export default function ChordsDictionaryPage() {
         </section>
 
       </main>
-
-      <Footer />
     </div>
   );
 }

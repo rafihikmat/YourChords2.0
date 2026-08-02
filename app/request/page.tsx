@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import { 
   Music, Send, Sparkles, Flame, CheckCircle2, AlertCircle, ArrowLeft, 
   Search, FileText, HeartHandshake, ShieldCheck, HelpCircle 
@@ -285,8 +284,6 @@ export default function SongRequestPage() {
 
         </div>
       </main>
-
-      <Footer />
     </div>
   );
 }

@@ -70,9 +70,9 @@ export default function ChordCorrectionModal({
       });
 
       if (!res.success) {
-        setError(res.error || res.message || "Gagal menyimpan usulan perbaikan ke database.");
+        setError(res.error || "Gagal menyimpan usulan perbaikan ke database.");
       } else {
-        setSuccessMsg(res.message || "✨ Usulan perbaikan berhasil dikirim ke Admin!");
+        setSuccessMsg("✨ Usulan perbaikan berhasil dikirim ke Admin!");
         setReason("");
         setTimeout(() => {
           setSuccessMsg(null);
