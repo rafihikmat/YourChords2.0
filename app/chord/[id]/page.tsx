@@ -1,7 +1,9 @@
 import React from "react";
-import { fetchSongById, incrementSongView } from "@/lib/supabase";
+import { getSongById, getRelatedSongs, incrementSongView } from "@/lib/supabase";
+import { getSongRatingStats, getSongDifficultyStats } from "@/lib/ratings";
 import { Metadata, ResolvingMetadata } from "next";
 import ChordClientDetail from "@/components/ChordClientDetail";
+import { notFound } from "next/navigation";
 
 type Props = {
   params: Promise<{ id: string }> | { id: string };
@@ -15,7 +17,7 @@ export async function generateMetadata(
   const resolvedParams = await props.params;
   const id = resolvedParams.id;
 
-  const songData = await fetchSongById(id);
+  const songData = await getSongById(id);
 
   if (!songData) {
     return {
@@ -53,26 +55,37 @@ export async function generateMetadata(
   };
 }
 
-// --- Data Fetching murni dari Supabase DB (SSR) ---
-export default async function ChordDetailPage(props: Props) {
+// --- Data Fetching dengan PARALLEL FETCHING (Promise.all) ---
+export default async function SongDetailPage(props: Props) {
   const resolvedParams = await props.params;
   const songId = resolvedParams.id;
 
-  const songData = await fetchSongById(songId);
+  // 1. Ambil data utama lagu
+  const songData = await getSongById(songId);
 
   if (!songData) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center text-center p-4">
-        <h2 className="text-2xl font-bold text-red-400 mb-2">Terjadi Kesalahan / 404</h2>
-        <p className="text-slate-300 max-w-md">Data chord tidak dapat ditarik dari database server.</p>
-      </div>
-    );
+    notFound();
   }
 
-  // Increment view count in fire-and-forget style
+  // 2. Ambil data pendukung (rating stats, difficulty stats, related songs) secara PARALEL sekaligus!
+  const [ratingStats, difficultyStats, relatedSongs] = await Promise.all([
+    getSongRatingStats(songId),
+    getSongDifficultyStats(songId),
+    getRelatedSongs(songData.artist, songId)
+  ]);
+
+  // Fire and forget view increment
   incrementSongView(songId, songData.views || 0);
 
   return (
-    <ChordClientDetail data={songData as any} />
+    <main className="min-h-screen bg-slate-950 text-slate-100">
+      <ChordClientDetail 
+        song={songData as any}
+        data={songData as any}
+        ratingStats={ratingStats}
+        difficultyStats={difficultyStats}
+        relatedSongs={relatedSongs}
+      />
+    </main>
   );
 }

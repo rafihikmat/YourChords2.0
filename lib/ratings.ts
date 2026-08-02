@@ -100,6 +100,8 @@ export async function getSongRating(songId: string, userId?: string): Promise<So
   }
 }
 
+export const getSongRatingStats = getSongRating;
+
 /**
  * Submit or update a star rating in Supabase using upsert.
  */

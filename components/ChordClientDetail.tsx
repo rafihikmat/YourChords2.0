@@ -38,7 +38,16 @@ type ChordData = {
   key?: string | null;
 };
 
-export default function ChordClientDetail({ data }: { data: ChordData }) {
+type ChordClientDetailProps = {
+  data?: ChordData;
+  song?: ChordData;
+  ratingStats?: any;
+  difficultyStats?: any;
+  relatedSongs?: any[];
+};
+
+export default function ChordClientDetail(props: ChordClientDetailProps) {
+  const data = props.song || props.data!;
   const { user } = useAuth();
 
   const [transpose, setTranspose] = useState(0);
