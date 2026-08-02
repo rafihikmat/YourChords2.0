@@ -2,15 +2,17 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import Navbar from "@/components/Navbar";
 import { 
   Sparkles, Volume2, ChevronLeft, ChevronRight, Search, 
-  Music, ArrowRight, Layers, Sliders, Info, BookOpen
+  Music, ArrowRight, Layers, Sliders, BookOpen, Guitar
 } from "lucide-react";
 import { getChordPositions, ChordPosition } from "@/lib/chordDb";
 import { supabase, normalizeSong } from "@/lib/supabase";
 import { Song } from "@/lib/types";
 import { INITIAL_FALLBACK_CHORDS } from "@/lib/fallbackData";
+import CyberButton from "@/components/ui/CyberButton";
+import CyberCard from "@/components/ui/CyberCard";
+import CyberBadge from "@/components/ui/CyberBadge";
 
 export default function ChordsDictionaryPage() {
   const [selectedRoot, setSelectedRoot] = useState<string>("C");
@@ -21,12 +23,14 @@ export default function ChordsDictionaryPage() {
   const [songsUsingChord, setSongsUsingChord] = useState<Song[]>([]);
   const [loadingSongs, setLoadingSongs] = useState<boolean>(true);
 
+  // Filter tabs for root keys [C, D, E, F, G, A, B] + Sharps
   const roots = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
   
+  // Quick variations [ Major, Minor, 7th, maj7, m7, sus2, sus4, dim, aug, add9 ]
   const qualities = [
     { label: "Major", suffix: "" },
     { label: "Minor", suffix: "m" },
-    { label: "7", suffix: "7" },
+    { label: "7th", suffix: "7" },
     { label: "maj7", suffix: "maj7" },
     { label: "m7", suffix: "m7" },
     { label: "sus2", suffix: "sus2" },
@@ -34,24 +38,18 @@ export default function ChordsDictionaryPage() {
     { label: "dim", suffix: "dim" },
     { label: "aug", suffix: "aug" },
     { label: "add9", suffix: "add9" },
-    { label: "9", suffix: "9" },
-    { label: "11", suffix: "11" },
-    { label: "13", suffix: "13" }
   ];
 
   const currentChordName = `${selectedRoot}${selectedSuffix}`;
 
-  // Reset variation index when root or suffix changes
   useEffect(() => {
     setCurrentIndex(0);
   }, [selectedRoot, selectedSuffix]);
 
-  // Fetch songs using current chord
   useEffect(() => {
     async function fetchSongsForChord() {
       setLoadingSongs(true);
       try {
-        // Query Supabase for songs containing this chord in chords or content
         const { data, error } = await supabase
           .from("songs")
           .select("*, albums(cover_url)")
@@ -62,7 +60,6 @@ export default function ChordsDictionaryPage() {
         if (!error && data && data.length > 0) {
           setSongsUsingChord(data.map(normalizeSong));
         } else {
-          // Fallback search from INITIAL_FALLBACK_CHORDS
           const filteredFallback = INITIAL_FALLBACK_CHORDS.filter(s => {
             const txt = typeof s.chords === "string" ? s.chords : s.content || "";
             return txt.includes(currentChordName);
@@ -71,7 +68,6 @@ export default function ChordsDictionaryPage() {
           if (filteredFallback.length > 0) {
             setSongsUsingChord(filteredFallback);
           } else {
-            // General fallback
             setSongsUsingChord(INITIAL_FALLBACK_CHORDS.slice(0, 4));
           }
         }
@@ -101,7 +97,6 @@ export default function ChordsDictionaryPage() {
   const stringGap = 30;
   const fretGap = 45;
 
-  // Audio Synthesizer (Web Audio API)
   const handlePlayChord = () => {
     if (typeof window === "undefined") return;
     try {
@@ -142,48 +137,46 @@ export default function ChordsDictionaryPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col font-sans selection:bg-primary selection:text-white">
-      <Navbar />
+    <div className="min-h-screen bg-slate-950 text-slate-100 pt-20 pb-24 px-4 sm:px-6 lg:px-12 selection:bg-purple-600 selection:text-white">
+      <div className="max-w-7xl mx-auto space-y-8">
 
-      <main className="flex-1 pt-24 pb-16 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto w-full">
         {/* HERO BANNER SECTION */}
-        <section className="relative rounded-3xl p-8 md:p-12 border border-primary/30 bg-surface/80 backdrop-blur-2xl overflow-hidden shadow-[0_0_50px_rgba(168,85,247,0.15)] mb-10 text-center">
-          <div className="absolute -top-24 -left-24 w-72 h-72 bg-primary/20 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-24 -right-24 w-72 h-72 bg-violet-600/20 rounded-full blur-3xl pointer-events-none" />
+        <CyberCard variant="glowing" padding="lg" className="text-center relative overflow-hidden">
+          <div className="absolute -top-24 -left-24 w-72 h-72 bg-purple-600/20 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-24 -right-24 w-72 h-72 bg-cyan-600/20 rounded-full blur-3xl pointer-events-none" />
 
-          <div className="relative z-10 max-w-3xl mx-auto flex flex-col items-center gap-3">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary/10 border border-primary/30 text-primary-light text-xs font-mono font-bold mb-2 shadow-[0_0_15px_rgba(168,85,247,0.3)]">
-              <BookOpen className="w-3.5 h-3.5 animate-pulse text-amber-400" />
-              <span>INTERACTIVE GUITAR CHORD DICTIONARY</span>
-            </div>
+          <div className="relative z-10 max-w-3xl mx-auto space-y-4">
+            <CyberBadge variant="amber" icon={<BookOpen className="w-3.5 h-3.5 text-amber-400" />}>
+              Interaktif Kamus Chord
+            </CyberBadge>
 
-            <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-white">
-              Kamus Chord Gitar & <span className="text-primary neon-text">Variasi Fretboard</span>
+            <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-white">
+              Kamus Chord Gitar & <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-cyan-300 to-indigo-400">Variasi Fretboard</span>
             </h1>
 
-            <p className="text-slate-300 text-xs sm:text-sm leading-relaxed max-w-2xl">
-              Pelajari seluruh bentuk kunci gitar dari dasar hingga tingkat lanjut lengkap dengan variasi posisi fret, bentuk jari, dan simulasi audio genjreng.
+            <p className="text-slate-300 text-xs sm:text-sm leading-relaxed max-w-2xl mx-auto">
+              Pelajari bentuk kunci gitar dari dasar hingga tingkat lanjut lengkap dengan variasi posisi fret, posisi jari, dan audio genjreng interaktif.
             </p>
           </div>
-        </section>
+        </CyberCard>
 
         {/* MAIN SELECTOR & VISUALIZER GRID */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
           {/* LEFT: INTERACTIVE SELECTORS (7 COLS) */}
-          <div className="lg:col-span-7 flex flex-col gap-6">
-            <div className="bg-surface/80 border border-white/10 rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-2xl flex flex-col gap-6">
+          <div className="lg:col-span-7 space-y-6">
+            <CyberCard variant="default" padding="lg" className="space-y-6">
               
-              {/* BARIS 1 - ROOT NOTE PICKER */}
-              <div className="flex flex-col gap-3">
+              {/* TAB 1 - ROOT KEYS */}
+              <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                    <Sliders className="w-4 h-4 text-primary" />
-                    <span>1. Pilih Nada Dasar (Root Note)</span>
+                    <Sliders className="w-4 h-4 text-purple-400" />
+                    <span>1. Pilih Nada Dasar (Root Key)</span>
                   </label>
-                  <span className="text-xs font-mono font-bold text-primary bg-primary/10 border border-primary/30 px-2.5 py-0.5 rounded-full">
-                    {selectedRoot}
-                  </span>
+                  <CyberBadge variant="purple" size="sm">
+                    Root: {selectedRoot}
+                  </CyberBadge>
                 </div>
 
                 <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
@@ -195,8 +188,8 @@ export default function ChordsDictionaryPage() {
                         onClick={() => setSelectedRoot(root)}
                         className={`py-3 rounded-xl font-mono text-sm font-black transition-all cursor-pointer ${
                           isSelected
-                            ? "bg-primary text-white shadow-[0_0_20px_rgba(168,85,247,0.5)] border border-primary-light scale-105"
-                            : "bg-black/60 border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white"
+                            ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-glow-sm border border-purple-400/50 scale-105"
+                            : "bg-slate-950/80 border border-purple-500/20 text-slate-300 hover:border-purple-500/50 hover:text-white"
                         }`}
                       >
                         {root}
@@ -206,19 +199,19 @@ export default function ChordsDictionaryPage() {
                 </div>
               </div>
 
-              {/* BARIS 2 - QUALITY / EXTENSION PICKER */}
-              <div className="flex flex-col gap-3 pt-4 border-t border-white/10">
+              {/* TAB 2 - QUALITIES / VARIATIONS */}
+              <div className="space-y-3 pt-4 border-t border-purple-500/15">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
                     <Layers className="w-4 h-4 text-amber-400" />
-                    <span>2. Pilih Kualitas / Ekstensi Chord</span>
+                    <span>2. Pilih Variasi Chord</span>
                   </label>
-                  <span className="text-xs font-mono font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2.5 py-0.5 rounded-full">
+                  <CyberBadge variant="amber" size="sm">
                     {currentChordName}
-                  </span>
+                  </CyberBadge>
                 </div>
 
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                   {qualities.map((q) => {
                     const isSelected = selectedSuffix === q.suffix;
                     return (
@@ -227,12 +220,12 @@ export default function ChordsDictionaryPage() {
                         onClick={() => setSelectedSuffix(q.suffix)}
                         className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center cursor-pointer ${
                           isSelected
-                            ? "bg-amber-500 text-slate-950 font-black shadow-[0_0_20px_rgba(245,158,11,0.4)] border border-amber-300 scale-105"
-                            : "bg-black/60 border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white"
+                            ? "bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-black shadow-[0_0_15px_rgba(245,158,11,0.4)] border border-amber-300 scale-105"
+                            : "bg-slate-950/80 border border-purple-500/20 text-slate-300 hover:border-amber-500/40 hover:text-white"
                         }`}
                       >
                         <span className="font-mono text-sm">{q.label}</span>
-                        <span className="text-[10px] opacity-70 font-mono">
+                        <span className="text-[10px] opacity-80 font-mono">
                           {selectedRoot}{q.suffix}
                         </span>
                       </button>
@@ -241,44 +234,39 @@ export default function ChordsDictionaryPage() {
                 </div>
               </div>
 
-            </div>
+            </CyberCard>
           </div>
 
           {/* RIGHT: INTERACTIVE FRETBOARD VISUALIZER (5 COLS) */}
-          <div className="lg:col-span-5 flex flex-col gap-6">
-            <div className="bg-surface/90 border border-primary/30 rounded-3xl p-6 backdrop-blur-2xl shadow-[0_0_40px_rgba(168,85,247,0.2)] flex flex-col items-center relative overflow-hidden">
-              
-              {/* Background Glow */}
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-32 bg-primary/20 blur-3xl pointer-events-none rounded-full" />
+          <div className="lg:col-span-5 space-y-6">
+            <CyberCard variant="glowing" padding="md" className="flex flex-col items-center text-center relative overflow-hidden">
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-32 bg-purple-600/20 blur-3xl pointer-events-none rounded-full" />
 
-              {/* Chord Header Info */}
-              <div className="text-center mb-4 relative z-10">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary/10 border border-primary/30 rounded-full text-[10px] font-bold text-primary tracking-widest uppercase mb-2">
-                  <Sparkles className="w-3 h-3 text-amber-400" />
-                  <span>Interactive Fretboard</span>
-                </div>
+              <div className="space-y-1 mb-4 relative z-10">
+                <CyberBadge variant="purple" size="sm" icon={<Sparkles className="w-3 h-3 text-amber-400" />}>
+                  Interactive Fretboard
+                </CyberBadge>
 
-                <h2 className="text-4xl font-black text-white tracking-tight font-mono neon-text mb-1">
+                <h2 className="text-4xl font-black text-white tracking-tight font-mono text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-cyan-300 to-indigo-400">
                   {currentChordName}
                 </h2>
 
                 {position.chordType && (
-                  <span className="text-xs font-mono font-bold bg-white/5 border border-white/10 text-slate-300 px-3 py-1 rounded-full inline-block">
+                  <p className="text-xs font-mono font-semibold text-slate-400">
                     {position.chordType}
-                  </span>
+                  </p>
                 )}
               </div>
 
               {/* SVG FRETBOARD */}
-              <div className="flex flex-col items-center bg-black/70 p-5 rounded-2xl border border-white/15 relative shadow-inner w-full max-w-xs">
+              <div className="flex flex-col items-center bg-slate-950/90 p-5 rounded-2xl border border-purple-500/30 relative shadow-inner w-full max-w-xs">
                 <svg width="250" height="270" viewBox="0 0 250 270" className="select-none">
                   
-                  {/* Base Fret Label */}
                   {position.baseFret > 1 && (
                     <text
                       x="12"
                       y={startY + 25}
-                      fill="#8B5CF6"
+                      fill="#A855F7"
                       fontSize="14"
                       fontWeight="900"
                       fontFamily="monospace"
@@ -287,7 +275,6 @@ export default function ChordsDictionaryPage() {
                     </text>
                   )}
 
-                  {/* Nut Line */}
                   <line
                     x1={startX}
                     y1={startY}
@@ -298,7 +285,6 @@ export default function ChordsDictionaryPage() {
                     strokeLinecap="round"
                   />
 
-                  {/* Fret Lines */}
                   {Array.from({ length: numFrets }).map((_, i) => {
                     const y = startY + (i + 1) * fretGap;
                     return (
@@ -314,7 +300,6 @@ export default function ChordsDictionaryPage() {
                     );
                   })}
 
-                  {/* String Lines */}
                   {Array.from({ length: numStrings }).map((_, i) => {
                     const x = startX + i * stringGap;
                     return (
@@ -330,7 +315,6 @@ export default function ChordsDictionaryPage() {
                     );
                   })}
 
-                  {/* Barres */}
                   {position.barres && position.barres.map((barreFret, idx) => {
                     const fretIndex = barreFret - position.baseFret + 1;
                     if (fretIndex >= 1 && fretIndex <= numFrets) {
@@ -351,7 +335,6 @@ export default function ChordsDictionaryPage() {
                     return null;
                   })}
 
-                  {/* Muted X or Open O */}
                   {position.frets.map((fret, i) => {
                     const x = startX + i * stringGap;
                     if (fret === -1) {
@@ -384,7 +367,6 @@ export default function ChordsDictionaryPage() {
                     return null;
                   })}
 
-                  {/* Finger Dots & Numbers */}
                   {position.frets.map((fret, i) => {
                     if (typeof fret === "number" && fret > 0) {
                       const fretIndex = fret - position.baseFret + 1;
@@ -403,7 +385,6 @@ export default function ChordsDictionaryPage() {
                               fill="#8B5CF6"
                               stroke="#FFFFFF"
                               strokeWidth="2"
-                              className="drop-shadow-[0_0_10px_rgba(139,92,246,0.9)]"
                             />
                             {hasFinger && (
                               <text
@@ -424,7 +405,6 @@ export default function ChordsDictionaryPage() {
                     return null;
                   })}
 
-                  {/* String Labels */}
                   {stringNames.map((str, i) => (
                     <text
                       key={`label-${i}`}
@@ -443,105 +423,101 @@ export default function ChordsDictionaryPage() {
               </div>
 
               {/* VARIATION NAVIGATION CONTROL */}
-              <div className="flex items-center justify-between w-full max-w-[250px] mx-auto my-3 px-4 py-2 bg-black/80 border border-white/10 rounded-xl">
+              <div className="flex items-center justify-between w-full max-w-[250px] my-3 px-4 py-2 bg-slate-950 border border-purple-500/30 rounded-xl">
                 <button
                   onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
                   disabled={currentIndex === 0}
                   className="p-1 text-slate-300 hover:text-white disabled:opacity-30 transition-all cursor-pointer disabled:cursor-not-allowed"
-                  title="Variasi Kunci Sebelumnya"
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </button>
 
-                <span className="text-xs font-mono font-bold text-primary tracking-wider">
-                  &lt; {currentIndex + 1} of {positions.length} &gt;
+                <span className="text-xs font-mono font-bold text-cyan-400 tracking-wider">
+                  Variasi {currentIndex + 1} / {positions.length}
                 </span>
 
                 <button
                   onClick={() => setCurrentIndex((prev) => Math.min(positions.length - 1, prev + 1))}
                   disabled={currentIndex === positions.length - 1}
                   className="p-1 text-slate-300 hover:text-white disabled:opacity-30 transition-all cursor-pointer disabled:cursor-not-allowed"
-                  title="Variasi Kunci Berikutnya"
                 >
                   <ChevronRight className="w-5 h-5" />
                 </button>
               </div>
 
-              {/* STRUM AUDIO BUTTON */}
-              <button
+              {/* AUDIO BUTTON */}
+              <CyberButton
+                variant="cyan"
+                size="md"
                 onClick={handlePlayChord}
-                disabled={isPlaying}
-                className="w-full max-w-[250px] flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-primary to-violet-600 hover:from-primary-light hover:to-violet-500 text-white font-bold rounded-xl shadow-[0_0_20px_rgba(168,85,247,0.4)] hover:shadow-[0_0_30px_rgba(168,85,247,0.6)] transition-all cursor-pointer disabled:opacity-50 text-xs uppercase tracking-wider"
+                isLoading={isPlaying}
+                leftIcon={<Volume2 className="w-4 h-4" />}
+                className="w-full max-w-[250px]"
               >
-                <Volume2 className={`w-4 h-4 ${isPlaying ? "animate-bounce text-amber-300" : ""}`} />
-                <span>{isPlaying ? "Memutar Audio..." : "🔊 Genjreng Sound Kunci"}</span>
-              </button>
+                {isPlaying ? "Memutar Audio..." : "Genjreng Audio Chord"}
+              </CyberButton>
 
-            </div>
+            </CyberCard>
           </div>
 
         </div>
 
         {/* SONGS USING THIS CHORD SECTION */}
-        <section className="bg-surface/60 border border-white/10 rounded-3xl p-6 sm:p-8 backdrop-blur-xl">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-white/10">
+        <CyberCard variant="default" padding="lg" className="space-y-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-purple-500/15">
             <div>
               <h3 className="text-lg font-black text-white tracking-tight flex items-center gap-2">
-                <Music className="w-5 h-5 text-primary" />
-                <span>Lagu Populer Dengan Chord <strong className="text-primary font-mono">{currentChordName}</strong></span>
+                <Music className="w-5 h-5 text-purple-400" />
+                <span>Lagu Populer Dengan Chord <strong className="text-cyan-400 font-mono">{currentChordName}</strong></span>
               </h3>
-              <p className="text-xs text-slate-400">Pilihan lagu favorit yang menggunakan kunci {currentChordName} dalam progresinya</p>
+              <p className="text-xs text-slate-400">Pilihan lagu yang menggunakan kunci {currentChordName} dalam progresinya</p>
             </div>
 
-            <Link
-              href={`/search?q=${encodeURIComponent(currentChordName)}`}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-primary/20 hover:bg-primary/30 text-primary border border-primary/40 rounded-xl text-xs font-bold transition-all hover:scale-105"
-            >
-              <Search className="w-3.5 h-3.5" />
-              <span>Cari Lagu Lain dengan Chord Ini</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+            <Link href={`/search?q=${encodeURIComponent(currentChordName)}`}>
+              <CyberButton variant="outline" size="sm" rightIcon={<ArrowRight className="w-3.5 h-3.5" />}>
+                Cari Lebih Banyak
+              </CyberButton>
             </Link>
           </div>
 
           {loadingSongs ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {[1, 2, 3].map((n) => (
-                <div key={n} className="h-20 bg-white/5 rounded-2xl animate-pulse border border-white/5" />
+                <div key={n} className="h-20 bg-slate-900/50 rounded-2xl animate-pulse border border-purple-500/10" />
               ))}
             </div>
           ) : songsUsingChord.length === 0 ? (
             <div className="text-center py-8 text-slate-400 text-xs">
-              Belum ada lagu spesifik dengan chord ini di rekomendasi langsung.
+              Belum ada lagu rekomendasi khusus untuk chord ini.
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {songsUsingChord.map((song) => (
-                <Link
-                  key={song.id}
-                  href={`/song/${song.id}`}
-                  className="flex items-center gap-3 p-3 bg-black/60 hover:bg-surface border border-white/10 hover:border-primary/50 rounded-2xl transition-all group"
-                >
-                  <img
-                    src={song.cover_url || "https://images.unsplash.com/photo-1511192336575-5a79af67a629?q=80&w=200&h=200&auto=format&fit=crop"}
-                    alt={song.title}
-                    className="w-12 h-12 rounded-xl object-cover border border-white/10 group-hover:border-primary/40 transition-colors"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-xs font-bold text-white group-hover:text-primary transition-colors truncate">
-                      {song.title}
-                    </h4>
-                    <p className="text-[11px] text-slate-400 truncate">
-                      {song.artist}
-                    </p>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-primary group-hover:translate-x-1 transition-all flex-shrink-0" />
+                <Link key={song.id} href={`/chord/${song.id}`}>
+                  <CyberCard variant="interactive" padding="sm" className="flex items-center gap-3 group">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={song.cover_url || "https://images.unsplash.com/photo-1511192336575-5a79af67a629?q=80&w=200&h=200&auto=format&fit=crop"}
+                      alt={song.title}
+                      className="w-12 h-12 rounded-xl object-cover border border-purple-500/20 group-hover:border-cyan-400 transition-colors shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-xs font-bold text-white group-hover:text-cyan-300 transition-colors truncate">
+                        {song.title}
+                      </h4>
+                      <p className="text-[11px] text-slate-400 truncate font-medium">
+                        {song.artist}
+                      </p>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-cyan-400 group-hover:translate-x-1 transition-all shrink-0" />
+                  </CyberCard>
                 </Link>
               ))}
             </div>
           )}
-        </section>
+        </CyberCard>
 
-      </main>
+      </div>
     </div>
   );
 }
