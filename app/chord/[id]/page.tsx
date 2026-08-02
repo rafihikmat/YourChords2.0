@@ -5,6 +5,8 @@ import { Metadata, ResolvingMetadata } from "next";
 import ChordClientDetail from "@/components/ChordClientDetail";
 import { notFound } from "next/navigation";
 
+export const revalidate = 60; // ISR Cache 60 Seconds
+
 type Props = {
   params: Promise<{ id: string }> | { id: string };
 };
@@ -55,24 +57,22 @@ export async function generateMetadata(
   };
 }
 
-// --- Data Fetching dengan PARALLEL FETCHING (Promise.all) ---
+// --- Data Fetching dengan TRUE 1-PASS PARALLEL FETCHING (Promise.all) ---
 export default async function SongDetailPage(props: Props) {
   const resolvedParams = await props.params;
   const songId = resolvedParams.id;
 
-  // 1. Ambil data utama lagu
-  const songData = await getSongById(songId);
+  // TRUE 1-PASS PARALLEL: Eksekusi 4 query bersamaan dalam 1 gelombang!
+  const [songData, ratingStats, difficultyStats, relatedSongs] = await Promise.all([
+    getSongById(songId),
+    getSongRatingStats(songId),
+    getSongDifficultyStats(songId),
+    getRelatedSongs(songId)
+  ]);
 
   if (!songData) {
     notFound();
   }
-
-  // 2. Ambil data pendukung (rating stats, difficulty stats, related songs) secara PARALEL sekaligus!
-  const [ratingStats, difficultyStats, relatedSongs] = await Promise.all([
-    getSongRatingStats(songId),
-    getSongDifficultyStats(songId),
-    getRelatedSongs(songData.artist, songId)
-  ]);
 
   // Fire and forget view increment
   incrementSongView(songId, songData.views || 0);

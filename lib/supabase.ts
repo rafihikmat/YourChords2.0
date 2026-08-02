@@ -173,15 +173,33 @@ export async function fetchSongById(id: string): Promise<Song | null> {
 }
 
 export const getSongById = fetchSongById;
+export const getTopSongs = getTrendingSongs;
+export const getNewReleases = getLatestSongs;
 
-export async function getRelatedSongs(artist: string, currentSongId: string, limit = 5): Promise<Song[]> {
+export async function getPopularArtists(limit = 10) {
   try {
+    const { data, error } = await supabase
+      .from('artists')
+      .select('*')
+      .limit(limit);
+    if (!error && data) return data;
+  } catch (err) {
+    console.warn('[GET POPULAR ARTISTS WARN]:', err);
+  }
+  return [];
+}
+
+export async function getRelatedSongs(artistOrSongId: string, currentSongId?: string, limit = 5): Promise<Song[]> {
+  try {
+    let artist = currentSongId ? artistOrSongId : '';
+    let songId = currentSongId ? currentSongId : artistOrSongId;
+
     if (artist) {
       const { data, error } = await supabase
         .from('songs')
         .select('*, albums(cover_url)')
         .ilike('artist', `%${artist}%`)
-        .neq('id', currentSongId)
+        .neq('id', songId)
         .limit(limit);
 
       if (!error && data && data.length > 0) {
@@ -192,7 +210,7 @@ export async function getRelatedSongs(artist: string, currentSongId: string, lim
     const { data, error } = await supabase
       .from('songs')
       .select('*, albums(cover_url)')
-      .neq('id', currentSongId)
+      .neq('id', songId)
       .order('view_count', { ascending: false, nullsFirst: false })
       .limit(limit);
 
