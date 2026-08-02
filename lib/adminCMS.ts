@@ -197,3 +197,52 @@ export async function updateSongDetails(
     return { success: false, error: err?.message || 'Terjadi kesalahan saat mengupdate lagu.' };
   }
 }
+
+export interface SiteCMSContent {
+  heroTitle: string;
+  heroSubtitle: string;
+  footerSlogan: string;
+  announcementText: string;
+  aboutDescription: string;
+}
+
+export const DEFAULT_CMS_CONTENT: SiteCMSContent = {
+  heroTitle: "Belajar & Mainkan Chord Lagu Favoritmu Tanpa Batas",
+  heroSubtitle: "Platform musik AI-Powered terdepan untuk musisi Indonesia.",
+  footerSlogan: "Belajar, latih, dan mainkan ribuan chord & lirik lagu favoritmu secara real-time.",
+  announcementText: "🔥 Nikmati fitur Smart Transposer & Interactive Fretboard 3D terbaru!",
+  aboutDescription: "YourChords 2.0 adalah platform edukasi dan latihan musik terlengkap di Indonesia."
+};
+
+export async function getSiteCMSContent(): Promise<SiteCMSContent> {
+  try {
+    const { data, error } = await supabase
+      .from('page_content')
+      .select('content')
+      .eq('id', 'global_settings')
+      .maybeSingle();
+
+    if (error || !data || !data.content) return DEFAULT_CMS_CONTENT;
+    return { ...DEFAULT_CMS_CONTENT, ...data.content };
+  } catch (err) {
+    return DEFAULT_CMS_CONTENT;
+  }
+}
+
+export async function updateSiteCMSContent(content: SiteCMSContent) {
+  try {
+    const { data, error } = await supabase
+      .from('page_content')
+      .upsert({
+        id: 'global_settings',
+        content,
+        updated_at: new Date().toISOString()
+      });
+
+    if (error) throw new Error(error.message);
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Gagal memperbarui CMS.' };
+  }
+}
+

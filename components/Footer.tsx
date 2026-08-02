@@ -1,10 +1,27 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Music, Sparkles, Shield, HelpCircle, FileText, Settings, Heart } from "lucide-react";
+import { getSiteCMSContent } from "@/lib/adminCMS";
 
 export default function Footer() {
+  const [footerSlogan, setFooterSlogan] = useState<string>(
+    "Belajar, latih, dan mainkan ribuan chord & lirik lagu favoritmu secara real-time. Platform musik AI-Powered terdepan untuk musisi Indonesia."
+  );
+
+  useEffect(() => {
+    getSiteCMSContent()
+      .then((cms) => {
+        if (cms?.footerSlogan) {
+          setFooterSlogan(cms.footerSlogan);
+        }
+      })
+      .catch((err) => {
+        console.warn("[CMS FOOTER FETCH ERROR]:", err);
+      });
+  }, []);
+
   return (
     <footer className="no-print border-t border-slate-800/80 bg-slate-950/90 backdrop-blur-md text-slate-300 relative z-10">
       <div className="max-w-[1400px] mx-auto px-6 py-12">
@@ -28,8 +45,9 @@ export default function Footer() {
             </Link>
 
             <p className="text-xs text-slate-400 leading-relaxed max-w-sm font-medium">
-              Belajar, latih, dan mainkan ribuan chord & lirik lagu favoritmu secara real-time. Platform musik AI-Powered terdepan untuk musisi Indonesia.
+              {footerSlogan}
             </p>
+
 
             {/* INTERACTIVE SOCIAL MEDIA ICONS */}
             <div className="pt-2 flex items-center gap-2.5">
