@@ -2,17 +2,20 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import Navbar from "@/components/Navbar";
 import { 
   AlertTriangle, Send, CheckCircle2, ArrowLeft, 
   Music, Mail, FileText, Sparkles, HelpCircle 
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { CyberInput } from "@/components/ui/CyberInput";
+import { CyberButton } from "@/components/ui/CyberButton";
+import { CyberCard } from "@/components/ui/CyberCard";
+import { CyberBadge } from "@/components/ui/CyberBadge";
 
 export default function ReportTypoPage() {
   const [songTitleArtist, setSongTitleArtist] = useState("");
-  const [issueType, setIssueType] = useState("Chord Salah");
-  const [details, setDetails] = useState("");
+  const [faultySection, setFaultySection] = useState("");
+  const [proposedFix, setProposedFix] = useState("");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [successToast, setSuccessToast] = useState<string | null>(null);
@@ -42,14 +45,6 @@ export default function ReportTypoPage() {
     }
   }, []);
 
-  const issueOptions = [
-    { value: "Chord Salah", label: "Chord Salah / Tidak Pas" },
-    { value: "Lirik Typo", label: "Lirik Typo / Salah Kata" },
-    { value: "Kunci Terlalu Sulit", label: "Kunci Terlalu Sulit (Butuh Versi Easy)" },
-    { value: "Video Tutorial Mati", label: "Video Tutorial / YouTube Mati" },
-    { value: "Lainnya", label: "Masalah Lainnya" },
-  ];
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSuccessToast(null);
@@ -60,12 +55,17 @@ export default function ReportTypoPage() {
       return;
     }
 
-    if (!details.trim()) {
-      setErrorMsg("Harap deskripsikan detail perbaikan yang diperlukan.");
+    if (!faultySection.trim() && !proposedFix.trim()) {
+      setErrorMsg("Harap deskripsikan bagian yang salah dan usulan perbaikan.");
       return;
     }
 
     setLoading(true);
+
+    const fullDetails = [
+      faultySection.trim() ? `[Bagian yang salah]: ${faultySection.trim()}` : "",
+      proposedFix.trim() ? `[Usulan perbaikan]: ${proposedFix.trim()}` : ""
+    ].filter(Boolean).join("\n\n");
 
     try {
       const res = await fetch("/api/report-typo", {
@@ -73,8 +73,8 @@ export default function ReportTypoPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           song_title_artist: songTitleArtist,
-          issue_type: issueType,
-          details: details,
+          issue_type: "Chord / Lirik Typo",
+          details: fullDetails,
           email: email,
         }),
       });
@@ -82,9 +82,10 @@ export default function ReportTypoPage() {
       const json = await res.json();
 
       if (json.success) {
-        setSuccessToast("Terimakasih! Laporan typo Anda telah diterima oleh Admin.");
+        setSuccessToast("Terimakasih! Laporan kesalahan chord Anda telah diterima oleh Admin.");
         setSongTitleArtist("");
-        setDetails("");
+        setFaultySection("");
+        setProposedFix("");
       } else {
         setErrorMsg(json.error || "Gagal mengirim laporan. Coba lagi nanti.");
       }
@@ -96,9 +97,7 @@ export default function ReportTypoPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col font-sans selection:bg-primary selection:text-white">
-      <Navbar />
-
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col font-sans selection:bg-purple-500/30 selection:text-white">
       <main className="flex-1 pt-24 pb-16 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto w-full">
         {/* HEADER */}
         <div className="mb-8">
@@ -126,7 +125,7 @@ export default function ReportTypoPage() {
 
         {/* NEON SUCCESS TOAST BANNER */}
         {successToast && (
-          <div className="mb-8 p-5 rounded-2xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-xs sm:text-sm font-bold flex items-center gap-3 shadow-[0_0_30px_rgba(16,185,129,0.25)] animate-fade-in">
+          <div className="mb-8 p-5 rounded-2xl bg-emerald-950/70 border border-emerald-500/50 text-emerald-300 text-xs sm:text-sm font-bold flex items-center gap-3 shadow-[0_0_30px_rgba(16,185,129,0.3)] animate-fade-in">
             <CheckCircle2 className="w-6 h-6 text-emerald-400 flex-shrink-0 animate-bounce" />
             <div className="leading-relaxed flex-1">{successToast}</div>
           </div>
@@ -134,107 +133,79 @@ export default function ReportTypoPage() {
 
         {/* ERROR MESSAGE BANNER */}
         {errorMsg && (
-          <div className="mb-8 p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs font-bold flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
+          <div className="mb-8 p-4 rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-300 text-xs font-bold flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0" />
             <span>{errorMsg}</span>
           </div>
         )}
 
         {/* FORM CARD CYBER-ZEN */}
-        <div className="bg-surface/80 border border-white/10 rounded-3xl p-6 sm:p-8 backdrop-blur-2xl shadow-2xl relative overflow-hidden">
-          {/* Ambient Glow */}
+        <CyberCard variant="glowing" padding="lg" className="relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-5 relative z-10">
             {/* Field 1: Song Title & Artist */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold text-slate-300 flex items-center gap-2">
-                <Music className="w-4 h-4 text-primary" />
-                <span>Judul Lagu & Nama Artis <span className="text-red-400">*</span></span>
-              </label>
-              <input
-                type="text"
-                value={songTitleArtist}
-                onChange={(e) => setSongTitleArtist(e.target.value)}
-                placeholder="Contoh: Sheila On 7 - Dan"
-                className="w-full bg-black/80 border border-white/15 focus:border-amber-400/70 rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:shadow-[0_0_20px_rgba(245,158,11,0.2)] text-xs sm:text-sm font-sans transition-all"
-                required
-              />
-            </div>
+            <CyberInput
+              label="Judul Lagu & Nama Artis *"
+              value={songTitleArtist}
+              onChange={(e) => setSongTitleArtist(e.target.value)}
+              placeholder="Contoh: Sheila On 7 - Dan"
+              icon={<Music className="w-4 h-4 text-purple-400" />}
+              required
+            />
 
-            {/* Field 2: Issue Type Dropdown */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold text-slate-300 flex items-center gap-2">
-                <FileText className="w-4 h-4 text-amber-400" />
-                <span>Jenis Kesalahan <span className="text-red-400">*</span></span>
-              </label>
-              <select
-                value={issueType}
-                onChange={(e) => setIssueType(e.target.value)}
-                className="w-full bg-black/80 border border-white/15 focus:border-amber-400/70 rounded-xl px-4 py-3 text-white focus:outline-none focus:shadow-[0_0_20px_rgba(245,158,11,0.2)] text-xs sm:text-sm font-sans cursor-pointer transition-all"
-              >
-                {issueOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value} className="bg-slate-900 text-white">
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* Field 2: Bagian yang Salah */}
+            <CyberInput
+              label="Bagian yang Salah *"
+              value={faultySection}
+              onChange={(e) => setFaultySection(e.target.value)}
+              placeholder="Contoh: Reff ke-2 baris ke-3, atau Verse 1 kata 'melangkah'"
+              icon={<AlertTriangle className="w-4 h-4 text-amber-400" />}
+              required
+            />
 
-            {/* Field 3: Issue Details */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold text-slate-300 flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-primary" />
-                <span>Detail Perbaikan <span className="text-red-400">*</span></span>
+            {/* Field 3: Usulan Perbaikan */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                <FileText className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Usulan Perbaikan / Detail Koreksi *</span>
               </label>
               <textarea
-                value={details}
-                onChange={(e) => setDetails(e.target.value)}
+                value={proposedFix}
+                onChange={(e) => setProposedFix(e.target.value)}
                 rows={4}
-                placeholder="Jelaskan bagian mana yang salah (misal: 'Bait ke-2 chord harusnya Am, bukan A' atau 'BaitReff typo kata melangkah')..."
-                className="w-full bg-black/80 border border-white/15 focus:border-amber-400/70 rounded-xl p-4 text-white placeholder-slate-600 focus:outline-none focus:shadow-[0_0_20px_rgba(245,158,11,0.2)] text-xs sm:text-sm font-sans transition-all leading-relaxed"
+                placeholder="Jelaskan kunci atau lirik yang benar (misal: 'Chord harusnya Am, bukan A' atau 'Lirik yang benar: Dan bila esok...')"
+                className="w-full bg-slate-950/70 text-slate-100 placeholder-slate-500 text-sm rounded-xl border border-purple-500/25 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 hover:border-purple-500/40 p-3.5 outline-none transition-all duration-200 leading-relaxed"
                 required
               />
             </div>
 
             {/* Field 4: Reporter Email */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <Mail className="w-4 h-4 text-slate-400" />
-                  <span>Email Pelapor</span>
-                </span>
-                <span className="text-[10px] text-slate-500 font-mono">(Opsional - Untuk kabar perbaikan)</span>
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="emailAnda@example.com"
-                className="w-full bg-black/80 border border-white/15 focus:border-amber-400/70 rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:shadow-[0_0_20px_rgba(245,158,11,0.2)] text-xs sm:text-sm font-sans transition-all"
-              />
-            </div>
+            <CyberInput
+              label="Email Pelapor (Opsional)"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="emailAnda@example.com"
+              icon={<Mail className="w-4 h-4 text-slate-400" />}
+              helperText="Opsional - Untuk menerima konfirmasi kabar perbaikan dari admin"
+            />
 
             {/* SUBMIT BUTTON */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="mt-2 w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black py-3.5 px-6 rounded-xl shadow-[0_0_25px_rgba(245,158,11,0.3)] hover:shadow-[0_0_35px_rgba(245,158,11,0.5)] transition-all disabled:opacity-40 disabled:cursor-not-allowed text-xs sm:text-sm uppercase tracking-wider cursor-pointer"
-            >
-              {loading ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
-                  <span>Mengirim Laporan...</span>
-                </div>
-              ) : (
-                <>
-                  <Send className="w-4 h-4" />
-                  <span>Kirim Laporan Perbaikan</span>
-                </>
-              )}
-            </button>
+            <div className="mt-2">
+              <CyberButton
+                type="submit"
+                variant="cyan"
+                size="lg"
+                isLoading={loading}
+                rightIcon={<Send className="w-4 h-4" />}
+                className="w-full"
+              >
+                Kirim Laporan Perbaikan
+              </CyberButton>
+            </div>
           </form>
-        </div>
+        </CyberCard>
       </main>
     </div>
   );
