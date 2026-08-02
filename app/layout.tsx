@@ -1,4 +1,5 @@
 import React from "react";
+import type { Metadata, Viewport } from 'next';
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -6,12 +7,25 @@ import { AuthProvider } from "@/lib/authContext";
 import OfflineGuard from "@/components/OfflineGuard";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 
-export const metadata = {
-  title: "YourChords 2.0 - Platform Chord & Lirik Gitar Cyber-Zen",
-  description:
-    "Platform Chord & Lirik Gitar AI-Powered Terdepan dengan Fitur Transpose, Auto-Scroll, dan Scraper Chordtela.",
+export const viewport: Viewport = {
+  themeColor: '#090d16',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+};
+
+export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
+  title: {
+    default: 'YourChords 2.0 - Platform Chord & Lirik Lagu Terlengkap',
+    template: '%s | YourChords 2.0'
+  },
+  description: 'Belajar, latih, dan mainkan ribuan chord & lirik lagu favoritmu secara real-time dengan Smart Transposer & Interactive Fretboard.',
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/apple-touch-icon.png'
+  },
   manifest: "/manifest.json",
-  themeColor: "#8b5cf6",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -49,3 +63,4 @@ export default function RootLayout({
     </html>
   );
 }
+
