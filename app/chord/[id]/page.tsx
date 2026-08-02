@@ -5,13 +5,13 @@ import { Metadata, ResolvingMetadata } from "next";
 import ChordClientDetail from "@/components/ChordClientDetail";
 import { notFound } from "next/navigation";
 
-export const revalidate = 60; // ISR Cache 60 Seconds
+export const revalidate = 60; // ISR Route Caching 60 Seconds
 
 type Props = {
   params: Promise<{ id: string }> | { id: string };
 };
 
-// --- Dynamic SEO (Meta Tags) ---
+// Dynamic SEO & Metadata Generation
 export async function generateMetadata(
   props: Props,
   parent: ResolvingMetadata
@@ -27,11 +27,9 @@ export async function generateMetadata(
     };
   }
 
-  // Ambil 120 karakter pertama lirik/chord untuk deskripsi snippet
-  const cleanText = (songData.content || "").replace(/[^a-zA-Z0-9\s]/g, '');
+  const cleanText = (songData.content || "").replace(/[^a-zA-Z0-9\s]/g, "");
   const snippet = cleanText.substring(0, 120).trim() + "...";
-
-  const ogImageUrl = `/api/og?title=${encodeURIComponent(songData.title)}&artist=${encodeURIComponent(songData.artist)}&cover=${encodeURIComponent(songData.cover_url || '')}`;
+  const ogImageUrl = `/api/og?title=${encodeURIComponent(songData.title)}&artist=${encodeURIComponent(songData.artist)}&cover=${encodeURIComponent(songData.cover_url || "")}`;
 
   return {
     title: `Chord ${songData.title} - ${songData.artist} | YourChords`,
@@ -49,7 +47,7 @@ export async function generateMetadata(
       ],
     },
     twitter: {
-      card: 'summary_large_image',
+      card: "summary_large_image",
       title: `Chord ${songData.title} - ${songData.artist}`,
       description: `Lirik dan Chord gitar termudah ${songData.title} - ${songData.artist}`,
       images: [ogImageUrl],
@@ -57,29 +55,29 @@ export async function generateMetadata(
   };
 }
 
-// --- Data Fetching dengan TRUE 1-PASS PARALLEL FETCHING (Promise.all) ---
+// Server Page Component with True 1-Pass Parallel Fetching
 export default async function SongDetailPage(props: Props) {
   const resolvedParams = await props.params;
   const songId = resolvedParams.id;
 
-  // TRUE 1-PASS PARALLEL: Eksekusi 4 query bersamaan dalam 1 gelombang!
+  // True 1-Pass Parallel Data Fetching
   const [songData, ratingStats, difficultyStats, relatedSongs] = await Promise.all([
     getSongById(songId),
     getSongRatingStats(songId),
     getSongDifficultyStats(songId),
-    getRelatedSongs(songId)
+    getRelatedSongs(songId),
   ]);
 
   if (!songData) {
     notFound();
   }
 
-  // Fire and forget view increment
+  // Increment view count asynchronously
   incrementSongView(songId, songData.views || 0);
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
-      <ChordClientDetail 
+      <ChordClientDetail
         song={songData as any}
         data={songData as any}
         ratingStats={ratingStats}
