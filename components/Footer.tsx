@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { Music, Sparkles, Shield, HelpCircle, FileText, Settings, Heart } from "lucide-react";
+import { Music, Settings, Sparkles, Shield, HelpCircle, FileText, Heart } from "lucide-react";
 import { getSiteCMSContent } from "@/lib/adminCMS";
+import CyberBadge from "@/components/ui/CyberBadge";
 
 export default function Footer() {
   const [footerSlogan, setFooterSlogan] = useState<string>(
@@ -23,40 +24,47 @@ export default function Footer() {
   }, []);
 
   return (
-    <footer className="no-print border-t border-slate-800/80 bg-slate-950/90 backdrop-blur-md text-slate-300 relative z-10">
-      <div className="max-w-[1400px] mx-auto px-6 py-12">
+    <footer className="no-print border-t border-purple-500/10 bg-slate-950 text-slate-400 py-16 px-4 md:px-8 relative overflow-hidden z-10">
+      {/* Background Ambient Glows */}
+      <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-purple-900/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-cyan-900/15 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="max-w-[1400px] mx-auto relative z-10">
         
         {/* TOP SECTION: BRAND & NAVIGATION GRID */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-8 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-10 mb-12">
           
           {/* BRAND COLUMN (LEFT - TAKES 2 COLS ON LARGE SCREENS) */}
           <div className="lg:col-span-2 space-y-4">
-            {/* Logo with Neon Purple Glow */}
-            <Link href="/" className="inline-flex items-center gap-2.5 text-xl font-black tracking-tight text-white group">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-primary via-violet-600 to-indigo-600 flex items-center justify-center text-white shadow-[0_0_20px_rgba(168,85,247,0.6)] group-hover:scale-105 transition-transform">
-                <Music className="w-5 h-5 text-white" />
+            {/* Logo with Neon Purple & Cyan Glow */}
+            <Link href="/" className="inline-flex items-center gap-2.5 group">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-cyan-500 p-[1px] shadow-glow-sm group-hover:shadow-glow-md transition-all duration-300">
+                <div className="w-full h-full bg-slate-950 rounded-[11px] flex items-center justify-center">
+                  <Music className="w-5 h-5 text-cyan-400" />
+                </div>
               </div>
-              <span className="text-white font-extrabold text-2xl tracking-tight">
-                Your<span className="text-primary-light">Chords</span>
-                <span className="ml-1 text-[10px] px-2 py-0.5 rounded-full bg-primary/20 border border-primary/40 text-primary-light font-mono font-bold uppercase tracking-widest align-top">
-                  2.0
+              <div className="flex items-center gap-1.5">
+                <span className="text-2xl font-black tracking-tight text-white">
+                  Your<span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-cyan-400 glow-text-purple">Chords</span>
                 </span>
-              </span>
+                <CyberBadge variant="purple" size="sm" pulse>
+                  2.0
+                </CyberBadge>
+              </div>
             </Link>
 
             <p className="text-xs text-slate-400 leading-relaxed max-w-sm font-medium">
               {footerSlogan}
             </p>
 
-
-            {/* INTERACTIVE SOCIAL MEDIA ICONS */}
+            {/* SOCIAL MEDIA ICONS */}
             <div className="pt-2 flex items-center gap-2.5">
               {/* Instagram */}
               <a
                 href="https://instagram.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/40 hover:shadow-[0_0_15px_rgba(244,63,94,0.4)] transition-all cursor-pointer"
+                className="w-9 h-9 rounded-xl bg-slate-900/80 border border-purple-500/20 flex items-center justify-center text-slate-400 hover:text-cyan-400 hover:scale-110 hover:border-cyan-500/40 hover:shadow-glow-cyan transition-all duration-200 cursor-pointer"
                 title="Instagram"
               >
                 <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
@@ -69,7 +77,7 @@ export default function Footer() {
                 href="https://tiktok.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10 hover:border-cyan-500/40 hover:shadow-[0_0_15px_rgba(6,182,212,0.4)] transition-all cursor-pointer"
+                className="w-9 h-9 rounded-xl bg-slate-900/80 border border-purple-500/20 flex items-center justify-center text-slate-400 hover:text-cyan-400 hover:scale-110 hover:border-cyan-500/40 hover:shadow-glow-cyan transition-all duration-200 cursor-pointer"
                 title="TikTok"
               >
                 <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
@@ -82,7 +90,7 @@ export default function Footer() {
                 href="https://youtube.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-500/10 hover:border-red-500/40 hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] transition-all cursor-pointer"
+                className="w-9 h-9 rounded-xl bg-slate-900/80 border border-purple-500/20 flex items-center justify-center text-slate-400 hover:text-cyan-400 hover:scale-110 hover:border-cyan-500/40 hover:shadow-glow-cyan transition-all duration-200 cursor-pointer"
                 title="YouTube"
               >
                 <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
@@ -95,7 +103,7 @@ export default function Footer() {
                 href="https://discord.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 hover:border-indigo-500/40 hover:shadow-[0_0_15px_rgba(99,102,241,0.4)] transition-all cursor-pointer"
+                className="w-9 h-9 rounded-xl bg-slate-900/80 border border-purple-500/20 flex items-center justify-center text-slate-400 hover:text-cyan-400 hover:scale-110 hover:border-cyan-500/40 hover:shadow-glow-cyan transition-all duration-200 cursor-pointer"
                 title="Discord"
               >
                 <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
@@ -108,7 +116,7 @@ export default function Footer() {
                 href="https://github.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 hover:border-white/30 hover:shadow-[0_0_15px_rgba(255,255,255,0.3)] transition-all cursor-pointer"
+                className="w-9 h-9 rounded-xl bg-slate-900/80 border border-purple-500/20 flex items-center justify-center text-slate-400 hover:text-cyan-400 hover:scale-110 hover:border-cyan-500/40 hover:shadow-glow-cyan transition-all duration-200 cursor-pointer"
                 title="GitHub"
               >
                 <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
@@ -118,121 +126,121 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* COLUMN 1: JELAJAHI */}
+          {/* COLUMN 2: JELAJAHI */}
           <div className="space-y-3">
             <h4 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+              <span className="w-1.5 h-1.5 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.8)]" />
               Jelajahi
             </h4>
             <ul className="space-y-2 text-xs font-medium text-slate-400">
               <li>
-                <Link href="/artists" className="hover:text-primary transition-colors">
+                <Link href="/artists" className="hover:text-purple-300 transition-colors">
                   Artis Populer
                 </Link>
               </li>
               <li>
-                <Link href="/dashboard" className="hover:text-primary transition-colors">
+                <Link href="/dashboard" className="hover:text-purple-300 transition-colors">
                   Setlist Komunitas
                 </Link>
               </li>
               <li>
-                <Link href="/" className="hover:text-primary transition-colors">
+                <Link href="/" className="hover:text-purple-300 transition-colors">
                   Lagu Baru Release
                 </Link>
               </li>
               <li>
-                <Link href="/chords" className="hover:text-primary transition-colors">
+                <Link href="/chords" className="hover:text-purple-300 transition-colors">
                   Kamus Chord Gitar
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* COLUMN 2: FITUR UTAMA */}
+          {/* COLUMN 3: FITUR UTAMA */}
           <div className="space-y-3">
             <h4 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.8)]" />
               Fitur Utama
             </h4>
             <ul className="space-y-2 text-xs font-medium text-slate-400">
               <li>
-                <Link href="/features" className="hover:text-violet-400 transition-colors">
+                <Link href="/features" className="hover:text-cyan-300 transition-colors">
                   Interactive Fretboard
                 </Link>
               </li>
               <li>
-                <Link href="/features" className="hover:text-violet-400 transition-colors">
+                <Link href="/features" className="hover:text-cyan-300 transition-colors">
                   Smart Transposer
                 </Link>
               </li>
               <li>
-                <Link href="/features" className="hover:text-violet-400 transition-colors">
+                <Link href="/features" className="hover:text-cyan-300 transition-colors">
                   Pemula Simplifier
                 </Link>
               </li>
               <li>
-                <Link href="/features" className="hover:text-violet-400 transition-colors">
+                <Link href="/features" className="hover:text-cyan-300 transition-colors">
                   Auto-Scroll Player
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* COLUMN 3: DUKUNGAN */}
+          {/* COLUMN 4: DUKUNGAN */}
           <div className="space-y-3">
             <h4 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+              <span className="w-1.5 h-1.5 rounded-full bg-pink-500 shadow-[0_0_8px_rgba(244,63,94,0.8)]" />
               Dukungan
             </h4>
             <ul className="space-y-2 text-xs font-medium text-slate-400">
               <li>
-                <Link href="/help" className="hover:text-cyan-400 transition-colors">
+                <Link href="/help" className="hover:text-pink-300 transition-colors">
                   Pusat Bantuan
                 </Link>
               </li>
               <li>
-                <Link href="/request" className="hover:text-cyan-400 transition-colors">
+                <Link href="/request" className="hover:text-pink-300 transition-colors">
                   Request Lagu Baru
                 </Link>
               </li>
               <li>
-                <Link href="/report-typo" className="hover:text-cyan-400 transition-colors">
+                <Link href="/report-typo" className="hover:text-pink-300 transition-colors">
                   Laporkan Typo Chord
                 </Link>
               </li>
               <li>
-                <Link href="/dashboard" className="hover:text-cyan-400 transition-colors">
+                <Link href="/dashboard" className="hover:text-pink-300 transition-colors">
                   Komunitas Musisi
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* COLUMN 4: TENTANG */}
+          {/* COLUMN 5: TENTANG */}
           <div className="space-y-3">
             <h4 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
               Tentang
             </h4>
             <ul className="space-y-2 text-xs font-medium text-slate-400">
               <li>
-                <Link href="/about" className="hover:text-emerald-400 transition-colors">
+                <Link href="/about" className="hover:text-emerald-300 transition-colors">
                   Tentang YourChords
                 </Link>
               </li>
               <li>
-                <Link href="/privacy" className="hover:text-emerald-400 transition-colors">
+                <Link href="/privacy" className="hover:text-emerald-300 transition-colors">
                   Kebijakan Privasi
                 </Link>
               </li>
               <li>
-                <Link href="/terms" className="hover:text-emerald-400 transition-colors">
+                <Link href="/terms" className="hover:text-emerald-300 transition-colors">
                   Syarat & Ketentuan
                 </Link>
               </li>
               <li>
-                <Link href="/admin" className="hover:text-emerald-400 transition-colors font-bold text-slate-300 flex items-center gap-1">
-                  <Settings className="w-3.5 h-3.5 text-primary" />
+                <Link href="/admin" className="hover:text-cyan-300 transition-colors font-bold text-slate-300 flex items-center gap-1">
+                  <Settings className="w-3.5 h-3.5 text-purple-400" />
                   <span>Komando Admin</span>
                 </Link>
               </li>
@@ -242,7 +250,7 @@ export default function Footer() {
         </div>
 
         {/* BOTTOM SECTION: COPYRIGHT BAR & TAGLINE */}
-        <div className="pt-8 border-t border-slate-800/60 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-medium text-slate-500">
+        <div className="pt-8 my-8 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-medium text-slate-500">
           <p>© {new Date().getFullYear()} YourChords. All rights reserved.</p>
           
           <p className="flex items-center gap-1.5 text-slate-400">
