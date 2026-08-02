@@ -2,8 +2,7 @@ const CACHE_NAME = 'yourchords-v2-cache';
 const STATIC_ASSETS = [
   '/',
   '/offline',
-  '/manifest.json',
-  '/globals.css'
+  '/manifest.json'
 ];
 
 self.addEventListener('install', (event) => {
