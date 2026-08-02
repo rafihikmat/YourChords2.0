@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { supabase } from '@/lib/supabase';
 
 export interface SongRatingData {
@@ -69,7 +70,7 @@ function normalizeDifficultyLabel(val?: string): 'Sangat Mudah' | 'Mudah' | 'Sed
 /**
  * Fetch real-time star ratings for a song from Supabase (Zero dummy fallback).
  */
-export async function getSongRating(songId: string, userId?: string): Promise<SongRatingData> {
+export const getSongRating = cache(async (songId: string, userId?: string): Promise<SongRatingData> => {
   try {
     const { data, error } = await supabase
       .from('song_ratings')
@@ -98,7 +99,7 @@ export async function getSongRating(songId: string, userId?: string): Promise<So
     console.warn('[RATINGS GET ERROR]:', err);
     return { averageRating: 0, totalRatings: 0 };
   }
-}
+});
 
 export const getSongRatingStats = getSongRating;
 
@@ -174,7 +175,7 @@ export async function voteSongDifficulty(songId: string, userId: string, vote: s
 /**
  * Fetch difficulty voting stats for a song.
  */
-export async function getSongDifficultyStats(songId: string, userId?: string): Promise<DifficultyStatsData> {
+export const getSongDifficultyStats = cache(async (songId: string, userId?: string): Promise<DifficultyStatsData> => {
   const counts = {
     sangat_mudah: 0,
     mudah: 0,
@@ -248,7 +249,7 @@ export async function getSongDifficultyStats(songId: string, userId?: string): P
       userVote: undefined,
     };
   }
-}
+});
 
 /**
  * Fetch real-time community difficulty voting data from Supabase (Zero dummy fallback).

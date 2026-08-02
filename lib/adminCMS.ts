@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { supabase, normalizeSong } from '@/lib/supabase';
 import { Song } from '@/lib/types';
 import { extractYouTubeId } from '@/lib/youtube';
@@ -214,7 +215,7 @@ export const DEFAULT_CMS_CONTENT: SiteCMSContent = {
   aboutDescription: "YourChords 2.0 adalah platform edukasi dan latihan musik terlengkap di Indonesia."
 };
 
-export async function getSiteCMSContent(): Promise<SiteCMSContent> {
+export const getSiteCMSContent = cache(async (): Promise<SiteCMSContent> => {
   try {
     const { data, error } = await supabase
       .from('page_content')
@@ -227,7 +228,7 @@ export async function getSiteCMSContent(): Promise<SiteCMSContent> {
   } catch (err) {
     return DEFAULT_CMS_CONTENT;
   }
-}
+});
 
 export async function updateSiteCMSContent(content: SiteCMSContent) {
   try {
