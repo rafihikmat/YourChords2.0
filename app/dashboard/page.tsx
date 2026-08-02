@@ -21,18 +21,16 @@ import {
 } from "@/lib/setlists";
 import { toggleSongFavorite } from "@/lib/userPreferences";
 import { fetchSongById } from "@/lib/supabase";
-import { Song, Setlist } from "@/lib/types";
+import { Song } from "@/lib/types";
 import { 
   Heart, 
   FolderPlus, 
   FileText, 
   Settings, 
   User as UserIcon, 
-  LogOut, 
   Trash2, 
   Music, 
   ExternalLink, 
-  ShieldCheck, 
   CheckCircle2, 
   Sparkles, 
   Plus, 
@@ -41,15 +39,18 @@ import {
   X, 
   Lock, 
   Home, 
-  Save, 
-  ListMusic, 
   Clock, 
   Check, 
-  ListOrdered 
+  Save,
+  PenTool
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import CyberButton from "@/components/ui/CyberButton";
+import CyberCard from "@/components/ui/CyberCard";
+import CyberBadge from "@/components/ui/CyberBadge";
+import CyberInput from "@/components/ui/CyberInput";
+import CyberModal from "@/components/ui/CyberModal";
 
 export const dynamic = "force-dynamic";
 
@@ -57,8 +58,7 @@ function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const { user, profile, loading: authLoading, signOut, refreshProfile } = useAuth();
-
+  const { user, profile, loading: authLoading, signOut, refreshProfile, isAdmin } = useAuth();
 
   const [activeTab, setActiveTab] = useState<"favorites" | "setlists" | "notes" | "settings">("favorites");
   const [unauthorizedMsg, setUnauthorizedMsg] = useState<string | null>(null);
@@ -243,10 +243,10 @@ function DashboardContent() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white font-sans relative pb-28 selection:bg-primary selection:text-white">
+    <div className="min-h-screen bg-slate-950 text-white font-sans relative pb-28 selection:bg-purple-600 selection:text-white">
       <Navbar />
 
-      <main className="max-w-[1280px] mx-auto px-4 md:px-8 pt-24">
+      <main className="max-w-7xl mx-auto px-4 md:px-8 pt-24">
         
         {/* CREATE SETLIST TOAST */}
         {createSetlistToast && (
@@ -283,7 +283,7 @@ function DashboardContent() {
         {/* ADMIN REDIRECTING SPINNER */}
         {user && profile && (profile.role === "admin" || profile.role === "super_admin") && (
           <div className="text-center py-24">
-            <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto mb-3" />
+            <Loader2 className="w-8 h-8 text-purple-400 animate-spin mx-auto mb-3" />
             <p className="text-sm font-bold text-slate-300">Mengalihkan ke Pusat Komando Admin...</p>
           </div>
         )}
@@ -293,55 +293,55 @@ function DashboardContent() {
         ========================================== */}
 
         {!authLoading && !user && (
-          <div className="max-w-2xl mx-auto my-12 bg-gradient-to-b from-slate-900/90 via-surface/80 to-slate-950 border border-primary/40 rounded-3xl p-8 md:p-12 backdrop-blur-2xl text-center shadow-[0_0_80px_rgba(168,85,247,0.25)] relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
-            
-            <div className="w-20 h-20 rounded-3xl bg-primary/20 border-2 border-primary/50 flex items-center justify-center text-primary mx-auto mb-6 shadow-[0_0_30px_rgba(168,85,247,0.4)] animate-bounce-slow">
-              <Lock className="w-10 h-10 text-primary" />
+          <CyberCard variant="glowing" padding="lg" className="max-w-2xl mx-auto my-12 text-center">
+            <div className="w-20 h-20 rounded-3xl bg-purple-500/20 border-2 border-purple-500/50 flex items-center justify-center text-purple-400 mx-auto mb-6 shadow-[0_0_30px_rgba(168,85,247,0.4)]">
+              <Lock className="w-10 h-10" />
             </div>
 
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold mb-4">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" /> RESTRIKSI HAK AKSES
-            </div>
+            <CyberBadge variant="amber" pulse icon={<Sparkles className="w-3.5 h-3.5" />} className="mb-4">
+              Restriksi Hak Akses
+            </CyberBadge>
 
             <h2 className="text-2xl md:text-3xl font-black text-white mb-3">
               Akses Terbatas: Dashboard Khusus Member
             </h2>
 
             <p className="text-slate-300 text-xs md:text-sm leading-relaxed max-w-lg mx-auto mb-8 font-medium">
-              Silakan <span className="text-primary font-bold">Sign In</span> atau <span className="text-primary font-bold">Daftar Akun Baru</span> untuk mengakses Dashboard Member Anda, mengelola lagu favorit, folder setlist, serta catatan musik pribadi Anda.
+              Silakan <span className="text-cyan-400 font-bold">Sign In</span> atau <span className="text-purple-400 font-bold">Daftar Akun Baru</span> untuk mengakses Dashboard Member Anda, mengelola lagu favorit, folder setlist, serta catatan musik pribadi Anda.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <button
+              <CyberButton
+                variant="primary"
+                size="md"
                 onClick={() => {
                   setAuthModalMode("signin");
                   setShowAuthModal(true);
                 }}
-                className="w-full sm:w-auto px-6 py-3 bg-primary hover:bg-primary-light text-white font-extrabold rounded-xl text-xs md:text-sm transition-all shadow-[0_0_20px_rgba(168,85,247,0.5)] cursor-pointer"
+                className="w-full sm:w-auto"
               >
                 Sign In Sekarang
-              </button>
+              </CyberButton>
 
-              <button
+              <CyberButton
+                variant="cyan"
+                size="md"
                 onClick={() => {
                   setAuthModalMode("signup");
                   setShowAuthModal(true);
                 }}
-                className="w-full sm:w-auto px-6 py-3 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-extrabold rounded-xl text-xs md:text-sm transition-all cursor-pointer"
+                className="w-full sm:w-auto"
               >
                 Daftar Akun (Gratis)
-              </button>
+              </CyberButton>
 
-              <Link
-                href="/"
-                className="w-full sm:w-auto px-5 py-3 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 border border-white/10"
-              >
-                <Home className="w-4 h-4" />
-                Kembali ke Beranda
+              <Link href="/">
+                <CyberButton variant="ghost" size="md" leftIcon={<Home className="w-4 h-4" />} className="w-full sm:w-auto">
+                  Beranda
+                </CyberButton>
               </Link>
             </div>
-          </div>
+          </CyberCard>
         )}
 
         {/* ==========================================
@@ -351,10 +351,10 @@ function DashboardContent() {
           <div className="space-y-8">
 
             {/* HEADER PROFILE CARD (CYBER-ZEN STYLING) */}
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900/90 via-surface/80 to-slate-950 border border-primary/30 p-6 md:p-8 backdrop-blur-2xl shadow-[0_0_50px_rgba(168,85,247,0.15)]">
+            <CyberCard variant="glowing" padding="lg" className="relative overflow-hidden">
               {/* Background ambient lighting */}
-              <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
-              <div className="absolute -bottom-10 -left-10 w-72 h-72 bg-violet-600/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute top-0 right-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-10 -left-10 w-72 h-72 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
 
               <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                 
@@ -362,8 +362,8 @@ function DashboardContent() {
                 <div className="flex items-center gap-4 md:gap-6">
                   {/* Avatar ring */}
                   <div className="relative flex-shrink-0">
-                    <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-gradient-to-br from-primary via-violet-600 to-indigo-900 p-0.5 shadow-[0_0_25px_rgba(168,85,247,0.4)]">
-                      <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center text-primary font-black text-2xl md:text-3xl">
+                    <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-gradient-to-br from-purple-500 via-indigo-600 to-cyan-500 p-0.5 shadow-[0_0_25px_rgba(168,85,247,0.5)] ring-2 ring-purple-500/50">
+                      <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center text-purple-300 font-black text-2xl md:text-3xl">
                         {profile?.full_name ? profile.full_name[0].toUpperCase() : user.email?.[0].toUpperCase() || 'M'}
                       </div>
                     </div>
@@ -374,9 +374,12 @@ function DashboardContent() {
 
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-primary/20 border border-primary/40 text-primary-light text-[10px] md:text-xs font-bold tracking-wider uppercase">
-                        <Sparkles className="w-3 h-3 text-primary animate-pulse" /> Member Musisi
-                      </span>
+                      <CyberBadge variant="purple" pulse icon={<Sparkles className="w-3 h-3" />}>
+                        Musisi Member
+                      </CyberBadge>
+                      {isAdmin && (
+                        <CyberBadge variant="rose">Admin</CyberBadge>
+                      )}
                     </div>
 
                     <h1 className="text-xl md:text-3xl font-black text-white tracking-tight">
@@ -392,7 +395,7 @@ function DashboardContent() {
                 {/* 3 Quick Stats Cards */}
                 <div className="grid grid-cols-3 gap-3 md:gap-4 w-full lg:w-auto">
                   {/* Stats 1: Favorites */}
-                  <div className="bg-black/50 border border-white/10 rounded-2xl p-3.5 md:p-4 text-center hover:border-rose-500/40 transition-all group">
+                  <CyberCard variant="glowing" padding="sm" className="text-center group">
                     <div className="w-8 h-8 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center justify-center mx-auto mb-2 group-hover:scale-110 transition-transform">
                       <Heart className="w-4 h-4 fill-rose-500/30" />
                     </div>
@@ -402,23 +405,23 @@ function DashboardContent() {
                     <span className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider">
                       Lagu Disukai
                     </span>
-                  </div>
+                  </CyberCard>
 
                   {/* Stats 2: Setlists */}
-                  <div className="bg-black/50 border border-white/10 rounded-2xl p-3.5 md:p-4 text-center hover:border-primary/40 transition-all group">
-                    <div className="w-8 h-8 rounded-xl bg-primary/10 border border-primary/30 text-primary-light flex items-center justify-center mx-auto mb-2 group-hover:scale-110 transition-transform">
+                  <CyberCard variant="glowing" padding="sm" className="text-center group">
+                    <div className="w-8 h-8 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-300 flex items-center justify-center mx-auto mb-2 group-hover:scale-110 transition-transform">
                       <Folder className="w-4 h-4" />
                     </div>
-                    <span className="block text-xl md:text-2xl font-black text-white group-hover:text-primary transition-colors">
+                    <span className="block text-xl md:text-2xl font-black text-white group-hover:text-purple-300 transition-colors">
                       {stats.setlistsCount}
                     </span>
                     <span className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider">
                       Folder Setlist
                     </span>
-                  </div>
+                  </CyberCard>
 
                   {/* Stats 3: Song Notes */}
-                  <div className="bg-black/50 border border-white/10 rounded-2xl p-3.5 md:p-4 text-center hover:border-cyan-500/40 transition-all group">
+                  <CyberCard variant="glowing" padding="sm" className="text-center group">
                     <div className="w-8 h-8 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 flex items-center justify-center mx-auto mb-2 group-hover:scale-110 transition-transform">
                       <FileText className="w-4 h-4" />
                     </div>
@@ -428,68 +431,56 @@ function DashboardContent() {
                     <span className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider">
                       Catatan
                     </span>
-                  </div>
+                  </CyberCard>
                 </div>
 
               </div>
-            </div>
+            </CyberCard>
 
             {/* TABBED NAVIGATION SYSTEM */}
-            <div className="flex flex-wrap items-center gap-2 md:gap-3 border-b border-white/10 pb-4">
-              <button
+            <div className="flex flex-wrap items-center gap-2 md:gap-3 border-b border-purple-500/15 pb-4">
+              <CyberButton
+                variant={activeTab === "favorites" ? "primary" : "ghost"}
+                size="sm"
+                leftIcon={<Heart className={`w-4 h-4 ${activeTab === "favorites" ? "fill-white" : "text-rose-400"}`} />}
                 onClick={() => setActiveTab("favorites")}
-                className={`px-4 py-2.5 rounded-xl text-xs md:text-sm font-black tracking-wider uppercase transition-all flex items-center gap-2 cursor-pointer ${
-                  activeTab === "favorites"
-                    ? "bg-rose-500 text-white shadow-[0_0_20px_rgba(244,63,94,0.5)] border border-rose-400"
-                    : "bg-surface/60 text-slate-400 hover:text-white border border-white/10"
-                }`}
               >
-                <Heart className={`w-4 h-4 ${activeTab === "favorites" ? "fill-white" : "text-rose-400"}`} />
-                <span>Lagu Disukai ({favoriteSongs.length})</span>
-              </button>
+                ❤️ Lagu Favorit Saya ({favoriteSongs.length})
+              </CyberButton>
 
-              <button
+              <CyberButton
+                variant={activeTab === "setlists" ? "primary" : "ghost"}
+                size="sm"
+                leftIcon={<Folder className="w-4 h-4 text-purple-400" />}
                 onClick={() => setActiveTab("setlists")}
-                className={`px-4 py-2.5 rounded-xl text-xs md:text-sm font-black tracking-wider uppercase transition-all flex items-center gap-2 cursor-pointer ${
-                  activeTab === "setlists"
-                    ? "bg-primary text-white shadow-[0_0_20px_rgba(168,85,247,0.5)] border border-primary-light"
-                    : "bg-surface/60 text-slate-400 hover:text-white border border-white/10"
-                }`}
               >
-                <Folder className="w-4 h-4" />
-                <span>Setlist Saya ({setlists.length})</span>
-              </button>
+                📁 Setlist Saya ({setlists.length})
+              </CyberButton>
 
-              <button
+              <CyberButton
+                variant={activeTab === "notes" ? "cyan" : "ghost"}
+                size="sm"
+                leftIcon={<FileText className="w-4 h-4 text-cyan-400" />}
                 onClick={() => setActiveTab("notes")}
-                className={`px-4 py-2.5 rounded-xl text-xs md:text-sm font-black tracking-wider uppercase transition-all flex items-center gap-2 cursor-pointer ${
-                  activeTab === "notes"
-                    ? "bg-cyan-500 text-slate-950 font-black shadow-[0_0_20px_rgba(6,182,212,0.5)] border border-cyan-300"
-                    : "bg-surface/60 text-slate-400 hover:text-white border border-white/10"
-                }`}
               >
-                <FileText className="w-4 h-4" />
-                <span>Catatan Pribadi ({notesList.length})</span>
-              </button>
+                📝 Catatan Pribadi ({notesList.length})
+              </CyberButton>
 
-              <button
+              <CyberButton
+                variant={activeTab === "settings" ? "outline" : "ghost"}
+                size="sm"
+                leftIcon={<Settings className="w-4 h-4 text-slate-400" />}
                 onClick={() => setActiveTab("settings")}
-                className={`px-4 py-2.5 rounded-xl text-xs md:text-sm font-black tracking-wider uppercase transition-all flex items-center gap-2 cursor-pointer ${
-                  activeTab === "settings"
-                    ? "bg-slate-700 text-white shadow-[0_0_20px_rgba(148,163,184,0.3)] border border-slate-500"
-                    : "bg-surface/60 text-slate-400 hover:text-white border border-white/10"
-                }`}
               >
-                <Settings className="w-4 h-4" />
-                <span>Pengaturan Akun</span>
-              </button>
+                ⚙️ Pengaturan Akun
+              </CyberButton>
             </div>
 
             {/* TAB CONTENT AREAS */}
             {isLoading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 py-8">
                 {[1, 2, 3, 4, 5, 6].map((i) => (
-                  <div key={i} className="h-32 bg-white/5 border border-white/10 rounded-2xl animate-pulse p-4" />
+                  <div key={i} className="h-32 bg-slate-900/60 border border-purple-500/20 rounded-2xl animate-pulse p-4" />
                 ))}
               </div>
             ) : (
@@ -501,7 +492,7 @@ function DashboardContent() {
                 {activeTab === "favorites" && (
                   <div>
                     {favoriteSongs.length === 0 ? (
-                      <div className="text-center py-16 bg-surface/40 border border-white/10 rounded-3xl p-8 backdrop-blur-md">
+                      <CyberCard variant="default" padding="lg" className="text-center py-16">
                         <div className="w-16 h-16 rounded-2xl bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400 mx-auto mb-4">
                           <Heart className="w-8 h-8 fill-rose-500" />
                         </div>
@@ -509,22 +500,18 @@ function DashboardContent() {
                         <p className="text-slate-400 text-xs max-w-md mx-auto mb-6">
                           Jelajahi lagu di YourChords dan klik tombol <span className="text-rose-400 font-bold">Sukai (❤️)</span> pada lagu favorit Anda.
                         </p>
-                        <Link
-                          href="/search"
-                          className="inline-flex items-center gap-2 px-5 py-2.5 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-xl text-xs transition-all shadow-[0_0_20px_rgba(244,63,94,0.4)]"
-                        >
-                          Cari Lagu Favorit
+                        <Link href="/search">
+                          <CyberButton variant="danger" size="md" leftIcon={<Heart className="w-4 h-4 fill-white" />}>
+                            Cari Lagu Favorit
+                          </CyberButton>
                         </Link>
-                      </div>
+                      </CyberCard>
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {favoriteSongs.map((song) => (
-                          <div
-                            key={song.id}
-                            className="bg-surface/80 border border-white/10 hover:border-rose-500/50 rounded-2xl p-4 backdrop-blur-md shadow-lg transition-all duration-300 flex flex-col justify-between group"
-                          >
+                          <CyberCard key={song.id} variant="interactive" padding="md" className="flex flex-col justify-between group">
                             <div className="flex items-start gap-3.5 mb-3">
-                              <div className="w-14 h-14 rounded-xl bg-slate-900 border border-white/10 flex-shrink-0 overflow-hidden relative">
+                              <div className="w-14 h-14 rounded-xl bg-slate-900 border border-purple-500/20 flex-shrink-0 overflow-hidden relative">
                                 {song.cover_url ? (
                                   /* eslint-disable-next-line @next/next/no-img-element */
                                   <img src={song.cover_url} alt={song.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
@@ -536,41 +523,39 @@ function DashboardContent() {
                               </div>
 
                               <div className="flex-1 min-w-0">
-                                <h3 className="text-sm font-extrabold text-white truncate group-hover:text-rose-400 transition-colors">
+                                <h3 className="text-sm font-extrabold text-white truncate group-hover:text-purple-300 transition-colors">
                                   {song.title}
                                 </h3>
-                                <p className="text-xs text-slate-400 truncate mb-1">
+                                <p className="text-xs text-slate-400 truncate mb-1.5">
                                   {song.artist}
                                 </p>
                                 <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="px-2 py-0.5 bg-primary/20 border border-primary/40 text-primary-light text-[10px] font-mono font-bold rounded-md">
+                                  <CyberBadge variant="purple" size="sm">
                                     Nada: {song.key_chord || 'C'}
-                                  </span>
-                                  <span className="px-2 py-0.5 bg-white/5 border border-white/10 text-slate-300 text-[10px] font-bold rounded-md">
+                                  </CyberBadge>
+                                  <CyberBadge variant="cyan" size="sm">
                                     {song.difficulty || 'Easy'}
-                                  </span>
+                                  </CyberBadge>
                                 </div>
                               </div>
                             </div>
 
-                            <div className="flex items-center justify-between gap-2 pt-3 border-t border-white/10">
-                              <Link
-                                href={`/chord/${song.id}`}
-                                className="flex-1 text-center py-2 bg-rose-500/20 hover:bg-rose-500 border border-rose-500/40 rounded-xl text-rose-300 hover:text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5"
-                              >
-                                <span>Buka Chord</span>
-                                <ExternalLink className="w-3.5 h-3.5" />
+                            <div className="flex items-center justify-between gap-2 pt-3 border-t border-purple-500/15">
+                              <Link href={`/chord/${song.id}`} className="flex-1">
+                                <CyberButton variant="primary" size="sm" className="w-full" rightIcon={<ExternalLink className="w-3.5 h-3.5" />}>
+                                  Buka Chord
+                                </CyberButton>
                               </Link>
 
                               <button
                                 onClick={() => handleRemoveFavorite(song.id)}
-                                className="p-2 text-slate-400 hover:text-red-400 bg-white/5 hover:bg-red-500/10 border border-white/10 hover:border-red-500/30 rounded-xl transition-all cursor-pointer"
+                                className="p-2 text-slate-400 hover:text-rose-400 bg-slate-900/60 hover:bg-rose-500/10 border border-purple-500/20 hover:border-rose-500/40 rounded-xl transition-all cursor-pointer"
                                 title="Hapus dari Favorit"
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>
                             </div>
-                          </div>
+                          </CyberCard>
                         ))}
                       </div>
                     )}
@@ -588,45 +573,44 @@ function DashboardContent() {
                         <p className="text-xs text-slate-400">Susun lagu untuk manggung atau latihan rutin Anda</p>
                       </div>
 
-                      <button
+                      <CyberButton
+                        variant="primary"
+                        size="sm"
+                        leftIcon={<FolderPlus className="w-4 h-4" />}
                         onClick={() => setShowCreateModal(true)}
-                        className="px-4 py-2.5 bg-primary hover:bg-primary-light text-white font-extrabold rounded-xl text-xs transition-all shadow-[0_0_20px_rgba(168,85,247,0.4)] flex items-center gap-2 cursor-pointer"
                       >
-                        <FolderPlus className="w-4 h-4" />
-                        <span>+ Buat Setlist Baru</span>
-                      </button>
+                        + Buat Setlist Baru
+                      </CyberButton>
                     </div>
 
                     {setlists.length === 0 ? (
-                      <div className="text-center py-16 bg-surface/40 border border-white/10 rounded-3xl p-8 backdrop-blur-md">
-                        <div className="w-16 h-16 rounded-2xl bg-primary/20 border border-primary/30 flex items-center justify-center text-primary mx-auto mb-4">
+                      <CyberCard variant="default" padding="lg" className="text-center py-16">
+                        <div className="w-16 h-16 rounded-2xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-purple-400 mx-auto mb-4">
                           <Folder className="w-8 h-8" />
                         </div>
                         <h3 className="text-lg font-bold text-white mb-1">Belum Ada Setlist</h3>
                         <p className="text-slate-400 text-xs max-w-md mx-auto mb-6">
                           Buat folder setlist pertama Anda untuk mengelompokkan lagu-lagu pilihan.
                         </p>
-                        <button
+                        <CyberButton
+                          variant="primary"
+                          size="md"
                           onClick={() => setShowCreateModal(true)}
-                          className="px-5 py-2.5 bg-primary text-white font-bold rounded-xl text-xs hover:bg-primary-light transition-all shadow-neon-sm cursor-pointer"
                         >
                           + Buat Setlist Pertama
-                        </button>
-                      </div>
+                        </CyberButton>
+                      </CyberCard>
                     ) : (
                       <div className="grid grid-cols-1 gap-6">
                         {setlists.map((setlist) => (
-                          <div
-                            key={setlist.id}
-                            className="bg-surface/80 border border-white/10 rounded-2xl p-6 backdrop-blur-md shadow-xl hover:border-primary/40 transition-all duration-300"
-                          >
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4 mb-4">
+                          <CyberCard key={setlist.id} variant="glowing" padding="md">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-purple-500/15 pb-4 mb-4">
                               <div>
                                 <div className="flex items-center gap-3">
                                   <h3 className="text-lg font-black text-white">{setlist.name}</h3>
-                                  <span className="px-2.5 py-0.5 bg-primary/20 border border-primary/40 text-primary-light rounded-full text-[10px] font-extrabold">
+                                  <CyberBadge variant="purple" size="sm">
                                     {setlist.song_ids.length} Lagu
-                                  </span>
+                                  </CyberBadge>
                                 </div>
                                 {setlist.description && (
                                   <p className="text-xs text-slate-400 mt-1">{setlist.description}</p>
@@ -634,17 +618,15 @@ function DashboardContent() {
                               </div>
 
                               <div className="flex items-center gap-2">
-                                <Link
-                                  href="/search"
-                                  className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-bold text-slate-300 hover:text-white transition-colors flex items-center gap-1.5"
-                                >
-                                  <Plus className="w-3.5 h-3.5 text-primary" />
-                                  <span>Cari & Tambah Lagu</span>
+                                <Link href="/search">
+                                  <CyberButton variant="outline" size="sm" leftIcon={<Plus className="w-3.5 h-3.5 text-purple-400" />}>
+                                    Cari & Tambah Lagu
+                                  </CyberButton>
                                 </Link>
 
                                 <button
                                   onClick={() => handleDeleteSetlist(setlist.id)}
-                                  className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer"
+                                  className="p-2 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
                                   title="Hapus Setlist"
                                 >
                                   <Trash2 className="w-4 h-4" />
@@ -654,7 +636,7 @@ function DashboardContent() {
 
                             {/* SONG ITEMS INSIDE SETLIST */}
                             {setlist.song_ids.length === 0 ? (
-                              <div className="text-center py-6 bg-black/40 border border-dashed border-white/10 rounded-xl p-4 text-slate-500 text-xs">
+                              <div className="text-center py-6 bg-slate-950/50 border border-dashed border-purple-500/20 rounded-xl p-4 text-slate-500 text-xs">
                                 Belum ada lagu dalam setlist ini.
                               </div>
                             ) : (
@@ -664,21 +646,21 @@ function DashboardContent() {
                                   return (
                                     <div
                                       key={songId}
-                                      className="flex items-center justify-between gap-3 p-3 bg-black/50 hover:bg-white/5 border border-white/10 hover:border-primary/40 rounded-xl transition-all group"
+                                      className="flex items-center justify-between gap-3 p-3 bg-slate-950/60 hover:bg-purple-950/20 border border-purple-500/20 hover:border-purple-500/40 rounded-xl transition-all group"
                                     >
                                       <div className="flex items-center gap-3 overflow-hidden">
-                                        <div className="w-10 h-10 rounded-lg bg-slate-900 flex-shrink-0 overflow-hidden border border-white/10">
+                                        <div className="w-10 h-10 rounded-lg bg-slate-900 flex-shrink-0 overflow-hidden border border-purple-500/20">
                                           {song?.cover_url ? (
                                             /* eslint-disable-next-line @next/next/no-img-element */
                                             <img src={song.cover_url} alt={song.title} className="w-full h-full object-cover" />
                                           ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-primary">
+                                            <div className="w-full h-full flex items-center justify-center text-purple-400">
                                               <Music className="w-4 h-4" />
                                             </div>
                                           )}
                                         </div>
                                         <div className="truncate">
-                                          <p className="text-xs font-bold text-white group-hover:text-primary transition-colors truncate">
+                                          <p className="text-xs font-bold text-white group-hover:text-purple-300 transition-colors truncate">
                                             {song ? song.title : songId}
                                           </p>
                                           <p className="text-[10px] text-slate-400 truncate">
@@ -688,16 +670,14 @@ function DashboardContent() {
                                       </div>
 
                                       <div className="flex items-center gap-1 flex-shrink-0">
-                                        <Link
-                                          href={`/chord/${songId}`}
-                                          className="p-1.5 bg-primary/20 hover:bg-primary border border-primary/40 rounded-lg text-primary hover:text-white transition-all cursor-pointer"
-                                          title="Buka Chord"
-                                        >
-                                          <ExternalLink className="w-3.5 h-3.5" />
+                                        <Link href={`/chord/${songId}`}>
+                                          <CyberButton variant="ghost" size="sm" className="p-1.5 min-w-0" title="Buka Chord">
+                                            <ExternalLink className="w-3.5 h-3.5 text-purple-400" />
+                                          </CyberButton>
                                         </Link>
                                         <button
                                           onClick={() => handleRemoveSongFromSetlist(setlist.id, songId)}
-                                          className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+                                          className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-slate-800/50 rounded-lg transition-colors cursor-pointer"
                                           title="Keluarkan dari setlist"
                                         >
                                           <X className="w-3.5 h-3.5" />
@@ -708,7 +688,7 @@ function DashboardContent() {
                                 })}
                               </div>
                             )}
-                          </div>
+                          </CyberCard>
                         ))}
                       </div>
                     )}
@@ -721,7 +701,7 @@ function DashboardContent() {
                 {activeTab === "notes" && (
                   <div>
                     {notesList.length === 0 ? (
-                      <div className="text-center py-16 bg-surface/40 border border-white/10 rounded-3xl p-8 backdrop-blur-md">
+                      <CyberCard variant="default" padding="lg" className="text-center py-16">
                         <div className="w-16 h-16 rounded-2xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 mx-auto mb-4">
                           <FileText className="w-8 h-8" />
                         </div>
@@ -729,25 +709,21 @@ function DashboardContent() {
                         <p className="text-slate-400 text-xs max-w-md mx-auto mb-6">
                           Anda dapat menulis catatan genjrengan, tempo BPM, atau pengingat nada di halaman chord lagu.
                         </p>
-                        <Link
-                          href="/search"
-                          className="inline-flex items-center gap-2 px-5 py-2.5 bg-cyan-500 text-slate-950 font-extrabold rounded-xl text-xs hover:bg-cyan-400 transition-all shadow-[0_0_20px_rgba(6,182,212,0.4)]"
-                        >
-                          Cari Lagu & Tulis Catatan
+                        <Link href="/search">
+                          <CyberButton variant="cyan" size="md" leftIcon={<PenTool className="w-4 h-4" />}>
+                            Cari Lagu & Tulis Catatan
+                          </CyberButton>
                         </Link>
-                      </div>
+                      </CyberCard>
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {notesList.map((item) => (
-                          <div
-                            key={item.id}
-                            className="bg-surface/80 border border-white/10 hover:border-cyan-500/50 rounded-2xl p-5 backdrop-blur-md shadow-lg transition-all duration-300 flex flex-col justify-between group"
-                          >
+                          <CyberCard key={item.id} variant="interactive" padding="md" className="flex flex-col justify-between group">
                             <div>
                               {/* Song Header */}
-                              <div className="flex items-center justify-between gap-3 mb-3 pb-3 border-b border-white/10">
+                              <div className="flex items-center justify-between gap-3 mb-3 pb-3 border-b border-purple-500/15">
                                 <div className="flex items-center gap-3 overflow-hidden">
-                                  <div className="w-10 h-10 rounded-xl bg-slate-900 border border-white/10 flex-shrink-0 overflow-hidden relative">
+                                  <div className="w-10 h-10 rounded-xl bg-slate-900 border border-purple-500/20 flex-shrink-0 overflow-hidden relative">
                                     {item.song?.cover_url ? (
                                       /* eslint-disable-next-line @next/next/no-img-element */
                                       <img src={item.song.cover_url} alt={item.song.title} className="w-full h-full object-cover" />
@@ -759,7 +735,7 @@ function DashboardContent() {
                                   </div>
 
                                   <div className="truncate">
-                                    <h3 className="text-sm font-extrabold text-white truncate group-hover:text-cyan-400 transition-colors">
+                                    <h3 className="text-sm font-extrabold text-white truncate group-hover:text-cyan-300 transition-colors">
                                       {item.song ? item.song.title : 'Lagu'}
                                     </h3>
                                     <p className="text-xs text-slate-400 truncate">
@@ -768,26 +744,23 @@ function DashboardContent() {
                                   </div>
                                 </div>
 
-                                <span className="text-[10px] text-slate-400 flex items-center gap-1 bg-black/40 px-2 py-1 rounded-lg border border-white/5 flex-shrink-0">
-                                  <Clock className="w-3 h-3 text-cyan-400" />
+                                <CyberBadge variant="cyan" size="sm" icon={<Clock className="w-3 h-3" />}>
                                   {new Date(item.updated_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
-                                </span>
+                                </CyberBadge>
                               </div>
 
                               {/* Note Content Preview */}
-                              <div className="bg-black/60 border border-cyan-500/20 rounded-xl p-3 mb-4 text-xs font-mono text-cyan-200/90 whitespace-pre-wrap leading-relaxed max-h-28 overflow-y-auto">
+                              <div className="bg-slate-950/70 border border-cyan-500/20 rounded-xl p-3 mb-4 text-xs font-mono text-cyan-200/90 whitespace-pre-wrap leading-relaxed max-h-28 overflow-y-auto">
                                 {item.notes_content}
                               </div>
                             </div>
 
-                            <Link
-                              href={`/chord/${item.song_id}`}
-                              className="w-full text-center py-2 bg-cyan-500/10 hover:bg-cyan-500 border border-cyan-500/30 text-cyan-300 hover:text-slate-950 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                            >
-                              <span>Buka Lagu & Edit Catatan</span>
-                              <ExternalLink className="w-3.5 h-3.5" />
+                            <Link href={`/chord/${item.song_id}`}>
+                              <CyberButton variant="cyan" size="sm" className="w-full" rightIcon={<ExternalLink className="w-3.5 h-3.5" />}>
+                                Buka Lagu & Edit Catatan
+                              </CyberButton>
                             </Link>
-                          </div>
+                          </CyberCard>
                         ))}
                       </div>
                     )}
@@ -801,9 +774,9 @@ function DashboardContent() {
                   <div className="max-w-2xl mx-auto space-y-6">
                     
                     {/* PROFILE EDIT FORM */}
-                    <div className="bg-surface/80 border border-white/10 rounded-2xl p-6 md:p-8 backdrop-blur-md shadow-xl">
+                    <CyberCard variant="glowing" padding="lg">
                       <div className="flex items-center gap-3 mb-6">
-                        <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/40 flex items-center justify-center text-primary">
+                        <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-300">
                           <UserIcon className="w-5 h-5" />
                         </div>
                         <div>
@@ -820,72 +793,35 @@ function DashboardContent() {
                       )}
 
                       <form onSubmit={handleSaveProfile} className="space-y-4">
-                        <div>
-                          <label className="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">
-                            Nama Lengkap / Nama Tampilan
-                          </label>
-                          <input
-                            type="text"
-                            value={displayName}
-                            onChange={(e) => setDisplayName(e.target.value)}
-                            placeholder="Tulis nama Anda..."
-                            className="w-full bg-black/60 border border-white/15 rounded-xl px-4 py-3 text-xs md:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-primary transition-all"
-                          />
-                        </div>
+                        <CyberInput
+                          label="Nama Lengkap / Nama Tampilan"
+                          value={displayName}
+                          onChange={(e) => setDisplayName(e.target.value)}
+                          placeholder="Tulis nama Anda..."
+                          icon={<UserIcon className="w-4 h-4" />}
+                        />
 
-                        <div>
-                          <label className="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">
-                            Alamat Email (Terverifikasi)
-                          </label>
-                          <input
-                            type="email"
-                            disabled
-                            value={user.email || ""}
-                            className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-xs md:text-sm text-slate-400 cursor-not-allowed opacity-80"
-                          />
-                        </div>
+                        <CyberInput
+                          label="Alamat Email (Terverifikasi)"
+                          value={user.email || ""}
+                          disabled
+                          helperText="Email dihubungkan ke autentikasi Supabase dan tidak dapat diubah langsung."
+                        />
 
                         <div className="pt-2 flex justify-end">
-                          <button
+                          <CyberButton
                             type="submit"
-                            disabled={isUpdatingProfile || !displayName.trim()}
-                            className="px-6 py-2.5 bg-primary hover:bg-primary-light text-white font-extrabold rounded-xl text-xs md:text-sm transition-all shadow-[0_0_20px_rgba(168,85,247,0.4)] flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                            variant="primary"
+                            size="md"
+                            isLoading={isUpdatingProfile}
+                            disabled={!displayName.trim()}
+                            leftIcon={<Save className="w-4 h-4" />}
                           >
-                            {isUpdatingProfile ? (
-                              <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                                <span>Menyimpan...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Save className="w-4 h-4" />
-                                <span>Simpan Perubahan</span>
-                              </>
-                            )}
-                          </button>
+                            Simpan Perubahan
+                          </CyberButton>
                         </div>
                       </form>
-                    </div>
-
-                    {/* ACCOUNT METADATA CARD */}
-                    <div className="bg-surface/80 border border-white/10 rounded-2xl p-6 backdrop-blur-md shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                      <div>
-                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-[10px] font-bold uppercase mb-1">
-                          <ShieldCheck className="w-3.5 h-3.5" /> Akun Aktif & Terlindungi
-                        </div>
-                        <p className="text-xs text-slate-300 font-mono">
-                          ID Akun: {user.id}
-                        </p>
-                      </div>
-
-                      <button
-                        onClick={signOut}
-                        className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer"
-                      >
-                        <LogOut className="w-4 h-4" />
-                        <span>Sign Out (Keluar Akun)</span>
-                      </button>
-                    </div>
+                    </CyberCard>
 
                   </div>
                 )}
@@ -897,84 +833,60 @@ function DashboardContent() {
         )}
 
         {/* CREATE SETLIST MODAL */}
-        {showCreateModal && user && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
-            <div className="relative w-full max-w-md bg-surface border border-white/15 rounded-2xl p-6 shadow-[0_0_50px_rgba(168,85,247,0.3)] text-white">
-              <button
-                onClick={() => setShowCreateModal(false)}
-                className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white bg-white/5 rounded-full cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/40 flex items-center justify-center text-primary">
-                  <FolderPlus className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-black text-white">Buat Setlist Baru</h3>
-                  <p className="text-slate-400 text-xs">Buat folder untuk menyimpan daftar lagu manggung</p>
-                </div>
+        <CyberModal
+          isOpen={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          title={
+            <span className="flex items-center gap-2">
+              <FolderPlus className="w-5 h-5 text-purple-400" />
+              <span>Buat Folder Setlist Baru</span>
+            </span>
+          }
+          description="Kelompokkan lagu untuk daftar latihan atau penampilan panggung."
+        >
+          <form onSubmit={handleCreateSetlistSubmit} className="space-y-4">
+            {createSetlistError && (
+              <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-400 text-xs font-medium">
+                {createSetlistError}
               </div>
+            )}
 
-              <form onSubmit={handleCreateSetlistSubmit} className="space-y-4">
-                {createSetlistError && (
-                  <div className="p-3 rounded-xl bg-red-500/15 border border-red-500/40 text-red-400 text-xs font-bold flex items-center gap-2">
-                    <X className="w-4 h-4 text-red-400 flex-shrink-0" />
-                    <span>{createSetlistError}</span>
-                  </div>
-                )}
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">
-                    Nama Setlist <span className="text-primary">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Contoh: Nongkrong Cafe, Acoustic Night"
-                    value={newSetlistName}
-                    onChange={(e) => setNewSetlistName(e.target.value)}
-                    className="w-full bg-black/60 border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-primary"
-                  />
-                </div>
+            <CyberInput
+              label="Nama Setlist"
+              value={newSetlistName}
+              onChange={(e) => setNewSetlistName(e.target.value)}
+              placeholder="Contoh: Latihan Band Sabtu / Akustikan Cafe"
+              icon={<Folder className="w-4 h-4" />}
+              required
+            />
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">
-                    Deskripsi (Opsional)
-                  </label>
-                  <textarea
-                    rows={3}
-                    placeholder="Catatan singkat tentang setlist ini..."
-                    value={newSetlistDesc}
-                    onChange={(e) => setNewSetlistDesc(e.target.value)}
-                    className="w-full bg-black/60 border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-primary resize-none"
-                  />
-                </div>
-
-                <div className="flex justify-end gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowCreateModal(false)}
-                    className="px-4 py-2 bg-white/5 border border-white/10 text-slate-300 rounded-xl text-xs font-bold hover:bg-white/10 transition-colors cursor-pointer"
-                  >
-                    Batal
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isCreatingSetlist}
-                    className="px-5 py-2 bg-primary text-white font-bold rounded-xl text-xs hover:bg-primary-light transition-all shadow-neon-sm cursor-pointer disabled:opacity-50"
-                  >
-                    {isCreatingSetlist ? "Menyimpan..." : "Buat Setlist"}
-                  </button>
-                </div>
-              </form>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+                Deskripsi / Catatan (Opsional)
+              </label>
+              <textarea
+                rows={3}
+                value={newSetlistDesc}
+                onChange={(e) => setNewSetlistDesc(e.target.value)}
+                placeholder="Tuliskan detail tempat, tanggal, atau daftar lagu..."
+                className="w-full bg-slate-950/70 border border-purple-500/25 focus:border-purple-500 text-slate-100 placeholder-slate-500 text-sm rounded-xl p-3 outline-none transition-all duration-200"
+              />
             </div>
-          </div>
-        )}
 
-        {/* AUTH MODAL FOR UNREGISTERED VISITORS */}
+            <div className="pt-3 flex items-center justify-end gap-3">
+              <CyberButton variant="ghost" size="sm" type="button" onClick={() => setShowCreateModal(false)}>
+                Batal
+              </CyberButton>
+              <CyberButton variant="primary" size="sm" type="submit" isLoading={isCreatingSetlist}>
+                Buat Setlist
+              </CyberButton>
+            </div>
+          </form>
+        </CyberModal>
+
+        {/* AUTH MODAL FOR GUEST */}
         <AuthModal
-          isOpen={showAuthModal && !user}
+          isOpen={showAuthModal}
           onClose={() => setShowAuthModal(false)}
           initialMode={authModalMode}
         />
@@ -986,16 +898,12 @@ function DashboardContent() {
 
 export default function DashboardPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white font-bold">
-          <Loader2 className="w-8 h-8 text-primary animate-spin mr-3" />
-          <span>Memuat Dashboard...</span>
-        </div>
-      }
-    >
+    <Suspense fallback={
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">
+        <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
+      </div>
+    }>
       <DashboardContent />
     </Suspense>
   );
 }
-

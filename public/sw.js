@@ -34,6 +34,16 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
 
+  // Ignore Next.js internal requests, HMR, chrome extensions, and API routes
+  if (
+    url.pathname.startsWith('/_next/') ||
+    url.pathname.startsWith('/api/') ||
+    url.protocol === 'chrome-extension:' ||
+    url.pathname.includes('webpack')
+  ) {
+    return;
+  }
+
   // For HTML page requests (navigation)
   if (event.request.mode === 'navigate') {
     event.respondWith(
