@@ -19,7 +19,7 @@ import { incrementSongViews } from "@/lib/supabase";
 import { useAuth } from "@/lib/authContext";
 import AuthModal from "@/components/AuthModal";
 import { getVideoTutorials, VideoTutorial } from "@/lib/adminCurated";
-import FretboardModal from "@/components/FretboardModal";
+import { ChordVisualizer } from "@/components/ui/ChordVisualizer";
 import FloatingYouTubePlayer from "@/components/FloatingYouTubePlayer";
 import Metronome from "@/components/Metronome";
 import SongRating from "@/components/SongRating";
@@ -792,11 +792,20 @@ export default function ChordClientDetail(props: ChordClientDetailProps) {
         </div>
       )}
 
-      {/* FRETBOARD DIAGRAM MODAL */}
-      <FretboardModal 
-        chordName={selectedChordForDiagram} 
-        onClose={() => setSelectedChordForDiagram(null)} 
-      />
+      {/* CHORD VISUALIZER MODAL */}
+      <CyberModal
+        isOpen={!!selectedChordForDiagram}
+        onClose={() => setSelectedChordForDiagram(null)}
+        title={`Diagram Chord: ${selectedChordForDiagram}`}
+      >
+        {selectedChordForDiagram && (
+          <ChordVisualizer
+            chordName={selectedChordForDiagram}
+            initialInstrument="guitar"
+            showSwitcher={true}
+          />
+        )}
+      </CyberModal>
 
       {/* VIDEO TUTORIAL MODAL */}
       <VideoTutorialModal
