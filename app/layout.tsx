@@ -6,6 +6,7 @@ import Footer from "@/components/Footer";
 import { AuthProvider } from "@/lib/authContext";
 import OfflineGuard from "@/components/OfflineGuard";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
+import SmoothScrollProvider from "@/components/providers/SmoothScrollProvider";
 
 export const viewport: Viewport = {
   themeColor: '#090d16',
@@ -42,22 +43,24 @@ export default function RootLayout({
     <html lang="id" className="dark">
       <body className="antialiased min-h-screen flex flex-col selection:bg-primary/30 bg-slate-950 text-slate-100">
         <AuthProvider>
-          {/* Offline Guard Indicator */}
-          <OfflineGuard />
+          <SmoothScrollProvider>
+            {/* Offline Guard Indicator */}
+            <OfflineGuard />
 
-          {/* Fixed Navbar */}
-          <Navbar />
+            {/* Fixed Navbar */}
+            <Navbar />
 
-          {/* Main Content Area */}
-          <main className="flex-grow">
-            {children}
-          </main>
+            {/* Main Content Area */}
+            <main className="flex-grow">
+              {children}
+            </main>
 
-          {/* PWA Installation Floating Banner */}
-          <PWAInstallPrompt />
+            {/* PWA Installation Floating Banner */}
+            <PWAInstallPrompt />
 
-          {/* Cyber-Zen Footer Component */}
-          <Footer />
+            {/* Cyber-Zen Footer Component */}
+            <Footer />
+          </SmoothScrollProvider>
         </AuthProvider>
       </body>
     </html>

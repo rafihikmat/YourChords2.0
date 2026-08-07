@@ -44,7 +44,7 @@ export const CyberModal: React.FC<CyberModalProps> = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto" data-lenis-prevent>
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
