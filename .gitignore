@@ -1,26 +1,72 @@
-# Logs
-logs
+# ==========================================
+# DevSecOps Hardened .gitignore Policy
+# ==========================================
+
+# Core Repository Metadata & Hidden Git Directories
+.git
+.git/
+.gitignore~
+
+# Secrets & Environment Variables (Strict Blocking)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*
+!.env.example
+*.env
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+*.p12
+credentials.json
+secrets.json
+
+# Dependencies
+node_modules/
+/.pnp
+.pnp.js
+
+# Build Artifacts & Output
+.next/
+/out/
+/build/
+/dist/
+/dist-ssr/
+.vercel/
+.turbo/
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+
+# Debug & Execution Logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+.cache/
+.eslintcache
 
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-!.vscode/settings.json
-.idea
+# Operating System Files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor & IDE Directories
+.vscode/
+.idea/
+*.swp
+*.swo
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
-*.sw?
-.next/
