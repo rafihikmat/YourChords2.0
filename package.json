@@ -7,7 +7,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "21st:login": "21st login",
+    "21st:add": "21st add"
   },
   "dependencies": {
     "@google/genai": "latest",
@@ -42,6 +44,7 @@
     "three": "^0.181.2"
   },
   "devDependencies": {
+    "@21st-dev/cli": "^1.15.1",
     "@eslint/js": "^9.39.1",
     "@types/node": "^22.14.0",
     "eslint": "^9.39.1",
