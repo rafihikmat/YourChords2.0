@@ -3,8 +3,9 @@ export const revalidate = 60;
 import React from "react";
 import Link from "next/link";
 import { 
-  Sparkles, Music, Flame, TrendingUp, ArrowRight, Search, 
-  Play, Users, Zap, Guitar, Megaphone, Star, ChevronRight
+  Sparkles, Music, Flame, ArrowRight, Search, 
+  Play, Users, Zap, Guitar, Megaphone, ChevronRight,
+  Sliders, Volume2, Wand2, BookOpen
 } from "lucide-react";
 import { getTopSongs, getNewReleases, getPopularArtists } from "@/lib/supabase";
 import { getSiteCMSContent } from "@/lib/adminCMS";
@@ -53,7 +54,7 @@ export default async function Home() {
           </div>
         )}
 
-        {/* HERO SECTION - BENTO GRID LAYOUT */}
+        {/* HERO BENTO GRID SECTION */}
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Hero Card (2 Columns) */}
           <CyberCard variant="glowing" padding="lg" className="lg:col-span-2 flex flex-col justify-between relative overflow-hidden group">
@@ -63,7 +64,7 @@ export default async function Home() {
             <div className="space-y-6 relative z-10">
               <div className="inline-flex items-center gap-2">
                 <CyberBadge variant="purple" pulse icon={<Sparkles className="w-3.5 h-3.5 text-amber-400" />}>
-                  AI-Powered Guitar Platform
+                  AI-Powered Guitar & Piano Platform
                 </CyberBadge>
               </div>
 
@@ -79,7 +80,7 @@ export default async function Home() {
 
               <p className="text-slate-300 text-sm sm:text-base leading-relaxed max-w-2xl font-normal">
                 {cmsContent?.heroSubtitle || 
-                  "Ribuan lirik & chord gitar akurat dengan fitur Smart Transposer, Auto-Scroll Teleprompter, Simulasi Genjreng Audio Synth, dan Transkripsi AI Real-time."}
+                  "Ribuan lirik & chord gitar/piano akurat dengan Smart Transposer, Auto-Scroll Teleprompter, Visualizer Fretboard & Tuts Piano, serta Transkripsi AI Real-time."}
               </p>
             </div>
 
@@ -90,15 +91,15 @@ export default async function Home() {
                 </CyberButton>
               </Link>
 
-              <Link href="/features">
-                <CyberButton variant="outline" size="lg" rightIcon={<ArrowRight className="w-4 h-4" />}>
-                  Jelajahi Fitur
+              <Link href="/chords">
+                <CyberButton variant="outline" size="lg" leftIcon={<BookOpen className="w-4 h-4" />}>
+                  Kamus Chord 3D
                 </CyberButton>
               </Link>
             </div>
           </CyberCard>
 
-          {/* Side Card: Song of the Day / Quick Stats Widget (1 Column) */}
+          {/* Side Card: Song of the Day / Featured Widget */}
           <CyberCard variant="glowing" padding="lg" className="lg:col-span-1 flex flex-col justify-between relative">
             <div className="flex items-center justify-between mb-4">
               <CyberBadge variant="amber" icon={<Flame className="w-3.5 h-3.5 text-amber-400" />}>
@@ -150,6 +151,69 @@ export default async function Home() {
               <span>✨ 10,000+ Kunci Gitar</span>
               <span>⚡ Transkripsi AI</span>
             </div>
+          </CyberCard>
+        </section>
+
+        {/* QUICK TOOLS WIDGET BENTO SECTION */}
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <CyberCard variant="interactive" padding="md" className="group">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/40 text-purple-300 flex items-center justify-center">
+                <Sliders className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white group-hover:text-cyan-300 transition-colors">Smart Transposer</h3>
+                <p className="text-xs text-slate-400">Ubah nada dasar lagu secara otomatis dalam 1-klik</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed mb-4">
+              Ubah kunci gitar sesuai jangkauan vokal Anda tanpa perlu menghafal ulang pola fingerings.
+            </p>
+            <Link href="/chords">
+              <CyberButton variant="ghost" size="sm" rightIcon={<ArrowRight className="w-3.5 h-3.5" />}>
+                Coba Transposer
+              </CyberButton>
+            </Link>
+          </CyberCard>
+
+          <CyberCard variant="interactive" padding="md" className="group">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 flex items-center justify-center">
+                <Volume2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white group-hover:text-purple-300 transition-colors">Visualizer 2D/3D</h3>
+                <p className="text-xs text-slate-400">Gitar Fretboard & Piano Interactive</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed mb-4">
+              Lihat posisi jari pada fretboard gitar serta tuts piano dengan synthesizer Web Audio bawaan.
+            </p>
+            <Link href="/chords">
+              <CyberButton variant="ghost" size="sm" rightIcon={<ArrowRight className="w-3.5 h-3.5" />}>
+                Buka Visualizer
+              </CyberButton>
+            </Link>
+          </CyberCard>
+
+          <CyberCard variant="interactive" padding="md" className="group">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 flex items-center justify-center">
+                <Wand2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white group-hover:text-amber-300 transition-colors">AI Transcriber</h3>
+                <p className="text-xs text-slate-400">Transkripsi Lagu Youtube/Spotify</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed mb-4">
+              Ekstrak chord & lirik secara otomatis dari lagu favorit Anda menggunakan AI Gemini.
+            </p>
+            <Link href="/ai-generator">
+              <CyberButton variant="ghost" size="sm" rightIcon={<ArrowRight className="w-3.5 h-3.5" />}>
+                Generate dengan AI
+              </CyberButton>
+            </Link>
           </CyberCard>
         </section>
 
